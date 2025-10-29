@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRupiah } from "@/lib/currency";
-import { Pencil, Trash2, FileText, Package } from "lucide-react";
+import { Pencil, Trash2, FileText, Package, CheckCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -22,9 +22,18 @@ interface TransactionListProps {
   onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
   onViewInvoice: (transaction: Transaction) => void;
+  onStatusChange?: (id: string, newStatus: 'Paid' | 'Pending') => void;
+  showStatusButtons?: boolean;
 }
 
-export const TransactionList = ({ transactions, onEdit, onDelete, onViewInvoice }: TransactionListProps) => {
+export const TransactionList = ({ 
+  transactions, 
+  onEdit, 
+  onDelete, 
+  onViewInvoice, 
+  onStatusChange, 
+  showStatusButtons = false 
+}: TransactionListProps) => {
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
@@ -180,7 +189,7 @@ export const TransactionList = ({ transactions, onEdit, onDelete, onViewInvoice 
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {transaction.type === "sale" && (
                     <Button
                       size="sm"
@@ -192,6 +201,35 @@ export const TransactionList = ({ transactions, onEdit, onDelete, onViewInvoice 
                       Invoice
                     </Button>
                   )}
+                  
+                  {/* Payment Status Change Buttons */}
+                  {showStatusButtons && onStatusChange && transaction.type === "sale" && (
+                    <>
+                      {transaction.paymentStatus === 'Pending' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
+                          onClick={() => onStatusChange(transaction.id, 'Paid')}
+                        >
+                          <CheckCircle className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Tandai Lunas</span>
+                        </Button>
+                      )}
+                      {transaction.paymentStatus === 'Paid' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200 flex-shrink-0"
+                          onClick={() => onStatusChange(transaction.id, 'Pending')}
+                        >
+                          <Clock className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Tandai Pending</span>
+                        </Button>
+                      )}
+                    </>
+                  )}
+                  
                   <Button size="sm" variant="outline" onClick={() => onEdit(transaction)}>
                     <Pencil className="h-4 w-4" />
                   </Button>

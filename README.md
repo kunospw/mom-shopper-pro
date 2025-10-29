@@ -1,73 +1,100 @@
-# Welcome to your Lovable project
+# Mom Shopper Pro
 
-## Project info
+A modern reseller management application built with React, TypeScript, Vite, and Firebase. Features include Google authentication, user profile management with customizable business information, and professional invoicing with QRIS integration.
 
-**URL**: https://lovable.dev/projects/70e7a482-9c9b-4701-a523-8e81f1bf874c
+## Features
 
-## How can I edit this code?
+- 🔐 **Google Authentication** - Secure login with Firebase Auth
+- 👤 **User Profile Management** - Customize business info, bank details, and QRIS
+- 📄 **Professional Invoicing** - Generate invoices with business branding
+- 💳 **Payment Integration** - Bank transfer details and QRIS code display
+- 📱 **WhatsApp Sharing** - Share invoices directly via WhatsApp
+- 📊 **Transaction Management** - Track sales, purchases, and payments
+- 📈 **Monthly Reports** - View detailed sales analytics
 
-There are several ways of editing your application.
+## Setup Instructions
 
-**Use Lovable**
+### 1. Clone and Install Dependencies
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/70e7a482-9c9b-4701-a523-8e81f1bf874c) and start prompting.
+```bash
+# Clone the repository
+git clone <your-repo-url>
+cd mom-shopper-pro
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Install dependencies
+npm install
 ```
 
-**Edit a file directly in GitHub**
+### 2. Firebase Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Create a new project or use existing one
+3. Enable Authentication and add Google as a sign-in provider
+4. Enable Firestore Database
+5. Get your Firebase configuration
 
-**Use GitHub Codespaces**
+### 3. Environment Configuration
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+1. Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
 
-## What technologies are used for this project?
+2. Update `.env` with your Firebase configuration:
+   ```env
+   VITE_FIREBASE_API_KEY=your-actual-api-key
+   VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
+   VITE_FIREBASE_APP_ID=your-app-id
+   ```
 
-This project is built with:
+### 4. Firebase Security Rules
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Update your Firestore rules to allow authenticated users to manage their profiles:
 
-## How can I deploy this project?
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only access their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
 
-Simply open [Lovable](https://lovable.dev/projects/70e7a482-9c9b-4701-a523-8e81f1bf874c) and click on Share -> Publish.
+**Note**: QRIS images are stored as base64 strings in Firestore, so Firebase Storage is not required.
 
-## Can I connect a custom domain to my Lovable project?
+### 5. Run the Application
 
-Yes, you can!
+```bash
+# Start development server
+npm run dev
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Build for production
+npm run build
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Usage
+
+1. **Login**: Visit the app and sign in with your Google account
+2. **Setup Profile**: Go to Profile page to add your business information:
+   - Business name, address, and phone
+   - Bank account details for transfers
+   - Upload QRIS image for digital payments
+3. **Create Transactions**: Add sales and purchase transactions
+4. **Generate Invoices**: View and share professional invoices with your branding
+5. **Track Performance**: Monitor your sales through monthly reports
+
+## Technologies Used
+
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: shadcn/ui, Tailwind CSS, Radix UI
+- **Backend**: Firebase (Auth, Firestore, Storage)
+- **Forms**: React Hook Form with Zod validation
+- **Routing**: React Router Dom
+- **Charts**: Recharts
+- **Notifications**: Sonner
