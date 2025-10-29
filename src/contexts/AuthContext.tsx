@@ -7,7 +7,7 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { AuthContextType, UserProfile } from '@/types/user';
-import { getUserProfile, createUserProfile, updateUserProfile as updateUserProfileInDB } from '@/lib/storage';
+import { getUserProfile, createUserProfile, updateUserProfile as updateUserProfileInDB, migrateLocalStorageToFirebase } from '@/lib/storage';
 import { toast } from 'sonner';
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -49,6 +49,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           
           setUser(userProfile);
+          
+          // Migrate local transactions to Firebase if needed
+          try {
+            await migrateLocalStorageToFirebase();
+          } catch (error) {
+            console.error('Error migrating transactions:', error);
+          }
         } catch (error) {
           console.error('Error loading user profile:', error);
           toast.error('Gagal memuat profil pengguna');

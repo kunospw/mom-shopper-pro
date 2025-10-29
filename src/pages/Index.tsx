@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatRupiah } from "@/lib/currency";
-import { Plus, List, BarChart3, User, LogOut, Settings, Building, DollarSign, CheckCircle, Clock, TrendingUp } from "lucide-react";
+import { Plus, List, BarChart3, User, LogOut, Settings, Building, DollarSign, CheckCircle, Clock, TrendingUp, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -24,25 +24,47 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("list");
 
   useEffect(() => {
-    setTransactions(getTransactions());
+    const loadTransactions = async () => {
+      const loadedTransactions = await getTransactions();
+      setTransactions(loadedTransactions);
+    };
+    loadTransactions();
   }, []);
 
-  const handleAddTransaction = (transaction: Transaction) => {
-    addTransaction(transaction);
-    setTransactions(getTransactions());
-    setActiveTab("list");
+  const handleAddTransaction = async (transaction: Transaction) => {
+    try {
+      await addTransaction(transaction);
+      const updatedTransactions = await getTransactions();
+      setTransactions(updatedTransactions);
+      setActiveTab("list");
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      toast.error("Gagal menambah transaksi. Coba lagi.");
+    }
   };
 
-  const handleUpdateTransaction = (transaction: Transaction) => {
-    updateTransaction(transaction.id, transaction);
-    setTransactions(getTransactions());
-    setEditingTransaction(null);
-    setActiveTab("list");
+  const handleUpdateTransaction = async (transaction: Transaction) => {
+    try {
+      await updateTransaction(transaction.id, transaction);
+      const updatedTransactions = await getTransactions();
+      setTransactions(updatedTransactions);
+      setEditingTransaction(null);
+      setActiveTab("list");
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      toast.error("Gagal mengupdate transaksi. Coba lagi.");
+    }
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    deleteTransaction(id);
-    setTransactions(getTransactions());
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      await deleteTransaction(id);
+      const updatedTransactions = await getTransactions();
+      setTransactions(updatedTransactions);
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast.error("Gagal menghapus transaksi. Coba lagi.");
+    }
   };
 
   const handleEditClick = (transaction: Transaction) => {
@@ -59,22 +81,28 @@ const Index = () => {
     setSelectedInvoice(transaction);
   };
 
-  const handleStatusChange = (id: string, newStatus: 'Paid' | 'Pending') => {
+  const handleStatusChange = async (id: string, newStatus: 'Paid' | 'Pending') => {
     const transaction = transactions.find(t => t.id === id);
     if (transaction) {
-      const updatedTransaction = { ...transaction, paymentStatus: newStatus };
-      updateTransaction(id, updatedTransaction);
-      setTransactions(getTransactions());
-      
-      // Show success toast
-      if (newStatus === 'Paid') {
-        toast.success('✅ Transaksi berhasil diubah ke Lunas!', {
-          description: `Pembayaran dari ${transaction.buyerName || 'Customer'} telah dikonfirmasi`
-        });
-      } else {
-        toast.warning('⏰ Transaksi berhasil diubah ke Belum Lunas', {
-          description: `Status pembayaran dari ${transaction.buyerName || 'Customer'} diubah ke pending`
-        });
+      try {
+        const updatedTransaction = { ...transaction, paymentStatus: newStatus };
+        await updateTransaction(id, updatedTransaction);
+        const updatedTransactions = await getTransactions();
+        setTransactions(updatedTransactions);
+        
+        // Show success toast
+        if (newStatus === 'Paid') {
+          toast.success('✅ Transaksi berhasil diubah ke Lunas!', {
+            description: `Pembayaran dari ${transaction.buyerName || 'Customer'} telah dikonfirmasi`
+          });
+        } else {
+          toast.warning('⏰ Transaksi berhasil diubah ke Belum Lunas', {
+            description: `Status pembayaran dari ${transaction.buyerName || 'Customer'} diubah ke pending`
+          });
+        }
+      } catch (error) {
+        console.error("Error updating transaction status:", error);
+        toast.error("Gagal mengubah status pembayaran. Coba lagi.");
       }
     }
   };
@@ -136,7 +164,7 @@ const Index = () => {
 
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Dashboard Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
@@ -212,6 +240,27 @@ const Index = () => {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">Keuntungan bersih</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4 text-purple-600" />
+                Total Belanja
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">
+                {formatRupiah(
+                  transactions
+                    .filter(t => t.type === 'stock')
+                    .reduce((sum, t) => {
+                      return sum + ((t.basePrice || 0) * (t.quantity || 1));
+                    }, 0)
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Modal stok barang</p>
             </CardContent>
           </Card>
         </div>

@@ -1,39 +1,196 @@
 import { Transaction } from "@/types/transaction";
 import { UserProfile } from "@/types/user";
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, addDoc, serverTimestamp, query, orderBy, where } from "firebase/firestore";
 import { db } from "./firebase";
+import { auth } from "./firebase";
 
 const STORAGE_KEY = "reseller-transactions";
 const USER_PROFILE_KEY = "user-profile";
 
-export const getTransactions = (): Transaction[] => {
-  const data = localStorage.getItem(STORAGE_KEY);
-  return data ? JSON.parse(data) : [];
+// Helper function to get current user ID
+const getCurrentUserId = (): string | null => {
+  return auth.currentUser?.uid || null;
 };
 
-export const saveTransactions = (transactions: Transaction[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-};
+// Migration function to move localStorage data to Firebase
+export const migrateLocalStorageToFirebase = async (): Promise<void> => {
+  const userId = getCurrentUserId();
+  if (!userId) return;
 
-export const addTransaction = (transaction: Transaction) => {
-  const transactions = getTransactions();
-  transactions.push(transaction);
-  saveTransactions(transactions);
-};
+  try {
+    const localData = localStorage.getItem(STORAGE_KEY);
+    if (!localData) return;
 
-export const updateTransaction = (id: string, updatedTransaction: Transaction) => {
-  const transactions = getTransactions();
-  const index = transactions.findIndex((t) => t.id === id);
-  if (index !== -1) {
-    transactions[index] = updatedTransaction;
-    saveTransactions(transactions);
+    const transactions: Transaction[] = JSON.parse(localData);
+    if (transactions.length === 0) return;
+
+    console.log(`Migrating ${transactions.length} transactions to Firebase...`);
+
+    // Check if user already has transactions in Firebase
+    const existingTransactions = await getTransactions();
+    if (existingTransactions.length > 0) {
+      console.log("Firebase transactions already exist, skipping migration");
+      return;
+    }
+
+    // Migrate each transaction
+    const transactionsRef = collection(db, "users", userId, "transactions");
+    for (const transaction of transactions) {
+      const { id, ...transactionData } = transaction;
+      await addDoc(transactionsRef, {
+        ...transactionData,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+    }
+
+    console.log("Migration completed successfully!");
+    
+    // Optionally clear localStorage after successful migration
+    // localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error("Error during migration:", error);
   }
 };
 
-export const deleteTransaction = (id: string) => {
-  const transactions = getTransactions();
-  const filtered = transactions.filter((t) => t.id !== id);
-  saveTransactions(filtered);
+// Firebase-based transaction operations
+export const getTransactions = async (): Promise<Transaction[]> => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    // Fallback to localStorage if user not authenticated
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+
+  try {
+    const transactionsRef = collection(db, "users", userId, "transactions");
+    const q = query(transactionsRef, orderBy("date", "desc"));
+    const querySnapshot = await getDocs(q);
+    
+    const transactions: Transaction[] = [];
+    querySnapshot.forEach((doc) => {
+      transactions.push({
+        id: doc.id,
+        ...doc.data()
+      } as Transaction);
+    });
+    
+    return transactions;
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    // Fallback to localStorage
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  }
+};
+
+export const saveTransactions = (transactions: Transaction[]) => {
+  // Keep localStorage as backup
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+};
+
+export const addTransaction = async (transaction: Transaction): Promise<void> => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    // Fallback to localStorage
+    const transactions = await getTransactions();
+    transactions.push(transaction);
+    saveTransactions(transactions);
+    return;
+  }
+
+  try {
+    const transactionsRef = collection(db, "users", userId, "transactions");
+    const { id, ...transactionData } = transaction;
+    
+    await addDoc(transactionsRef, {
+      ...transactionData,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Also save to localStorage as backup
+    const transactions = await getTransactions();
+    transactions.unshift(transaction);
+    saveTransactions(transactions);
+  } catch (error) {
+    console.error("Error adding transaction:", error);
+    // Fallback to localStorage
+    const transactions = await getTransactions();
+    transactions.push(transaction);
+    saveTransactions(transactions);
+    throw error;
+  }
+};
+
+export const updateTransaction = async (id: string, updatedTransaction: Transaction): Promise<void> => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    // Fallback to localStorage
+    const transactions = await getTransactions();
+    const index = transactions.findIndex((t) => t.id === id);
+    if (index !== -1) {
+      transactions[index] = updatedTransaction;
+      saveTransactions(transactions);
+    }
+    return;
+  }
+
+  try {
+    const transactionDoc = doc(db, "users", userId, "transactions", id);
+    const { id: docId, ...transactionData } = updatedTransaction;
+    
+    await updateDoc(transactionDoc, {
+      ...transactionData,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Update localStorage backup
+    const transactions = await getTransactions();
+    const index = transactions.findIndex((t) => t.id === id);
+    if (index !== -1) {
+      transactions[index] = updatedTransaction;
+      saveTransactions(transactions);
+    }
+  } catch (error) {
+    console.error("Error updating transaction:", error);
+    // Fallback to localStorage
+    const transactions = await getTransactions();
+    const index = transactions.findIndex((t) => t.id === id);
+    if (index !== -1) {
+      transactions[index] = updatedTransaction;
+      saveTransactions(transactions);
+    }
+    throw error;
+  }
+};
+
+export const deleteTransaction = async (id: string): Promise<void> => {
+  const userId = getCurrentUserId();
+  if (!userId) {
+    // Fallback to localStorage
+    const transactions = await getTransactions();
+    const filtered = transactions.filter((t) => t.id !== id);
+    saveTransactions(filtered);
+    return;
+  }
+
+  try {
+    const transactionDoc = doc(db, "users", userId, "transactions", id);
+    await deleteDoc(transactionDoc);
+    
+    // Update localStorage backup
+    const transactions = await getTransactions();
+    const filtered = transactions.filter((t) => t.id !== id);
+    saveTransactions(filtered);
+  } catch (error) {
+    console.error("Error deleting transaction:", error);
+    // Fallback to localStorage
+    const transactions = await getTransactions();
+    const filtered = transactions.filter((t) => t.id !== id);
+    saveTransactions(filtered);
+    throw error;
+  }
 };
 
 // User Profile Firebase operations
