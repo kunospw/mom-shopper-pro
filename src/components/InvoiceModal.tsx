@@ -16,7 +16,7 @@ interface InvoiceModalProps {
 export const InvoiceModal = ({ transaction, isOpen, onClose }: InvoiceModalProps) => {
   const invoiceRef = useRef<HTMLDivElement>(null);
 
-  if (!transaction) return null;
+  if (!transaction || transaction.type !== "sale") return null;
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString("id-ID", {
@@ -68,16 +68,19 @@ export const InvoiceModal = ({ transaction, isOpen, onClose }: InvoiceModalProps
           navigator
             .share({
               files: [file],
-              title: `Invoice - ${transaction.productName}`,
+              title: `Invoice - ${transaction.buyerName}`,
               text: `Invoice untuk ${transaction.buyerName}`,
             })
             .then(() => toast.success("Berhasil dibagikan"))
             .catch(() => toast.error("Gagal membagikan"));
         } else {
-          // Fallback: create WhatsApp message with text
+          const itemsList = transaction.items?.map(item => 
+            `${item.productName} (${item.quantity}x) - ${formatRupiah(item.sellingPrice * item.quantity)}`
+          ).join("\n") || "";
+          
           const message = encodeURIComponent(
-            `*INVOICE*\n\nProduk: ${transaction.productName}\nPembeli: ${transaction.buyerName}\nTotal: ${formatRupiah(
-              transaction.sellingPrice
+            `*INVOICE*\n\nPembeli: ${transaction.buyerName}\n\nProduk:\n${itemsList}\n\nTotal: ${formatRupiah(
+              transaction.totalSellingPrice || 0
             )}\nStatus: ${transaction.paymentStatus === "Paid" ? "Lunas" : "Belum Lunas"}\n\nTerima kasih!`
           );
           window.open(`https://wa.me/?text=${message}`, "_blank");
@@ -114,22 +117,24 @@ export const InvoiceModal = ({ transaction, isOpen, onClose }: InvoiceModalProps
             </div>
 
             <div className="border-t pt-3">
-              <p className="text-sm text-muted-foreground">Produk</p>
-              <p className="font-semibold text-lg">{transaction.productName}</p>
-            </div>
-
-            <div className="space-y-2 border-t pt-3">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Harga Modal</span>
-                <span>{formatRupiah(transaction.basePrice)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Harga Jual</span>
-                <span className="font-semibold">{formatRupiah(transaction.sellingPrice)}</span>
-              </div>
-              <div className="flex justify-between border-t pt-2">
-                <span className="font-semibold">Total Bayar</span>
-                <span className="font-bold text-lg text-primary">{formatRupiah(transaction.sellingPrice)}</span>
+              <p className="text-sm text-muted-foreground mb-2">Produk</p>
+              <div className="space-y-3">
+                {transaction.items?.map((item, index) => (
+                  <div key={index} className="text-sm space-y-1 pb-2 border-b last:border-b-0">
+                    <div className="flex justify-between">
+                      <span className="font-medium">{item.productName}</span>
+                      <span className="text-muted-foreground">x{item.quantity}</span>
+                    </div>
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Harga satuan:</span>
+                      <span>{formatRupiah(item.sellingPrice)}</span>
+                    </div>
+                    <div className="flex justify-between font-medium">
+                      <span>Subtotal:</span>
+                      <span>{formatRupiah(item.sellingPrice * item.quantity)}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -165,6 +170,13 @@ export const InvoiceModal = ({ transaction, isOpen, onClose }: InvoiceModalProps
                 </div>
               </div>
             )}
+
+            <div className="border-t pt-3">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">Total Bayar</span>
+                <span className="font-bold text-lg text-primary">{formatRupiah(transaction.totalSellingPrice || 0)}</span>
+              </div>
+            </div>
           </div>
 
           <div className="text-center text-xs text-muted-foreground border-t pt-4">

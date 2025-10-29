@@ -16,12 +16,12 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
 
     const monthlyTransactions = transactions.filter((t) => {
       const date = new Date(t.date);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      return t.type === "sale" && date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     });
 
-    const totalSales = monthlyTransactions.reduce((sum, t) => sum + t.sellingPrice, 0);
-    const totalCapital = monthlyTransactions.reduce((sum, t) => sum + t.basePrice, 0);
-    const totalProfit = monthlyTransactions.reduce((sum, t) => sum + t.profit, 0);
+    const totalSales = monthlyTransactions.reduce((sum, t) => sum + (t.totalSellingPrice || 0), 0);
+    const totalCapital = monthlyTransactions.reduce((sum, t) => sum + (t.totalBasePrice || 0), 0);
+    const totalProfit = monthlyTransactions.reduce((sum, t) => sum + (t.totalProfit || 0), 0);
 
     return {
       totalSales,
@@ -35,6 +35,8 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
     const monthlyData: { [key: string]: { sales: number; profit: number; capital: number } } = {};
 
     transactions.forEach((t) => {
+      if (t.type !== "sale") return;
+      
       const date = new Date(t.date);
       const monthYear = `${date.toLocaleDateString("id-ID", { month: "short" })} ${date.getFullYear()}`;
 
@@ -42,9 +44,9 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
         monthlyData[monthYear] = { sales: 0, profit: 0, capital: 0 };
       }
 
-      monthlyData[monthYear].sales += t.sellingPrice;
-      monthlyData[monthYear].profit += t.profit;
-      monthlyData[monthYear].capital += t.basePrice;
+      monthlyData[monthYear].sales += t.totalSellingPrice || 0;
+      monthlyData[monthYear].profit += t.totalProfit || 0;
+      monthlyData[monthYear].capital += t.totalBasePrice || 0;
     });
 
     return Object.entries(monthlyData)
