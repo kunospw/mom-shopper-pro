@@ -1,4 +1,4 @@
-# Mom Shopper Pro
+# Reseller Manager App
 
 A modern reseller management application built with React, TypeScript, Vite, and Firebase. Features include Google authentication, user profile management with customizable business information, and professional invoicing with QRIS integration.
 
@@ -19,7 +19,7 @@ A modern reseller management application built with React, TypeScript, Vite, and
 ```bash
 # Clone the repository
 git clone <your-repo-url>
-cd mom-shopper-pro
+cd reseller-manager-app
 
 # Install dependencies
 npm install

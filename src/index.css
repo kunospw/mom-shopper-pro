@@ -113,6 +113,29 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-size: 16px; /* Base font size for better readability */
+  }
+
+  /* Larger base font sizes for better readability for older users */
+  p, span, div {
+    font-size: 1rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+  }
+
+  /* Improve text readability with better line height */
+  p, span, div, button {
+    line-height: 1.6;
   }
 }
 

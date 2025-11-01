@@ -1,141 +1,407 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Transaction } from "@/types/transaction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatRupiah } from "@/lib/currency";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, ShoppingBag } from "lucide-react";
+import { TrendingUp, DollarSign, ShoppingBag, Calendar, ArrowUpDown } from "lucide-react";
 
 interface MonthlyRecapProps {
   transactions: Transaction[];
 }
 
-export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
-  const stats = useMemo(() => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+type DateRangePreset = 'this-month' | 'last-3-months' | 'last-6-months' | 'this-year' | 'all-time' | 'custom';
 
-    const monthlyTransactions = transactions.filter((t) => {
+export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('this-month');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const getDateRange = () => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    switch (dateRangePreset) {
+      case 'this-month':
+        return {
+          start: new Date(currentYear, currentMonth, 1),
+          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+        };
+      case 'last-3-months':
+        return {
+          start: new Date(currentYear, currentMonth - 2, 1),
+          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+        };
+      case 'last-6-months':
+        return {
+          start: new Date(currentYear, currentMonth - 5, 1),
+          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+        };
+      case 'this-year':
+        return {
+          start: new Date(currentYear, 0, 1),
+          end: new Date(currentYear, 11, 31, 23, 59, 59)
+        };
+      case 'all-time':
+        return {
+          start: new Date(2020, 0, 1), // Arbitrary early date
+          end: new Date(2030, 11, 31, 23, 59, 59) // Arbitrary future date
+        };
+      case 'custom':
+        return {
+          start: startDate ? new Date(startDate) : new Date(currentYear, currentMonth, 1),
+          end: endDate ? new Date(endDate + 'T23:59:59') : new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+        };
+      default:
+        return {
+          start: new Date(currentYear, currentMonth, 1),
+          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
+        };
+    }
+  };
+
+  const stats = useMemo(() => {
+    const { start, end } = getDateRange();
+
+    const filteredTransactions = transactions.filter((t) => {
       const date = new Date(t.date);
-      return t.type === "sale" && date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      return t.type === "sale" && date >= start && date <= end;
     });
 
-    const totalSales = monthlyTransactions.reduce((sum, t) => sum + (t.totalSellingPrice || 0), 0);
-    const totalCapital = monthlyTransactions.reduce((sum, t) => sum + (t.totalBasePrice || 0), 0);
-    const totalProfit = monthlyTransactions.reduce((sum, t) => sum + (t.totalProfit || 0), 0);
+    const totalSales = filteredTransactions.reduce((sum, t) => sum + (t.totalSellingPrice || 0), 0);
+    const totalCapital = filteredTransactions.reduce((sum, t) => sum + (t.totalBasePrice || 0), 0);
+    const totalProfit = filteredTransactions.reduce((sum, t) => sum + (t.totalProfit || 0), 0);
 
     return {
       totalSales,
       totalCapital,
       totalProfit,
-      transactionCount: monthlyTransactions.length,
+      transactionCount: filteredTransactions.length,
+      dateRange: { start, end }
     };
-  }, [transactions]);
+  }, [transactions, dateRangePreset, startDate, endDate]);
 
   const chartData = useMemo(() => {
-    const monthlyData: { [key: string]: { sales: number; profit: number; capital: number } } = {};
-
-    transactions.forEach((t) => {
-      if (t.type !== "sale") return;
-      
+    const { start, end } = getDateRange();
+    const filteredTransactions = transactions.filter((t) => {
       const date = new Date(t.date);
-      const monthYear = `${date.toLocaleDateString("id-ID", { month: "short" })} ${date.getFullYear()}`;
-
-      if (!monthlyData[monthYear]) {
-        monthlyData[monthYear] = { sales: 0, profit: 0, capital: 0 };
-      }
-
-      monthlyData[monthYear].sales += t.totalSellingPrice || 0;
-      monthlyData[monthYear].profit += t.totalProfit || 0;
-      monthlyData[monthYear].capital += t.totalBasePrice || 0;
+      return t.type === "sale" && date >= start && date <= end;
     });
 
-    return Object.entries(monthlyData)
-      .map(([month, data]) => ({
-        month,
-        ...data,
-      }))
-      .slice(-6);
-  }, [transactions]);
+    const data: { [key: string]: { sales: number; profit: number; capital: number } } = {};
 
-  const currentMonth = new Date().toLocaleDateString("id-ID", {
-    month: "long",
-    year: "numeric",
-  });
+    // Determine grouping based on date range
+    const daysDifference = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    const groupByMonth = daysDifference > 90; // Group by month if more than 3 months
+
+    filteredTransactions.forEach((t) => {
+      const date = new Date(t.date);
+      const key = groupByMonth 
+        ? `${date.toLocaleDateString("id-ID", { month: "short" })} ${date.getFullYear()}`
+        : date.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
+
+      if (!data[key]) {
+        data[key] = { sales: 0, profit: 0, capital: 0 };
+      }
+
+      data[key].sales += t.totalSellingPrice || 0;
+      data[key].profit += t.totalProfit || 0;
+      data[key].capital += t.totalBasePrice || 0;
+    });
+
+    const sortedData = Object.entries(data)
+      .map(([period, values]) => ({
+        period,
+        ...values,
+      }))
+      .sort((a, b) => {
+        // Sort chronologically
+        if (groupByMonth) {
+          const [monthA, yearA] = a.period.split(' ');
+          const [monthB, yearB] = b.period.split(' ');
+          const monthsId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+          return (parseInt(yearA) - parseInt(yearB)) || (monthsId.indexOf(monthA) - monthsId.indexOf(monthB));
+        }
+        return a.period.localeCompare(b.period);
+      });
+
+    return sortedData;
+  }, [transactions, dateRangePreset, startDate, endDate]);
+
+  const getPeriodTitle = () => {
+    const { start, end } = stats.dateRange;
+    switch (dateRangePreset) {
+      case 'this-month':
+        return start.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+      case 'last-3-months':
+        return "3 Bulan Terakhir";
+      case 'last-6-months':
+        return "6 Bulan Terakhir";
+      case 'this-year':
+        return `Tahun ${start.getFullYear()}`;
+      case 'all-time':
+        return "Semua Waktu";
+      case 'custom':
+        return `${start.toLocaleDateString("id-ID")} - ${end.toLocaleDateString("id-ID")}`;
+      default:
+        return "Laporan Penjualan";
+    }
+  };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold mb-1">Rekap Bulanan</h2>
-        <p className="text-muted-foreground">{currentMonth}</p>
+        <h2 className="text-3xl font-bold mb-2 text-gray-800">📊 Laporan Penjualan</h2>
+        <p className="text-lg text-gray-600 font-semibold">{getPeriodTitle()}</p>
       </div>
 
-      <div className="grid gap-4">
-        <Card>
+      {/* Date Range Selection */}
+      <Card className="border-2 border-gray-200 shadow-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Calendar className="h-5 w-5" />
+            Pilih Periode Laporan
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+            <Button
+              variant={dateRangePreset === 'this-month' ? 'default' : 'outline'}
+              onClick={() => setDateRangePreset('this-month')}
+              className="text-sm"
+            >
+              Bulan Ini
+            </Button>
+            <Button
+              variant={dateRangePreset === 'last-3-months' ? 'default' : 'outline'}
+              onClick={() => setDateRangePreset('last-3-months')}
+              className="text-sm"
+            >
+              3 Bulan
+            </Button>
+            <Button
+              variant={dateRangePreset === 'last-6-months' ? 'default' : 'outline'}
+              onClick={() => setDateRangePreset('last-6-months')}
+              className="text-sm"
+            >
+              6 Bulan
+            </Button>
+            <Button
+              variant={dateRangePreset === 'this-year' ? 'default' : 'outline'}
+              onClick={() => setDateRangePreset('this-year')}
+              className="text-sm"
+            >
+              Tahun Ini
+            </Button>
+            <Button
+              variant={dateRangePreset === 'all-time' ? 'default' : 'outline'}
+              onClick={() => setDateRangePreset('all-time')}
+              className="text-sm"
+            >
+              Semua Waktu
+            </Button>
+            <Button
+              variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
+              onClick={() => setDateRangePreset('custom')}
+              className="text-sm"
+            >
+              Custom
+            </Button>
+          </div>
+
+          {dateRangePreset === 'custom' && (
+            <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+              <div>
+                <Label htmlFor="startDate" className="text-sm font-medium">Tanggal Mulai</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate" className="text-sm font-medium">Tanggal Akhir</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6">
+        <Card className="border-2 border-blue-200 shadow-md">
           <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <ShoppingBag className="h-6 w-6 text-primary" />
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-blue-100 rounded-full">
+                <ShoppingBag className="h-8 w-8 text-blue-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Total Penjualan</p>
-                <p className="text-2xl font-bold">{formatRupiah(stats.totalSales)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{stats.transactionCount} transaksi</p>
+                <p className="text-base text-gray-600 font-semibold mb-1">Total Penjualan</p>
+                <p className="text-3xl font-bold text-blue-700">{formatRupiah(stats.totalSales)}</p>
+                <p className="text-sm text-gray-500 mt-2 font-medium">{stats.transactionCount} transaksi</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-purple-200 shadow-md">
           <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-accent/10 rounded-full">
-                <DollarSign className="h-6 w-6 text-accent" />
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-purple-100 rounded-full">
+                <DollarSign className="h-8 w-8 text-purple-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Total Modal</p>
-                <p className="text-2xl font-bold">{formatRupiah(stats.totalCapital)}</p>
+                <p className="text-base text-gray-600 font-semibold mb-1">Total Modal</p>
+                <p className="text-3xl font-bold text-purple-700">{formatRupiah(stats.totalCapital)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-2 border-green-300 shadow-md">
           <CardContent className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-success/10 rounded-full">
-                <TrendingUp className="h-6 w-6 text-success" />
+            <div className="flex items-center gap-4">
+              <div className="p-4 bg-green-100 rounded-full">
+                <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">Total Keuntungan</p>
-                <p className="text-2xl font-bold text-success">{formatRupiah(stats.totalProfit)}</p>
+                <p className="text-base text-gray-600 font-semibold mb-1">Total Keuntungan</p>
+                <p className="text-3xl font-bold text-green-700">{formatRupiah(stats.totalProfit)}</p>
+                {stats.totalCapital > 0 && (
+                  <p className="text-sm text-green-600 font-medium mt-2">
+                    ROI: {((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Summary Insights */}
+      {stats.transactionCount > 0 && (
+        <Card className="border-2 border-indigo-200 shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <ArrowUpDown className="h-5 w-5" />
+              Ringkasan Analisis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-indigo-600">
+                {formatRupiah(Math.round(stats.totalSales / stats.transactionCount))}
+              </p>
+              <p className="text-sm text-gray-600 font-medium">Rata-rata per Transaksi</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-indigo-600">
+                {formatRupiah(Math.round(stats.totalProfit / stats.transactionCount))}
+              </p>
+              <p className="text-sm text-gray-600 font-medium">Rata-rata Keuntungan</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-indigo-600">
+                {stats.totalCapital > 0 ? `${((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%` : '0%'}
+              </p>
+              <p className="text-sm text-gray-600 font-medium">Return on Investment</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-indigo-600">
+                {stats.totalSales > 0 ? `${((stats.totalProfit / stats.totalSales) * 100).toFixed(1)}%` : '0%'}
+              </p>
+              <p className="text-sm text-gray-600 font-medium">Margin Keuntungan</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {chartData.length > 0 && (
-        <Card>
+        <Card className="border-2 border-gray-300 shadow-md">
           <CardHeader>
-            <CardTitle>Grafik Penjualan</CardTitle>
+            <CardTitle className="text-2xl font-bold flex items-center gap-2">
+              📈 Grafik Penjualan
+              <span className="text-sm text-gray-600 font-normal">
+                ({chartData.length} periode)
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={chartData}>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip
-                  formatter={(value: number) => formatRupiah(value)}
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
+                <XAxis 
+                  dataKey="period" 
+                  tick={{ fontSize: 12, fontWeight: "bold" }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12, fontWeight: "bold" }}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                    return value.toString();
                   }}
                 />
-                <Bar dataKey="profit" fill="hsl(var(--success))" radius={[8, 8, 0, 0]} />
+                <Tooltip
+                  formatter={(value: number, name: string) => [
+                    formatRupiah(value),
+                    name === 'profit' ? 'Keuntungan' : 
+                    name === 'sales' ? 'Penjualan' : 'Modal'
+                  ]}
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "2px solid #ddd",
+                    borderRadius: "12px",
+                    fontSize: "14px",
+                    fontWeight: "bold",
+                  }}
+                />
+                <Bar dataKey="sales" fill="#3b82f6" radius={[4, 4, 0, 0]} name="sales" />
+                <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} name="profit" />
+                <Bar dataKey="capital" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="capital" />
               </BarChart>
             </ResponsiveContainer>
+            
+            <div className="flex justify-center gap-6 mt-4 text-sm font-semibold">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-blue-500 rounded"></div>
+                <span>Penjualan</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-green-500 rounded"></div>
+                <span>Keuntungan</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-purple-500 rounded"></div>
+                <span>Modal</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      {chartData.length === 0 && (
+        <Card className="border-2 border-gray-200 shadow-md">
+          <CardContent className="p-8 text-center">
+            <div className="text-gray-500">
+              <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">Tidak ada data penjualan</p>
+              <p className="text-sm mt-2">Belum ada transaksi pada periode yang dipilih</p>
+            </div>
           </CardContent>
         </Card>
       )}

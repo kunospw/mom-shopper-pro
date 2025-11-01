@@ -76,15 +76,15 @@ export const TransactionList = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-3">
         <Select value={filterMonth} onValueChange={setFilterMonth}>
-          <SelectTrigger>
+          <SelectTrigger className="h-12 border-2 border-gray-300 text-base font-semibold">
             <SelectValue placeholder="Semua Bulan" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Bulan</SelectItem>
             {availableMonths.map((month) => (
-              <SelectItem key={month} value={month}>
+              <SelectItem key={month} value={month} className="text-base">
                 {new Date(month + "-01").toLocaleDateString("id-ID", {
                   month: "long",
                   year: "numeric",
@@ -95,25 +95,25 @@ export const TransactionList = ({
         </Select>
 
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger>
+          <SelectTrigger className="h-12 border-2 border-gray-300 text-base font-semibold">
             <SelectValue placeholder="Tipe" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua</SelectItem>
-            <SelectItem value="sale">Penjualan</SelectItem>
-            <SelectItem value="stock">Stok</SelectItem>
+            <SelectItem value="all" className="text-base">Semua</SelectItem>
+            <SelectItem value="sale" className="text-base">Penjualan</SelectItem>
+            <SelectItem value="stock" className="text-base">Stok</SelectItem>
           </SelectContent>
         </Select>
 
         <div className="col-span-2">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger>
+            <SelectTrigger className="h-12 border-2 border-gray-300 text-base font-semibold">
               <SelectValue placeholder="Semua Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Semua Status</SelectItem>
-              <SelectItem value="Paid">Lunas</SelectItem>
-              <SelectItem value="Pending">Belum Lunas</SelectItem>
+              <SelectItem value="all" className="text-base">Semua Status</SelectItem>
+              <SelectItem value="Paid" className="text-base">Lunas</SelectItem>
+              <SelectItem value="Pending" className="text-base">Belum Lunas</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -121,21 +121,21 @@ export const TransactionList = ({
 
       {filteredTransactions.length === 0 ? (
         <Card>
-          <CardContent className="p-8 text-center text-muted-foreground">
-            Belum ada transaksi
+          <CardContent className="p-12 text-center">
+            <p className="text-xl text-gray-500 font-semibold">Belum ada transaksi</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
           {filteredTransactions.map((transaction) => (
-            <Card key={transaction.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-3">
+            <Card key={transaction.id} className="overflow-hidden border-2 border-gray-300 shadow-md">
+              <CardContent className="p-5">
+                <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       {transaction.type === "stock" ? (
-                        <Badge variant="secondary" className="gap-1">
-                          <Package className="h-3 w-3" />
+                        <Badge variant="secondary" className="gap-1 text-base font-bold px-3 py-1">
+                          <Package className="h-4 w-4" />
                           Stok
                         </Badge>
                       ) : (
@@ -143,8 +143,8 @@ export const TransactionList = ({
                           variant={transaction.paymentStatus === "Paid" ? "default" : "destructive"}
                           className={
                             transaction.paymentStatus === "Paid"
-                              ? "bg-success hover:bg-success/90"
-                              : "bg-pending hover:bg-pending/90"
+                              ? "bg-success hover:bg-success/90 text-base font-bold px-3 py-1"
+                              : "bg-pending hover:bg-pending/90 text-base font-bold px-3 py-1"
                           }
                         >
                           {transaction.paymentStatus === "Paid" ? "Lunas" : "Belum Lunas"}
@@ -154,34 +154,34 @@ export const TransactionList = ({
 
                     {transaction.type === "sale" ? (
                       <>
-                        <h3 className="font-semibold text-lg">
+                        <h3 className="font-bold text-xl mb-2 text-gray-800">
                           {transaction.items && transaction.items.length > 1 
                             ? `${transaction.items.length} Produk` 
                             : transaction.items?.[0]?.productName}
                         </h3>
-                        <p className="text-sm text-muted-foreground">{transaction.buyerName}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{formatDate(transaction.date)}</p>
+                        <p className="text-base text-gray-600 font-semibold">{transaction.buyerName}</p>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(transaction.date)}</p>
 
-                        <div className="space-y-1 mt-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Harga Jual:</span>
-                            <span className="font-medium">{formatRupiah(transaction.totalSellingPrice || 0)}</span>
+                        <div className="space-y-2 mt-3">
+                          <div className="flex justify-between text-base">
+                            <span className="text-gray-700 font-semibold">Harga Jual:</span>
+                            <span className="font-bold text-blue-700">{formatRupiah(transaction.totalSellingPrice || 0)}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Keuntungan:</span>
-                            <span className="font-semibold text-success">{formatRupiah(transaction.totalProfit || 0)}</span>
+                          <div className="flex justify-between text-base">
+                            <span className="text-gray-700 font-semibold">Keuntungan:</span>
+                            <span className="font-bold text-green-700 text-lg">{formatRupiah(transaction.totalProfit || 0)}</span>
                           </div>
                         </div>
                       </>
                     ) : (
                       <>
-                        <h3 className="font-semibold text-lg">{transaction.productName}</h3>
-                        <p className="text-sm text-muted-foreground">Jumlah: {transaction.quantity}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{formatDate(transaction.date)}</p>
-                        <div className="mt-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Harga Modal:</span>
-                            <span className="font-medium">{formatRupiah(transaction.basePrice || 0)}</span>
+                        <h3 className="font-bold text-xl mb-2 text-gray-800">{transaction.productName}</h3>
+                        <p className="text-base text-gray-600 font-semibold">Jumlah: {transaction.quantity}</p>
+                        <p className="text-sm text-gray-500 mt-1">{formatDate(transaction.date)}</p>
+                        <div className="mt-3">
+                          <div className="flex justify-between text-base">
+                            <span className="text-gray-700 font-semibold">Harga Modal:</span>
+                            <span className="font-bold text-purple-700">{formatRupiah(transaction.basePrice || 0)}</span>
                           </div>
                         </div>
                       </>
@@ -192,12 +192,12 @@ export const TransactionList = ({
                 <div className="flex gap-2 flex-wrap">
                   {transaction.type === "sale" && (
                     <Button
-                      size="sm"
+                      size="default"
                       variant="outline"
-                      className="flex-1"
+                      className="flex-1 h-11 text-base font-bold border-2 border-blue-300 hover:bg-blue-50"
                       onClick={() => onViewInvoice(transaction)}
                     >
-                      <FileText className="h-4 w-4 mr-1" />
+                      <FileText className="h-5 w-5 mr-2" />
                       Invoice
                     </Button>
                   )}
@@ -207,39 +207,39 @@ export const TransactionList = ({
                     <>
                       {transaction.paymentStatus === 'Pending' && (
                         <Button
-                          size="sm"
+                          size="default"
                           variant="outline"
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 flex-shrink-0"
+                          className="text-green-700 hover:text-green-800 hover:bg-green-50 border-2 border-green-300 flex-shrink-0 font-bold h-11"
                           onClick={() => onStatusChange(transaction.id, 'Paid')}
                         >
-                          <CheckCircle className="h-4 w-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Tandai Lunas</span>
+                          <CheckCircle className="h-5 w-5 mr-2" />
+                          <span>Sudah Bayar</span>
                         </Button>
                       )}
                       {transaction.paymentStatus === 'Paid' && (
                         <Button
-                          size="sm"
+                          size="default"
                           variant="outline"
-                          className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200 flex-shrink-0"
+                          className="text-orange-700 hover:text-orange-800 hover:bg-orange-50 border-2 border-orange-300 flex-shrink-0 font-bold h-11"
                           onClick={() => onStatusChange(transaction.id, 'Pending')}
                         >
-                          <Clock className="h-4 w-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Tandai Pending</span>
+                          <Clock className="h-5 w-5 mr-2" />
+                          <span>Belum Bayar</span>
                         </Button>
                       )}
                     </>
                   )}
                   
-                  <Button size="sm" variant="outline" onClick={() => onEdit(transaction)}>
-                    <Pencil className="h-4 w-4" />
+                  <Button size="default" variant="outline" onClick={() => onEdit(transaction)} className="h-11 w-11 border-2 border-gray-300">
+                    <Pencil className="h-5 w-5" />
                   </Button>
                   <Button
-                    size="sm"
+                    size="default"
                     variant="outline"
-                    className="text-destructive hover:text-destructive"
+                    className="text-red-700 hover:text-red-800 hover:bg-red-50 h-11 w-11 border-2 border-red-300"
                     onClick={() => handleDeleteClick(transaction.id)}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-5 w-5" />
                   </Button>
                 </div>
               </CardContent>

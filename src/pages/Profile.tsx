@@ -138,16 +138,16 @@ export const Profile = () => {
               </Button>
             </div>
             <div className="text-center">
-              <h1 className="text-2xl font-bold">Profil Pengguna</h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Kelola informasi pribadi dan bisnis
+              <h1 className="text-3xl font-bold">Pengaturan Profil</h1>
+              <p className="text-base text-muted-foreground mt-2 font-medium">
+                Atur informasi pribadi dan bisnis Anda
               </p>
             </div>
-            <div className="flex justify-center mt-3">
-              <Button variant="ghost" size="sm" asChild>
+            <div className="flex justify-center mt-4">
+              <Button variant="outline" asChild className="px-6">
                 <Link to="/" className="flex items-center gap-2">
-                  <Home className="h-4 w-4" />
-                  <span className="text-sm">Dashboard</span>
+                  <Home className="h-5 w-5" />
+                  <span className="text-base font-medium">Ke Halaman Utama</span>
                 </Link>
               </Button>
             </div>
@@ -213,16 +213,16 @@ export const Profile = () => {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-sm font-medium">Nama Lengkap</Label>
+            <div className="space-y-3">
+              <Label htmlFor="displayName" className="text-base font-bold text-gray-800">👤 Nama Lengkap</Label>
               <Input
                 id="displayName"
                 {...register('displayName', { required: 'Nama lengkap wajib diisi' })}
                 placeholder="Masukkan nama lengkap"
-                className="text-sm"
+                className="text-base h-12 border-2 border-gray-300"
               />
               {errors.displayName && (
-                <p className="text-xs text-destructive">{errors.displayName.message}</p>
+                <p className="text-sm text-destructive font-semibold">{errors.displayName.message}</p>
               )}
             </div>
           </CardContent>
@@ -240,34 +240,34 @@ export const Profile = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessName" className="text-sm font-medium">Nama Bisnis</Label>
+            <div className="space-y-3">
+              <Label htmlFor="businessName" className="text-base font-bold text-gray-800">🏢 Nama Bisnis</Label>
               <Input
                 id="businessName"
                 {...register('businessName')}
                 placeholder="Nama toko/bisnis Anda"
-                className="text-sm"
+                className="text-base h-12 border-2 border-gray-300"
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="businessAddress" className="text-sm font-medium">Alamat Bisnis</Label>
+            <div className="space-y-3">
+              <Label htmlFor="businessAddress" className="text-base font-bold text-gray-800">📍 Alamat Bisnis</Label>
               <Textarea
                 id="businessAddress"
                 {...register('businessAddress')}
                 placeholder="Alamat lengkap bisnis"
-                rows={3}
-                className="text-sm resize-none"
+                rows={4}
+                className="text-base resize-none border-2 border-gray-300"
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="businessPhone" className="text-sm font-medium">Nomor Telepon Bisnis</Label>
+            <div className="space-y-3">
+              <Label htmlFor="businessPhone" className="text-base font-bold text-gray-800">📞 Nomor Telepon Bisnis</Label>
               <Input
                 id="businessPhone"
                 {...register('businessPhone')}
                 placeholder="Nomor telepon yang bisa dihubungi"
-                className="text-sm"
+                className="text-base h-12 border-2 border-gray-300"
                 type="tel"
               />
             </div>
@@ -289,62 +289,62 @@ export const Profile = () => {
             {/* Bank Accounts */}
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <Label className="text-sm sm:text-base font-medium">Rekening Bank</Label>
+                <Label className="text-base font-bold text-gray-800">🏦 Rekening Bank</Label>
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => append({ id: Date.now().toString(), bankName: '', accountNumber: '', accountHolder: '' })}
-                  className="w-full sm:w-auto"
+                  className="w-full sm:w-auto h-12 text-base border-2 border-gray-300 font-semibold"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="text-sm">Tambah Rekening</span>
+                  <Plus className="h-5 w-5 mr-2" />
+                  <span>Tambah Rekening</span>
                 </Button>
               </div>
               
               {fields.map((field, index) => (
-                <div key={field.id} className="border rounded-lg p-3 sm:p-4 space-y-3 bg-gray-50/50">
+                <div key={field.id} className="border-2 border-gray-300 rounded-xl p-4 sm:p-5 space-y-4 bg-gray-50">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-sm">Rekening {index + 1}</h4>
+                    <h4 className="font-bold text-base text-gray-800">Rekening {index + 1}</h4>
                     {fields.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => remove(index)}
-                        className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                        className="text-destructive hover:text-destructive hover:bg-red-50 h-10 w-10 p-0 border-2 border-red-300"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-5 w-5" />
                       </Button>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor={`bankAccounts.${index}.bankName`} className="text-sm">Nama Bank</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <Label htmlFor={`bankAccounts.${index}.bankName`} className="text-base font-bold text-gray-800">Nama Bank</Label>
                       <Input
                         {...register(`bankAccounts.${index}.bankName` as const)}
                         placeholder="Contoh: Bank BCA"
-                        className="text-sm"
+                        className="text-base h-12 border-2 border-gray-300"
                       />
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label htmlFor={`bankAccounts.${index}.accountNumber`} className="text-sm">Nomor Rekening</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor={`bankAccounts.${index}.accountNumber`} className="text-base font-bold text-gray-800">Nomor Rekening</Label>
                       <Input
                         {...register(`bankAccounts.${index}.accountNumber` as const)}
                         placeholder="Nomor rekening"
-                        className="text-sm"
+                        className="text-base h-12 border-2 border-gray-300"
                       />
                     </div>
                   </div>
                   
-                  <div className="space-y-2">
-                    <Label htmlFor={`bankAccounts.${index}.accountHolder`} className="text-sm">Nama Pemilik Rekening</Label>
+                  <div className="space-y-3">
+                    <Label htmlFor={`bankAccounts.${index}.accountHolder`} className="text-base font-bold text-gray-800">Nama Pemilik Rekening</Label>
                     <Input
                       {...register(`bankAccounts.${index}.accountHolder` as const)}
                       placeholder="Nama sesuai rekening bank"
-                      className="text-sm"
+                      className="text-base h-12 border-2 border-gray-300"
                     />
                   </div>
                 </div>
@@ -354,21 +354,21 @@ export const Profile = () => {
             <Separator />
 
             <div className="space-y-4">
-              <Label className="text-sm">QRIS Image</Label>
+              <Label className="text-base font-bold text-gray-800">📱 QRIS Image</Label>
               <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
                 {/* Current QRIS or Preview */}
                 <div className="flex-shrink-0">
                   {qrisPreview || user.qrisImageBase64 ? (
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-2">
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-3">
                       <img
                         src={qrisPreview || user.qrisImageBase64}
                         alt="QRIS Code"
-                        className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded"
+                        className="w-28 h-28 sm:w-36 sm:h-36 object-cover rounded-lg"
                       />
                     </div>
                   ) : (
-                    <div className="w-24 h-24 sm:w-32 sm:h-32 border-2 border-dashed border-muted-foreground/25 rounded-lg flex items-center justify-center">
-                      <p className="text-xs text-muted-foreground text-center px-2">
+                    <div className="w-28 h-28 sm:w-36 sm:h-36 border-2 border-dashed border-gray-300 rounded-xl flex items-center justify-center bg-gray-50">
+                      <p className="text-sm text-gray-500 text-center px-2 font-semibold">
                         Belum ada QRIS
                       </p>
                     </div>
@@ -376,7 +376,7 @@ export const Profile = () => {
                 </div>
 
                 {/* Upload Button */}
-                <div className="space-y-2 text-center sm:text-left w-full sm:w-auto">
+                <div className="space-y-3 text-center sm:text-left w-full sm:w-auto">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -389,13 +389,13 @@ export const Profile = () => {
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="w-full sm:w-auto"
-                    size="sm"
+                    className="w-full sm:w-auto h-12 text-base border-2 border-gray-300 font-semibold"
+                    size="default"
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    <span className="text-sm">{user.qrisImageBase64 ? 'Ganti QRIS' : 'Upload QRIS'}</span>
+                    <Upload className="h-5 w-5 mr-2" />
+                    <span>{user.qrisImageBase64 ? 'Ganti QRIS' : 'Upload QRIS'}</span>
                   </Button>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-gray-600 font-semibold">
                     Upload gambar QRIS untuk pembayaran digital
                   </p>
                 </div>
@@ -405,12 +405,12 @@ export const Profile = () => {
         </Card>
 
         {/* Save Button - Mobile Optimized */}
-        <Card className="border-0 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 backdrop-blur-md">
-          <CardContent className="p-4 sm:p-6">
+        <Card className="border-2 border-gray-300 shadow-lg bg-gradient-to-r from-blue-50 to-indigo-50 backdrop-blur-md">
+          <CardContent className="p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="text-center sm:text-left">
-                <h3 className="font-semibold text-sm sm:text-base">Simpan Perubahan</h3>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+                <h3 className="font-bold text-base sm:text-lg text-gray-800">💾 Simpan Perubahan</h3>
+                <p className="text-sm sm:text-base text-gray-600 font-semibold">
                   Pastikan semua informasi sudah benar sebelum menyimpan
                 </p>
               </div>
@@ -418,10 +418,10 @@ export const Profile = () => {
                 type="submit" 
                 disabled={isSubmitting || uploading} 
                 size="lg" 
-                className="w-full sm:w-auto sm:min-w-[140px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                className="w-full sm:w-auto sm:min-w-[160px] bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 h-14 text-lg font-bold shadow-lg"
               >
-                <Save className="h-4 w-4 mr-2" />
-                <span className="text-sm">{isSubmitting || uploading ? 'Menyimpan...' : 'Simpan Profil'}</span>
+                <Save className="h-5 w-5 mr-2" />
+                <span>{isSubmitting || uploading ? 'Menyimpan...' : 'Simpan Profil'}</span>
               </Button>
             </div>
           </CardContent>

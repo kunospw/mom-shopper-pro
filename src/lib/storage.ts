@@ -1,83 +1,52 @@
 import { Transaction } from "@/types/transaction";
 import { UserProfile } from "@/types/user";
-import { doc, getDoc, setDoc, updateDoc, deleteDoc, collection, getDocs, addDoc, serverTimestamp, query, orderBy, where } from "firebase/firestore";
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc,
+  collection, 
+  query, 
+  orderBy, 
+  getDocs,
+  serverTimestamp,
+  where 
+} from "firebase/firestore";
 import { db } from "./firebase";
 import { auth } from "./firebase";
 
 const STORAGE_KEY = "reseller-transactions";
 const USER_PROFILE_KEY = "user-profile";
 
-// Helper function to get current user ID
-const getCurrentUserId = (): string | null => {
-  return auth.currentUser?.uid || null;
-};
-
-// Migration function to move localStorage data to Firebase
-export const migrateLocalStorageToFirebase = async (): Promise<void> => {
-  const userId = getCurrentUserId();
-  if (!userId) return;
-
-  try {
-    const localData = localStorage.getItem(STORAGE_KEY);
-    if (!localData) return;
-
-    const transactions: Transaction[] = JSON.parse(localData);
-    if (transactions.length === 0) return;
-
-    console.log(`Migrating ${transactions.length} transactions to Firebase...`);
-
-    // Check if user already has transactions in Firebase
-    const existingTransactions = await getTransactions();
-    if (existingTransactions.length > 0) {
-      console.log("Firebase transactions already exist, skipping migration");
-      return;
-    }
-
-    // Migrate each transaction
-    const transactionsRef = collection(db, "users", userId, "transactions");
-    for (const transaction of transactions) {
-      const { id, ...transactionData } = transaction;
-      await addDoc(transactionsRef, {
-        ...transactionData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-    }
-
-    console.log("Migration completed successfully!");
-    
-    // Optionally clear localStorage after successful migration
-    // localStorage.removeItem(STORAGE_KEY);
-  } catch (error) {
-    console.error("Error during migration:", error);
-  }
-};
-
-// Firebase-based transaction operations
+// Firebase operations for transactions
 export const getTransactions = async (): Promise<Transaction[]> => {
-  const userId = getCurrentUserId();
-  if (!userId) {
-    // Fallback to localStorage if user not authenticated
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
-  }
-
   try {
-    const transactionsRef = collection(db, "users", userId, "transactions");
+    const user = auth.currentUser;
+    if (!user) {
+      console.log("No authenticated user, using localStorage fallback");
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : [];
+    }
+
+    const transactionsRef = collection(db, "users", user.uid, "transactions");
     const q = query(transactionsRef, orderBy("date", "desc"));
     const querySnapshot = await getDocs(q);
     
     const transactions: Transaction[] = [];
     querySnapshot.forEach((doc) => {
+      const data = doc.data();
       transactions.push({
+        ...data,
         id: doc.id,
-        ...doc.data()
+        date: data.date || new Date().toISOString()
       } as Transaction);
     });
     
+    console.log(`Loaded ${transactions.length} transactions from Firebase`);
     return transactions;
   } catch (error) {
-    console.error("Error fetching transactions:", error);
+    console.error("Error fetching transactions from Firebase:", error);
     // Fallback to localStorage
     const data = localStorage.getItem(STORAGE_KEY);
     return data ? JSON.parse(data) : [];
@@ -85,38 +54,32 @@ export const getTransactions = async (): Promise<Transaction[]> => {
 };
 
 export const saveTransactions = (transactions: Transaction[]) => {
-  // Keep localStorage as backup
   localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
 };
 
 export const addTransaction = async (transaction: Transaction): Promise<void> => {
-  const userId = getCurrentUserId();
-  if (!userId) {
-    // Fallback to localStorage
-    const transactions = await getTransactions();
-    transactions.push(transaction);
-    saveTransactions(transactions);
-    return;
-  }
-
   try {
-    const transactionsRef = collection(db, "users", userId, "transactions");
-    const { id, ...transactionData } = transaction;
-    
-    await addDoc(transactionsRef, {
-      ...transactionData,
+    const user = auth.currentUser;
+    if (!user) {
+      console.log("No authenticated user, using localStorage fallback");
+      const transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      transactions.push(transaction);
+      saveTransactions(transactions);
+      return;
+    }
+
+    const transactionRef = doc(db, "users", user.uid, "transactions", transaction.id);
+    await setDoc(transactionRef, {
+      ...transaction,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
     
-    // Also save to localStorage as backup
-    const transactions = await getTransactions();
-    transactions.unshift(transaction);
-    saveTransactions(transactions);
+    console.log("Transaction added to Firebase:", transaction.id);
   } catch (error) {
-    console.error("Error adding transaction:", error);
+    console.error("Error adding transaction to Firebase:", error);
     // Fallback to localStorage
-    const transactions = await getTransactions();
+    const transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
     transactions.push(transaction);
     saveTransactions(transactions);
     throw error;
@@ -124,39 +87,31 @@ export const addTransaction = async (transaction: Transaction): Promise<void> =>
 };
 
 export const updateTransaction = async (id: string, updatedTransaction: Transaction): Promise<void> => {
-  const userId = getCurrentUserId();
-  if (!userId) {
-    // Fallback to localStorage
-    const transactions = await getTransactions();
-    const index = transactions.findIndex((t) => t.id === id);
-    if (index !== -1) {
-      transactions[index] = updatedTransaction;
-      saveTransactions(transactions);
-    }
-    return;
-  }
-
   try {
-    const transactionDoc = doc(db, "users", userId, "transactions", id);
-    const { id: docId, ...transactionData } = updatedTransaction;
-    
-    await updateDoc(transactionDoc, {
-      ...transactionData,
+    const user = auth.currentUser;
+    if (!user) {
+      console.log("No authenticated user, using localStorage fallback");
+      const transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const index = transactions.findIndex((t: Transaction) => t.id === id);
+      if (index !== -1) {
+        transactions[index] = updatedTransaction;
+        saveTransactions(transactions);
+      }
+      return;
+    }
+
+    const transactionRef = doc(db, "users", user.uid, "transactions", id);
+    await updateDoc(transactionRef, {
+      ...updatedTransaction,
       updatedAt: serverTimestamp()
     });
     
-    // Update localStorage backup
-    const transactions = await getTransactions();
-    const index = transactions.findIndex((t) => t.id === id);
-    if (index !== -1) {
-      transactions[index] = updatedTransaction;
-      saveTransactions(transactions);
-    }
+    console.log("Transaction updated in Firebase:", id);
   } catch (error) {
-    console.error("Error updating transaction:", error);
+    console.error("Error updating transaction in Firebase:", error);
     // Fallback to localStorage
-    const transactions = await getTransactions();
-    const index = transactions.findIndex((t) => t.id === id);
+    const transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const index = transactions.findIndex((t: Transaction) => t.id === id);
     if (index !== -1) {
       transactions[index] = updatedTransaction;
       saveTransactions(transactions);
@@ -166,28 +121,25 @@ export const updateTransaction = async (id: string, updatedTransaction: Transact
 };
 
 export const deleteTransaction = async (id: string): Promise<void> => {
-  const userId = getCurrentUserId();
-  if (!userId) {
-    // Fallback to localStorage
-    const transactions = await getTransactions();
-    const filtered = transactions.filter((t) => t.id !== id);
-    saveTransactions(filtered);
-    return;
-  }
-
   try {
-    const transactionDoc = doc(db, "users", userId, "transactions", id);
-    await deleteDoc(transactionDoc);
+    const user = auth.currentUser;
+    if (!user) {
+      console.log("No authenticated user, using localStorage fallback");
+      const transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      const filtered = transactions.filter((t: Transaction) => t.id !== id);
+      saveTransactions(filtered);
+      return;
+    }
+
+    const transactionRef = doc(db, "users", user.uid, "transactions", id);
+    await deleteDoc(transactionRef);
     
-    // Update localStorage backup
-    const transactions = await getTransactions();
-    const filtered = transactions.filter((t) => t.id !== id);
-    saveTransactions(filtered);
+    console.log("Transaction deleted from Firebase:", id);
   } catch (error) {
-    console.error("Error deleting transaction:", error);
+    console.error("Error deleting transaction from Firebase:", error);
     // Fallback to localStorage
-    const transactions = await getTransactions();
-    const filtered = transactions.filter((t) => t.id !== id);
+    const transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    const filtered = transactions.filter((t: Transaction) => t.id !== id);
     saveTransactions(filtered);
     throw error;
   }

@@ -35,6 +35,24 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
   
   // Common fields
   const [notes, setNotes] = useState("");
+  const [transactionDate, setTransactionDate] = useState<string>("");
+
+  // Helper function to convert ISO string to local datetime string for input
+  const isoToLocalDateTime = (isoString: string): string => {
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // Helper function to convert local datetime string to ISO string
+  const localDateTimeToIso = (localDateTime: string): string => {
+    if (!localDateTime) return new Date().toISOString();
+    return new Date(localDateTime).toISOString();
+  };
 
   useEffect(() => {
     if (editingTransaction) {
@@ -50,6 +68,11 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
         setStockBasePrice((editingTransaction.basePrice || 0).toString());
       }
       setNotes(editingTransaction.notes);
+      // Set date from existing transaction
+      setTransactionDate(isoToLocalDateTime(editingTransaction.date || new Date().toISOString()));
+    } else {
+      // Set to current date/time for new transactions
+      setTransactionDate(isoToLocalDateTime(new Date().toISOString()));
     }
   }, [editingTransaction]);
 
@@ -101,7 +124,7 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
         totalSellingPrice,
         totalProfit,
         notes,
-        date: editingTransaction?.date || new Date().toISOString(),
+        date: localDateTimeToIso(transactionDate),
       };
 
       onSubmit(transaction);
@@ -117,10 +140,10 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
         id: editingTransaction?.id || Date.now().toString(),
         type: "stock",
         productName: stockProductName,
-        quantity: parseFloat(stockQuantity) || 1,
+        quantity: parseInt(stockQuantity) || 1,
         basePrice: parseFloat(stockBasePrice),
         notes,
-        date: editingTransaction?.date || new Date().toISOString(),
+        date: localDateTimeToIso(transactionDate),
       };
 
       onSubmit(transaction);
@@ -138,48 +161,43 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
     setStockQuantity("1");
     setStockBasePrice("");
     setNotes("");
+    setTransactionDate(isoToLocalDateTime(new Date().toISOString()));
   };
 
   const totalProfit = items.reduce((sum, item) => sum + item.profit, 0);
 
   return (
-    <Card className="bg-white/80 backdrop-blur-md border-0 shadow-lg">
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg sm:text-xl">{editingTransaction ? "Edit Entry" : "Tambah Entry"}</CardTitle>
+    <Card>
+      <CardHeader>
+        <CardTitle>{editingTransaction ? "Edit Entry" : "Tambah Entry"}</CardTitle>
       </CardHeader>
-      <CardContent className="px-4 sm:px-6">
+      <CardContent>
         <Tabs value={entryType} onValueChange={(v) => setEntryType(v as "sale" | "stock")} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
-            <TabsTrigger value="sale" disabled={!!editingTransaction} className="text-sm font-medium">
-              Penjualan
-            </TabsTrigger>
-            <TabsTrigger value="stock" disabled={!!editingTransaction} className="text-sm font-medium">
-              Stok Barang
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="sale" disabled={!!editingTransaction}>Penjualan</TabsTrigger>
+            <TabsTrigger value="stock" disabled={!!editingTransaction}>Stok Barang</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sale">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                  <Label className="text-sm font-medium">Produk</Label>
-                  <Button type="button" size="sm" variant="outline" onClick={addItem} className="w-full sm:w-auto">
+                <div className="flex items-center justify-between mb-2">
+                  <Label>Produk</Label>
+                  <Button type="button" size="sm" variant="outline" onClick={addItem}>
                     <Plus className="h-4 w-4 mr-1" />
-                    <span className="text-sm">Tambah Produk</span>
+                    Tambah Produk
                   </Button>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {items.map((item, index) => (
-                    <div key={index} className="p-4 border rounded-lg space-y-4 bg-gray-50/50">
-                      <div className="flex items-start gap-3">
+                    <div key={index} className="p-3 border rounded-lg space-y-3">
+                      <div className="flex items-start gap-2">
                         <div className="flex-1">
-                          <Label className="text-sm font-medium mb-2 block">Nama Produk</Label>
                           <Input
                             value={item.productName}
                             onChange={(e) => updateItem(index, "productName", e.target.value)}
                             placeholder="Nama Produk"
-                            className="text-sm"
                             required
                           />
                         </div>
@@ -189,56 +207,51 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
                             size="icon"
                             variant="ghost"
                             onClick={() => removeItem(index)}
-                            className="mt-6 flex-shrink-0"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
                       </div>
                       
-                      {/* Mobile: Stack vertically, Desktop: Grid */}
-                      <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-3">
+                      <div className="grid grid-cols-3 gap-2">
                         <div>
-                          <Label className="text-sm font-medium mb-2 block">Jumlah</Label>
+                          <Label className="text-xs">Jumlah</Label>
                           <Input
                             type="number"
                             min="1"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, "quantity", parseFloat(e.target.value) || 1)}
-                            className="text-sm"
                             required
                           />
                         </div>
                         <div>
-                          <Label className="text-sm font-medium mb-2 block">Harga Modal</Label>
+                          <Label className="text-xs">Harga Modal</Label>
                           <Input
                             type="number"
                             min="0"
                             value={item.basePrice || ""}
                             onChange={(e) => updateItem(index, "basePrice", parseFloat(e.target.value) || 0)}
                             placeholder="50000"
-                            className="text-sm"
                             required
                           />
                         </div>
                         <div>
-                          <Label className="text-sm font-medium mb-2 block">Harga Jual</Label>
+                          <Label className="text-xs">Harga Jual</Label>
                           <Input
                             type="number"
                             min="0"
                             value={item.sellingPrice || ""}
                             onChange={(e) => updateItem(index, "sellingPrice", parseFloat(e.target.value) || 0)}
                             placeholder="75000"
-                            className="text-sm"
                             required
                           />
                         </div>
                       </div>
                       
                       {item.profit !== 0 && (
-                        <div className="text-sm p-2 rounded-md bg-gray-100">
+                        <div className="text-xs">
                           <span className="text-muted-foreground">Untung: </span>
-                          <span className={item.profit > 0 ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                          <span className={item.profit > 0 ? "text-success font-medium" : "text-destructive font-medium"}>
                             {formatRupiah(item.profit)}
                           </span>
                         </div>
@@ -249,30 +262,41 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
               </div>
 
               {totalProfit !== 0 && (
-                <div className={`p-4 rounded-lg border-2 ${totalProfit > 0 ? "bg-green-50 border-green-200" : "bg-red-50 border-red-200"}`}>
-                  <p className="text-sm font-semibold text-center">
-                    Total Keuntungan: <span className={`text-lg ${totalProfit > 0 ? "text-green-600" : "text-red-600"}`}>{formatRupiah(totalProfit)}</span>
+                <div className={`p-3 rounded-lg ${totalProfit > 0 ? "bg-success/10" : "bg-destructive/10"}`}>
+                  <p className="text-sm font-medium">
+                    Total Keuntungan: <span className={totalProfit > 0 ? "text-success" : "text-destructive"}>{formatRupiah(totalProfit)}</span>
                   </p>
                 </div>
               )}
 
               <div>
-                <Label htmlFor="buyerName" className="text-sm font-medium mb-2 block">Nama Pembeli</Label>
+                <Label htmlFor="buyerName">Nama Pembeli</Label>
                 <Input
                   id="buyerName"
                   value={buyerName}
                   onChange={(e) => setBuyerName(e.target.value)}
                   placeholder="Contoh: Bu Siti"
-                  className="text-sm"
                   required
                 />
               </div>
 
-              <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+              <div>
+                <Label htmlFor="transactionDate" className="text-base font-bold mb-3 block text-gray-800">📅 Tanggal & Waktu</Label>
+                <Input
+                  id="transactionDate"
+                  type="datetime-local"
+                  value={transactionDate}
+                  onChange={(e) => setTransactionDate(e.target.value)}
+                  className="text-base h-12 border-2 border-gray-300"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="paymentMethod" className="text-sm font-medium mb-2 block">Metode Pembayaran</Label>
+                  <Label htmlFor="paymentMethod">Metode Pembayaran</Label>
                   <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}>
-                    <SelectTrigger className="text-sm">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -283,9 +307,9 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="paymentStatus" className="text-sm font-medium mb-2 block">Status Pembayaran</Label>
+                  <Label htmlFor="paymentStatus">Status Pembayaran</Label>
                   <Select value={paymentStatus} onValueChange={(value) => setPaymentStatus(value as PaymentStatus)}>
-                    <SelectTrigger className="text-sm">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -297,27 +321,22 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
               </div>
 
               <div>
-                <Label htmlFor="notes" className="text-sm font-medium mb-2 block">Catatan / ETA</Label>
+                <Label htmlFor="notes">Catatan / ETA</Label>
                 <Textarea
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Contoh: Dikirim besok pagi"
                   rows={3}
-                  className="text-sm resize-none"
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button 
-                  type="submit" 
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
-                  size="lg"
-                >
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1">
                   {editingTransaction ? "Perbarui" : "Simpan"} Penjualan
                 </Button>
                 {editingTransaction && onCancel && (
-                  <Button type="button" variant="outline" onClick={onCancel} className="sm:w-auto">
+                  <Button type="button" variant="outline" onClick={onCancel}>
                     Batal
                   </Button>
                 )}
@@ -326,34 +345,32 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
           </TabsContent>
 
           <TabsContent value="stock">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="stockProductName" className="text-sm font-medium mb-2 block">Nama Produk</Label>
+                <Label htmlFor="stockProductName">Nama Produk</Label>
                 <Input
                   id="stockProductName"
                   value={stockProductName}
                   onChange={(e) => setStockProductName(e.target.value)}
                   placeholder="Contoh: Baju Gamis"
-                  className="text-sm"
                   required
                 />
               </div>
 
-              <div className="space-y-4 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="stockQuantity" className="text-sm font-medium mb-2 block">Jumlah</Label>
+                  <Label htmlFor="stockQuantity">Jumlah</Label>
                   <Input
                     id="stockQuantity"
                     type="number"
                     min="1"
                     value={stockQuantity}
                     onChange={(e) => setStockQuantity(e.target.value)}
-                    className="text-sm"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="stockBasePrice" className="text-sm font-medium mb-2 block">Harga Modal</Label>
+                  <Label htmlFor="stockBasePrice">Harga Modal</Label>
                   <Input
                     id="stockBasePrice"
                     type="number"
@@ -361,34 +378,40 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
                     value={stockBasePrice}
                     onChange={(e) => setStockBasePrice(e.target.value)}
                     placeholder="50000"
-                    className="text-sm"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="stockNotes" className="text-sm font-medium mb-2 block">Catatan</Label>
+                <Label htmlFor="stockTransactionDate" className="text-base font-bold mb-3 block text-gray-800">📅 Tanggal & Waktu</Label>
+                <Input
+                  id="stockTransactionDate"
+                  type="datetime-local"
+                  value={transactionDate}
+                  onChange={(e) => setTransactionDate(e.target.value)}
+                  className="text-base h-12 border-2 border-gray-300"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="stockNotes">Catatan</Label>
                 <Textarea
                   id="stockNotes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Contoh: Warna hitam, ukuran L"
                   rows={3}
-                  className="text-sm resize-none"
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button 
-                  type="submit" 
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium"
-                  size="lg"
-                >
+              <div className="flex gap-2">
+                <Button type="submit" className="flex-1">
                   {editingTransaction ? "Perbarui" : "Simpan"} Stok
                 </Button>
                 {editingTransaction && onCancel && (
-                  <Button type="button" variant="outline" onClick={onCancel} className="sm:w-auto">
+                  <Button type="button" variant="outline" onClick={onCancel}>
                     Batal
                   </Button>
                 )}
