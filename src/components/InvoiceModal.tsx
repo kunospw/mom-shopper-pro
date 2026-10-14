@@ -174,7 +174,7 @@ export const InvoiceModal = ({ transaction, isOpen, onClose }: InvoiceModalProps
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide">
-          <div ref={invoiceRef} className="bg-card p-6 rounded-lg space-y-4">
+          <div ref={invoiceRef} className="invoice-paper bg-card p-6 rounded-lg space-y-4">
           {/* Business Header */}
           {isBusinessLogo(user?.businessLogo) && <img src={user.businessLogo} alt="Logo bisnis" className="mx-auto h-14 w-14 object-contain" />}
           <div className="text-center border-b pb-4">

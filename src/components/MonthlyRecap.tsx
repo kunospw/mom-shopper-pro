@@ -213,7 +213,7 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
           </div>
 
           {dateRangePreset === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/40 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 p-4 bg-muted/40 rounded-lg">
               <div>
                 <Label htmlFor="startDate" className="text-sm font-medium">Tanggal Mulai</Label>
                 <Input
@@ -240,46 +240,46 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
       </Card>
 
       <div className="grid gap-6">
-        <Card className="border border-blue-200 shadow-md">
+        <Card className="border border-border shadow-md">
           <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-blue-100 rounded-full">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <div className="p-4 bg-primary/10 rounded-full">
                 <ShoppingBag className="h-8 w-8 text-primary" />
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <p className="text-base text-muted-foreground font-semibold mb-1">Total Penjualan</p>
-                <p className="text-2xl font-semibold text-primary">{formatRupiah(stats.totalSales)}</p>
+                <p className="break-words text-2xl font-semibold text-primary">{formatRupiah(stats.totalSales)}</p>
                 <p className="text-sm text-muted-foreground mt-2 font-medium">{stats.transactionCount} transaksi</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-purple-200 shadow-md">
+        <Card className="border border-border shadow-md">
           <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-purple-100 rounded-full">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <div className="p-4 bg-primary/10 rounded-full">
                 <DollarSign className="h-8 w-8 text-primary" />
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <p className="text-base text-muted-foreground font-semibold mb-1">Total Modal</p>
-                <p className="text-2xl font-semibold text-primary">{formatRupiah(stats.totalCapital)}</p>
+                <p className="break-words text-2xl font-semibold text-primary">{formatRupiah(stats.totalCapital)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border border-green-300 shadow-md">
+        <Card className="border border-border shadow-md">
           <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-green-100 rounded-full">
-                <TrendingUp className="h-8 w-8 text-green-600" />
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <div className="p-4 bg-success/10 rounded-full">
+                <TrendingUp className="h-8 w-8 text-success" />
               </div>
-              <div className="flex-1">
+              <div className="min-w-0 flex-1">
                 <p className="text-base text-muted-foreground font-semibold mb-1">Total Keuntungan</p>
-                <p className="text-2xl font-semibold text-green-700">{formatRupiah(stats.totalProfit)}</p>
+                <p className="break-words text-2xl font-semibold text-success">{formatRupiah(stats.totalProfit)}</p>
                 {stats.totalCapital > 0 && (
-                  <p className="text-sm text-green-600 font-medium mt-2">
+                  <p className="text-sm text-success font-medium mt-2">
                     ROI: {((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%
                   </p>
                 )}
@@ -291,34 +291,34 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
 
       {/* Summary Insights */}
       {stats.transactionCount > 0 && (
-        <Card className="border border-indigo-200 shadow-md">
+        <Card className="border border-border shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <ArrowUpDown className="h-5 w-5" />
               Ringkasan Analisis
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-2xl font-semibold text-indigo-600">
+              <p className="break-words text-2xl font-semibold text-primary">
                 {formatRupiah(Math.round(stats.totalSales / stats.transactionCount))}
               </p>
               <p className="text-sm text-muted-foreground font-medium">Rata-rata per Transaksi</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-semibold text-indigo-600">
+              <p className="break-words text-2xl font-semibold text-primary">
                 {formatRupiah(Math.round(stats.totalProfit / stats.transactionCount))}
               </p>
               <p className="text-sm text-muted-foreground font-medium">Rata-rata Keuntungan</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-semibold text-indigo-600">
+              <p className="break-words text-2xl font-semibold text-primary">
                 {stats.totalCapital > 0 ? `${((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%` : '0%'}
               </p>
               <p className="text-sm text-muted-foreground font-medium">Return on Investment</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-semibold text-indigo-600">
+              <p className="break-words text-2xl font-semibold text-primary">
                 {stats.totalSales > 0 ? `${((stats.totalProfit / stats.totalSales) * 100).toFixed(1)}%` : '0%'}
               </p>
               <p className="text-sm text-muted-foreground font-medium">Margin Keuntungan</p>
@@ -330,8 +330,8 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
       {chartData.length > 0 && (
         <Card className="border border-border shadow-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-semibold flex items-center gap-2">
-              📈 Grafik Penjualan
+            <CardTitle className="text-xl font-semibold flex flex-wrap items-center gap-2">
+              Grafik Penjualan
               <span className="text-sm text-muted-foreground font-normal">
                 ({chartData.length} periode)
               </span>
@@ -340,16 +340,16 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
           <CardContent>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
                   dataKey="period" 
-                  tick={{ fontSize: 12, fontWeight: "bold" }}
+                  tick={{ fontSize: "0.75rem", fill: "hsl(var(--muted-foreground))" }}
                   angle={-45}
                   textAnchor="end"
                   height={80}
                 />
                 <YAxis 
-                  tick={{ fontSize: 12, fontWeight: "bold" }}
+                  tick={{ fontSize: "0.75rem", fill: "hsl(var(--muted-foreground))" }}
                   tickFormatter={(value) => {
                     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
                     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
@@ -357,17 +357,20 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
                   }}
                 />
                 <Tooltip
+                  labelStyle={{ color: "hsl(var(--popover-foreground))" }}
+                  itemStyle={{ color: "hsl(var(--popover-foreground))" }}
                   formatter={(value: number, name: string) => [
                     formatRupiah(value),
                     name === 'profit' ? 'Keuntungan' : 
                     name === 'sales' ? 'Penjualan' : 'Modal'
                   ]}
                   contentStyle={{
-                    backgroundColor: "white",
-                    border: "2px solid #ddd",
+                    backgroundColor: "hsl(var(--popover))",
+                    color: "hsl(var(--popover-foreground))",
+                    border: "1px solid hsl(var(--border))",
                     borderRadius: "12px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
+                    fontSize: "0.875rem",
+                    fontWeight: "normal",
                   }}
                 />
                 <Bar dataKey="sales" fill="#3b82f6" radius={[4, 4, 0, 0]} name="sales" />
@@ -376,7 +379,7 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
               </BarChart>
             </ResponsiveContainer>
             
-            <div className="flex justify-center gap-6 mt-4 text-sm font-semibold">
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mt-4 text-sm font-semibold">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-blue-500 rounded"></div>
                 <span>Penjualan</span>
@@ -398,7 +401,7 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
         <Card className="border border-border shadow-md">
           <CardContent className="p-8 text-center">
             <div className="text-muted-foreground">
-              <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <p className="text-lg font-medium">Tidak ada data penjualan</p>
               <p className="text-sm mt-2">Belum ada transaksi pada periode yang dipilih</p>
             </div>

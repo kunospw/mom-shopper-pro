@@ -210,7 +210,7 @@ export const TransactionList = ({
                         <Button
                           size="default"
                           variant="outline"
-                          className="text-green-700 hover:text-green-800 hover:bg-green-50 border border-green-300 flex-shrink-0 font-semibold h-11"
+                          className="text-success hover:text-success hover:bg-success/10 border border-success/30 flex-shrink-0 font-semibold h-11"
                           onClick={() => onStatusChange(transaction.id, 'Paid')}
                         >
                           <CheckCircle className="h-5 w-5 mr-2" />
@@ -221,7 +221,7 @@ export const TransactionList = ({
                         <Button
                           size="default"
                           variant="outline"
-                          className="text-orange-700 hover:text-orange-800 hover:bg-orange-50 border border-orange-300 flex-shrink-0 font-semibold h-11"
+                          className="text-pending hover:text-pending hover:bg-pending/10 border border-pending/30 flex-shrink-0 font-semibold h-11"
                           onClick={() => onStatusChange(transaction.id, 'Pending')}
                         >
                           <Clock className="h-5 w-5 mr-2" />
@@ -237,7 +237,7 @@ export const TransactionList = ({
                   <Button
                     size="default"
                     variant="outline"
-                    className="text-red-700 hover:text-red-800 hover:bg-red-50 h-11 w-11 border border-red-300"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-11 w-11 border border-destructive/30"
                     aria-label="Hapus transaksi" onClick={() => handleDeleteClick(transaction.id)}
                   >
                     <Trash2 className="h-5 w-5" />

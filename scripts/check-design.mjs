@@ -26,3 +26,17 @@ assert.deepEqual(summarizeTransactions([
   { type: "stock", basePrice: 20, quantity: 3, sellingPrice: 999, paymentStatus: "Paid" },
 ]), { sales: 150, paid: 100, pending: 50, purchases: 60 });
 console.log("Branding defaults, logo boundaries, and current/legacy transaction summaries passed.");
+
+const { normalizeAppearance, readAppearance, appearanceKey, fontScales } = await load("src/lib/appearance.ts");
+assert.deepEqual(normalizeAppearance(null), { mode: "system", fontSize: "standard" });
+assert.deepEqual(normalizeAppearance({ mode: "invalid", fontSize: "toString" }), { mode: "system", fontSize: "standard" });
+assert.deepEqual(normalizeAppearance({ mode: "dark", fontSize: "extra-large" }), { mode: "dark", fontSize: "extra-large" });
+assert.notEqual(appearanceKey("seller-a"), appearanceKey("seller-b"));
+assert.notEqual(appearanceKey(), appearanceKey("seller-a"));
+assert.equal(fontScales["extra-large"], "125%");
+globalThis.localStorage = { getItem: () => '{broken' };
+assert.deepEqual(readAppearance("test"), { mode: "system", fontSize: "standard" });
+globalThis.localStorage = { getItem: () => { throw new Error("Storage denied"); } };
+assert.deepEqual(readAppearance("test"), { mode: "system", fontSize: "standard" });
+delete globalThis.localStorage;
+console.log("Appearance defaults, account isolation, malformed settings, and denied storage passed.");

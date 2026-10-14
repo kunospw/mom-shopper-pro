@@ -8,13 +8,13 @@ export function BusinessTheme() {
   const { user } = useAuth();
   useEffect(() => {
     const root = document.documentElement;
-    const color = getAccent(user?.businessAccent).color;
-    root.style.setProperty("--primary", color);
-    root.style.setProperty("--ring", color);
+    const accent = getAccent(user?.businessAccent);
+    root.style.setProperty("--brand", accent.color);
+    root.style.setProperty("--brand-dark", accent.darkColor);
     document.title = user?.businessName?.trim() ? `${user.businessName} · Ruang Usaha` : "Ruang Usaha";
     return () => {
-      root.style.removeProperty("--primary");
-      root.style.removeProperty("--ring");
+      root.style.removeProperty("--brand");
+      root.style.removeProperty("--brand-dark");
     };
   }, [user?.businessAccent, user?.businessName]);
   return null;

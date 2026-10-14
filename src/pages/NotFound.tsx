@@ -12,21 +12,21 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center p-4">
-      <Card className="bg-white/80 backdrop-blur-md border-0 shadow-xl max-w-md w-full">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="bg-card backdrop-blur-md border-0 shadow-sm max-w-md w-full">
         <CardContent className="text-center p-8">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
-              <ShoppingBag className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-primary text-primary-foreground rounded-2xl flex items-center justify-center shadow-lg">
+              <ShoppingBag className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
           
           {/* 404 Message */}
           <div className="mb-8">
-            <h1 className="text-6xl font-bold text-gray-900 mb-4">404</h1>
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">Halaman Tidak Ditemukan</h2>
-            <p className="text-gray-600">
+            <h1 className="text-6xl font-bold text-foreground mb-4">404</h1>
+            <h2 className="text-xl font-semibold text-foreground mb-2">Halaman Tidak Ditemukan</h2>
+            <p className="text-muted-foreground">
               Maaf, halaman yang Anda cari tidak dapat ditemukan atau telah dipindahkan.
             </p>
           </div>
@@ -35,7 +35,7 @@ const NotFound = () => {
           <div className="space-y-3">
             <Button 
               asChild 
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               size="lg"
             >
               <Link to="/">
@@ -47,7 +47,7 @@ const NotFound = () => {
             <Button 
               onClick={() => window.history.back()} 
               variant="ghost" 
-              className="w-full text-gray-600 hover:text-gray-900"
+              className="w-full text-muted-foreground hover:text-foreground"
               size="lg"
             >
               <ArrowLeft className="mr-2 h-5 w-5" />
@@ -56,7 +56,7 @@ const NotFound = () => {
           </div>
 
           {/* Additional Info */}
-          <div className="mt-6 text-xs text-gray-500">
+          <div className="mt-6 text-xs text-muted-foreground">
             <p>Jika Anda yakin ini adalah kesalahan, silakan hubungi dukungan.</p>
           </div>
         </CardContent>

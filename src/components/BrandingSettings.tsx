@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { BusinessBrand } from "./BusinessBrand";
+import { useAppearance } from "@/hooks/use-appearance";
 import { accents, getAccent, isBusinessLogo } from "@/lib/branding";
 import type { UserProfileForm } from "@/types/user";
 
@@ -14,6 +15,7 @@ export function BrandingSettings({ name, logo, accent, onLogoChange, onAccentCha
   onBusyChange: (value: boolean) => void;
   onLogoChange: (value: string) => void; onAccentChange: (value: Accent) => void;
 }) {
+  const { resolvedMode } = useAppearance();
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [reading, setReading] = useState(false);
@@ -40,7 +42,7 @@ export function BrandingSettings({ name, logo, accent, onLogoChange, onAccentCha
   return <Card>
     <CardHeader><CardTitle className="text-lg">Identitas & tampilan</CardTitle><CardDescription>Sesuaikan ruang kerja dengan bisnis Anda. Simpan pengaturan untuk menerapkannya.</CardDescription></CardHeader>
     <CardContent className="space-y-5">
-      <div className="rounded-xl border bg-muted/40 p-4" style={{ "--primary": getAccent(accent).color } as CSSProperties}><BusinessBrand name={name} logo={logo} /></div>
+      <div className="rounded-xl border bg-muted/40 p-4" style={{ "--primary": resolvedMode === "dark" ? getAccent(accent).darkColor : getAccent(accent).color } as CSSProperties}><BusinessBrand name={name} logo={logo} /></div>
       <div className="space-y-2"><Label htmlFor="business-logo">Logo bisnis</Label>
         <Input ref={input} id="business-logo" type="file" accept="image/png,image/jpeg,image/webp" disabled={reading} className="h-auto min-h-11 file:mr-3 file:py-1" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
         <p className="text-xs text-muted-foreground">PNG, JPG, atau WebP, maksimal 100 KB. Logo tampil di ruang kerja dan invoice.</p>

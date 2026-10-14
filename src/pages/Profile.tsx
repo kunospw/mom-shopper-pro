@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { UserProfileForm, UserProfile } from '@/types/user';
 import { Upload, Save, LogOut, User, Building, CreditCard, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { BrandingSettings } from "@/components/BrandingSettings";
 import { toast } from 'sonner';
 
@@ -133,6 +134,7 @@ export const Profile = () => {
           <Button variant="outline" onClick={handleSignOut}><LogOut className="h-4 w-4" />Keluar</Button>
         </header>
 
+      <div className="mb-6"><AppearanceSettings /></div>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-6">
         <BrandingSettings onBusyChange={setLogoReading} name={watch("businessName")} logo={watch("businessLogo")} accent={watch("businessAccent")} onLogoChange={value => setValue("businessLogo", value, { shouldDirty: true })} onAccentChange={value => setValue("businessAccent", value, { shouldDirty: true })} />
         {/* Personal Information */}
@@ -262,7 +264,7 @@ export const Profile = () => {
                         variant="ghost"
                         size="icon"
                         onClick={() => remove(index)}
-                        className="text-destructive hover:text-destructive hover:bg-red-50 h-10 w-10 p-0 border border-red-300"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 p-0 border border-destructive/30"
                       >
                         <Trash2 className="h-5 w-5" />
                       </Button>

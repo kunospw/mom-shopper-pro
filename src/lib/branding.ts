@@ -1,7 +1,7 @@
 export const accents = {
-  teal: { label: "Hijau laut", color: "173 80% 26%" },
-  blue: { label: "Biru", color: "217 76% 40%" },
-  violet: { label: "Ungu", color: "262 65% 43%" },
+  teal: { label: "Hijau laut", color: "173 80% 26%", darkColor: "173 65% 60%" },
+  blue: { label: "Biru", color: "217 76% 40%", darkColor: "217 80% 72%" },
+  violet: { label: "Ungu", color: "262 65% 43%", darkColor: "262 80% 78%" },
 } as const;
 
 export function getAccent(value?: string) {

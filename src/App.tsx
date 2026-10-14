@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import { Login } from "./pages/Login";
 import { Profile } from "./pages/Profile";
 import { BusinessTheme } from "@/components/BusinessBrand";
+import { AppearanceProvider } from "@/components/AppearanceProvider";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -16,10 +17,11 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <AppearanceProvider>
+          <Toaster />
+          <Sonner />
           <BusinessTheme />
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -36,6 +38,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </AppearanceProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

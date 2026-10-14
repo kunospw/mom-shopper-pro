@@ -17,7 +17,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 222 28% 16%;
 
-    --primary: 173 80% 26%;
+    --primary: var(--brand, 173 80% 26%);
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 20% 94%;
@@ -40,7 +40,7 @@ All colors MUST be HSL.
 
     --border: 214 20% 88%;
     --input: 214 20% 88%;
-    --ring: 173 80% 26%;
+    --ring: var(--primary);
 
     --radius: 0.75rem;
 
@@ -62,47 +62,37 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 30 15% 12%;
-    --foreground: 210 25% 97%;
-
-    --card: 30 15% 15%;
-    --card-foreground: 210 25% 97%;
-
-    --popover: 30 15% 15%;
-    --popover-foreground: 210 25% 97%;
-
-    --primary: 173 80% 26%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 30 20% 25%;
-    --secondary-foreground: 210 25% 97%;
-
-    --muted: 30 15% 20%;
-    --muted-foreground: 40 15% 60%;
-
-    --accent: 222 20% 24%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 173 80% 26%;
-    --success-foreground: 0 0% 100%;
-
-    --pending: 25 85% 38%;
-    --pending-foreground: 0 0% 100%;
-
-    --border: 30 15% 25%;
-    --input: 30 15% 25%;
-    --ring: 173 80% 26%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 222 24% 10%;
+    --foreground: 210 25% 95%;
+    --card: 222 22% 13%;
+    --card-foreground: 210 25% 95%;
+    --popover: 222 22% 13%;
+    --popover-foreground: 210 25% 95%;
+    --primary: var(--brand-dark, 173 65% 60%);
+    --primary-foreground: 222 28% 12%;
+    --secondary: 222 18% 20%;
+    --secondary-foreground: 210 25% 95%;
+    --muted: 222 18% 18%;
+    --muted-foreground: 215 16% 72%;
+    --accent: 222 18% 22%;
+    --accent-foreground: 210 25% 95%;
+    --destructive: 0 72% 65%;
+    --destructive-foreground: 222 28% 12%;
+    --success: 160 60% 65%;
+    --success-foreground: 222 28% 12%;
+    --pending: 35 90% 68%;
+    --pending-foreground: 222 28% 12%;
+    --border: 222 16% 27%;
+    --input: 222 16% 30%;
+    --ring: var(--primary);
+    --sidebar-background: 222 22% 13%;
+    --sidebar-foreground: 210 25% 95%;
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: 222 28% 12%;
+    --sidebar-accent: 222 18% 22%;
+    --sidebar-accent-foreground: 210 25% 95%;
+    --sidebar-border: 222 16% 27%;
+    --sidebar-ring: var(--primary);
   }
 }
 
@@ -113,7 +103,7 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-size: 16px; /* Base font size for better readability */
+    font-size: 1rem;
   }
 
   body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
@@ -134,4 +124,22 @@ All colors MUST be HSL.
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Keep exported invoices as readable light paper, independent of workspace appearance. */
+.invoice-paper {
+  color-scheme: light;
+  --card: 0 0% 100%;
+  --card-foreground: 222 28% 16%;
+  --primary: var(--brand, 173 80% 26%);
+  --muted: 210 20% 94%;
+  --muted-foreground: 215 14% 42%;
+  --border: 214 20% 88%;
+  --success: 173 80% 26%;
+  --pending: 25 85% 38%;
+  background: white;
+  color: hsl(var(--card-foreground));
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

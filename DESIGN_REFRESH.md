@@ -23,3 +23,11 @@ The full lint command has existing repository violations; do not disable them to
 Reference patterns reviewed online: the official shadcn Card, Tabs and Field source in `shadcn-ui/ui`, under `apps/v4/registry/new-york-v4/ui/`. The live documentation site returned HTTP 403; current component source was accessible via raw.githubusercontent.com. The newer Tailwind 4 implementations were used as design references, not installed over this repository’s components.
 
 The independent buyer storefront pilot, multi-tenant features, billing, automated payments and inventory synchronization are outside this branch.
+
+## Reading preferences
+
+Business settings include an independent “Kenyamanan membaca” section: Light, Dark, or Follow device; Standard, Large (112.5%), or Extra large (125%). Choices apply immediately without submitting the business-profile form. The default follows the device color scheme and uses standard text. Rem-based text, spacing and controls scale together while preserving the browser's base font preference. Reset restores these defaults. Reduced-motion preferences are respected.
+
+These personal preferences are saved per account on the current browser/device under `ruang-usaha:appearance:{uid}`; signed-out preferences use a separate guest key. They do not sync between devices and are not written to Firestore or added to the business profile. Other tabs update automatically. Malformed or inaccessible storage falls back safely; if a write is denied the UI applies the setting and reports that it could not be saved. Account changes reload the appropriate preferences.
+
+Dark appearance covers portals, toast notifications, status controls, reports, and charts, with brighter accent colors for readable dark surfaces. Invoice paper remains white with dark text when exported/shared. Browser validation with synthetic auth/data covers both explicit modes, live system changes, reload persistence, keyboard selection, per-account isolation, tab synchronization, denied storage, malformed settings, reset, light invoice paper, and 390px layouts at the largest text size. No production Firebase requests were made.
