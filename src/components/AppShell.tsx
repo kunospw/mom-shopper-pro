@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -6,9 +6,18 @@ import {
   BarChart3,
   Settings,
   UserRound,
+  Menu,
 } from "lucide-react";
 import { BusinessBrand } from "@/components/BusinessBrand";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { workspaceSections, workspaceSection } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
@@ -21,6 +30,8 @@ const icons = {
 
 export function AppShell() {
   const { user } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuNavigation = useRef(false);
   const { pathname, search } = useLocation();
   const activeSection = workspaceSection(pathname);
   const remembered = useRef<Record<string, string>>({
@@ -41,6 +52,50 @@ export function AppShell() {
     window.scrollTo(0, 0);
     document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [pathname]);
+  function navigationLinks(onNavigate?: () => void) {
+    return (
+      <>
+        {workspaceSections.map((item) => {
+          const Icon = icons[item.id];
+          return (
+            <NavLink
+              key={item.id}
+              to={destination(item)}
+              end={item.path === "/"}
+              onClick={(event) => {
+                if (
+                  !event.metaKey &&
+                  !event.ctrlKey &&
+                  !event.shiftKey &&
+                  !event.altKey
+                )
+                  onNavigate?.();
+              }}
+              className={({ isActive }) =>
+                cn(
+                  "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted",
+                  isActive
+                    ? "bg-primary/10 font-medium text-primary"
+                    : "text-muted-foreground",
+                )
+              }
+            >
+              <Icon className="h-5 w-5 shrink-0" />
+              {item.label}
+            </NavLink>
+          );
+        })}
+      </>
+    );
+  }
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMenuOpen(false);
+    };
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
   return (
     <div className="min-h-screen">
       <a
@@ -52,27 +107,7 @@ export function AppShell() {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 border-r bg-card px-4 py-6 md:flex md:flex-col">
         <BusinessBrand name={user?.businessName} logo={user?.businessLogo} />
         <nav aria-label="Navigasi utama" className="mt-8 space-y-1">
-          {workspaceSections.map((item) => {
-            const Icon = icons[item.id];
-            return (
-              <NavLink
-                key={item.id}
-                to={destination(item)}
-                end={item.path === "/"}
-                className={({ isActive }) =>
-                  cn(
-                    "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted",
-                    isActive
-                      ? "bg-primary/10 font-medium text-primary"
-                      : "text-muted-foreground",
-                  )
-                }
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {item.label}
-              </NavLink>
-            );
-          })}
+          {navigationLinks()}
         </nav>
         <div className="mt-auto border-t pt-4">
           <p className="truncate text-sm font-medium">{user?.displayName}</p>
@@ -84,11 +119,63 @@ export function AppShell() {
       <div className="md:pl-56">
         <header className="sticky top-0 z-30 border-b bg-card/95 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-            <div className="min-w-0 md:hidden">
-              <BusinessBrand
-                name={user?.businessName}
-                logo={user?.businessLogo}
-              />
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" className="shrink-0 md:hidden">
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                  Menu
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                closeLabel="Tutup menu"
+                className="flex h-dvh w-[85vw] max-w-80 flex-col gap-6 overflow-y-auto bg-card p-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden"
+                onCloseAutoFocus={(event) => {
+                  if (menuNavigation.current) {
+                    event.preventDefault();
+                    menuNavigation.current = false;
+                    requestAnimationFrame(() => {
+                      if (!document.querySelector('[role="alertdialog"]'))
+                        document
+                          .getElementById("main-content")
+                          ?.focus({ preventScroll: true });
+                    });
+                  }
+                }}
+              >
+                <SheetHeader className="pr-10 text-left">
+                  <SheetTitle className="sr-only">Menu navigasi</SheetTitle>
+                  <SheetDescription className="sr-only">
+                    Pilih area kerja. Halaman yang sedang dibuka ditandai.
+                  </SheetDescription>
+                  <BusinessBrand
+                    name={user?.businessName}
+                    logo={user?.businessLogo}
+                  />
+                </SheetHeader>
+                <nav aria-label="Navigasi utama" className="space-y-1">
+                  {navigationLinks(() => {
+                    menuNavigation.current = true;
+                    setMenuOpen(false);
+                  })}
+                </nav>
+                <div className="mt-auto border-t pt-4">
+                  <p className="truncate text-sm font-medium">
+                    {user?.displayName}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {user?.email}
+                  </p>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="min-w-0 flex-1 md:hidden">
+              <p className="truncate text-sm font-medium">
+                {user?.businessName?.trim() || "Ruang Usaha"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {activeSection.label}
+              </p>
             </div>
             <p className="hidden text-sm text-muted-foreground md:block">
               {workspaceSection(pathname).label}
@@ -103,37 +190,11 @@ export function AppShell() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto max-w-6xl space-y-6 px-4 py-6 outline-none sm:px-6 sm:py-8 pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-8"
+          className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-[max(2rem,env(safe-area-inset-bottom))] outline-none sm:px-6 sm:py-8"
         >
           <Outlet />
         </main>
       </div>
-      <nav
-        aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-card/95 px-1 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur md:hidden"
-      >
-        {workspaceSections.map((item) => {
-          const Icon = icons[item.id];
-          return (
-            <NavLink
-              key={item.id}
-              to={destination(item)}
-              end={item.path === "/"}
-              className={({ isActive }) =>
-                cn(
-                  "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-xs",
-                  isActive
-                    ? "bg-primary/10 font-medium text-primary"
-                    : "text-muted-foreground",
-                )
-              }
-            >
-              <Icon className="h-5 w-5" />
-              <span>{item.label}</span>
-            </NavLink>
-          );
-        })}
-      </nav>
     </div>
   );
 }

@@ -554,7 +554,7 @@ export const Profile = () => {
                 className={cn(
                   "flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card/95 p-3 backdrop-blur",
                   (dirty(section.id) || saving) &&
-                    "sticky bottom-[calc(6rem+env(safe-area-inset-bottom))] z-10 md:bottom-4",
+                    "sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10",
                 )}
               >
                 <p
