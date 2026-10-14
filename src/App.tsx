@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import { Login } from "./pages/Login";
 import { Profile } from "./pages/Profile";
+import { BusinessTheme } from "@/components/BusinessBrand";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -19,6 +20,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <BusinessTheme />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={

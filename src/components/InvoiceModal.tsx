@@ -8,6 +8,7 @@ import { Download, Share2, Building, Phone, MapPin, FileText } from "lucide-reac
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
+import { isBusinessLogo } from "@/lib/branding";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface InvoiceModalProps {
@@ -175,6 +176,7 @@ export const InvoiceModal = ({ transaction, isOpen, onClose }: InvoiceModalProps
         <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide">
           <div ref={invoiceRef} className="bg-card p-6 rounded-lg space-y-4">
           {/* Business Header */}
+          {isBusinessLogo(user?.businessLogo) && <img src={user.businessLogo} alt="Logo bisnis" className="mx-auto h-14 w-14 object-contain" />}
           <div className="text-center border-b pb-4">
             {user?.businessName && (
               <div className="mb-3">

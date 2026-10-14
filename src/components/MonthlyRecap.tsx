@@ -154,12 +154,12 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold mb-2 text-gray-800">📊 Laporan Penjualan</h2>
-        <p className="text-lg text-gray-600 font-semibold">{getPeriodTitle()}</p>
+        <h2 className="text-2xl font-semibold mb-2 text-foreground">Laporan Penjualan</h2>
+        <p className="text-lg text-muted-foreground font-semibold">{getPeriodTitle()}</p>
       </div>
 
       {/* Date Range Selection */}
-      <Card className="border-2 border-gray-200 shadow-md">
+      <Card className="border border-border shadow-md">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <Calendar className="h-5 w-5" />
@@ -213,7 +213,7 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
           </div>
 
           {dateRangePreset === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
+            <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-muted/40 rounded-lg">
               <div>
                 <Label htmlFor="startDate" className="text-sm font-medium">Tanggal Mulai</Label>
                 <Input
@@ -240,44 +240,44 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
       </Card>
 
       <div className="grid gap-6">
-        <Card className="border-2 border-blue-200 shadow-md">
+        <Card className="border border-blue-200 shadow-md">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-4 bg-blue-100 rounded-full">
-                <ShoppingBag className="h-8 w-8 text-blue-600" />
+                <ShoppingBag className="h-8 w-8 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-base text-gray-600 font-semibold mb-1">Total Penjualan</p>
-                <p className="text-3xl font-bold text-blue-700">{formatRupiah(stats.totalSales)}</p>
-                <p className="text-sm text-gray-500 mt-2 font-medium">{stats.transactionCount} transaksi</p>
+                <p className="text-base text-muted-foreground font-semibold mb-1">Total Penjualan</p>
+                <p className="text-2xl font-semibold text-primary">{formatRupiah(stats.totalSales)}</p>
+                <p className="text-sm text-muted-foreground mt-2 font-medium">{stats.transactionCount} transaksi</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-purple-200 shadow-md">
+        <Card className="border border-purple-200 shadow-md">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-4 bg-purple-100 rounded-full">
-                <DollarSign className="h-8 w-8 text-purple-600" />
+                <DollarSign className="h-8 w-8 text-primary" />
               </div>
               <div className="flex-1">
-                <p className="text-base text-gray-600 font-semibold mb-1">Total Modal</p>
-                <p className="text-3xl font-bold text-purple-700">{formatRupiah(stats.totalCapital)}</p>
+                <p className="text-base text-muted-foreground font-semibold mb-1">Total Modal</p>
+                <p className="text-2xl font-semibold text-primary">{formatRupiah(stats.totalCapital)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-green-300 shadow-md">
+        <Card className="border border-green-300 shadow-md">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-4 bg-green-100 rounded-full">
                 <TrendingUp className="h-8 w-8 text-green-600" />
               </div>
               <div className="flex-1">
-                <p className="text-base text-gray-600 font-semibold mb-1">Total Keuntungan</p>
-                <p className="text-3xl font-bold text-green-700">{formatRupiah(stats.totalProfit)}</p>
+                <p className="text-base text-muted-foreground font-semibold mb-1">Total Keuntungan</p>
+                <p className="text-2xl font-semibold text-green-700">{formatRupiah(stats.totalProfit)}</p>
                 {stats.totalCapital > 0 && (
                   <p className="text-sm text-green-600 font-medium mt-2">
                     ROI: {((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%
@@ -291,7 +291,7 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
 
       {/* Summary Insights */}
       {stats.transactionCount > 0 && (
-        <Card className="border-2 border-indigo-200 shadow-md">
+        <Card className="border border-indigo-200 shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl">
               <ArrowUpDown className="h-5 w-5" />
@@ -300,39 +300,39 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-semibold text-indigo-600">
                 {formatRupiah(Math.round(stats.totalSales / stats.transactionCount))}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Rata-rata per Transaksi</p>
+              <p className="text-sm text-muted-foreground font-medium">Rata-rata per Transaksi</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-semibold text-indigo-600">
                 {formatRupiah(Math.round(stats.totalProfit / stats.transactionCount))}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Rata-rata Keuntungan</p>
+              <p className="text-sm text-muted-foreground font-medium">Rata-rata Keuntungan</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-semibold text-indigo-600">
                 {stats.totalCapital > 0 ? `${((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%` : '0%'}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Return on Investment</p>
+              <p className="text-sm text-muted-foreground font-medium">Return on Investment</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
+              <p className="text-2xl font-semibold text-indigo-600">
                 {stats.totalSales > 0 ? `${((stats.totalProfit / stats.totalSales) * 100).toFixed(1)}%` : '0%'}
               </p>
-              <p className="text-sm text-gray-600 font-medium">Margin Keuntungan</p>
+              <p className="text-sm text-muted-foreground font-medium">Margin Keuntungan</p>
             </div>
           </CardContent>
         </Card>
       )}
 
       {chartData.length > 0 && (
-        <Card className="border-2 border-gray-300 shadow-md">
+        <Card className="border border-border shadow-md">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
+            <CardTitle className="text-2xl font-semibold flex items-center gap-2">
               📈 Grafik Penjualan
-              <span className="text-sm text-gray-600 font-normal">
+              <span className="text-sm text-muted-foreground font-normal">
                 ({chartData.length} periode)
               </span>
             </CardTitle>
@@ -395,9 +395,9 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
       )}
       
       {chartData.length === 0 && (
-        <Card className="border-2 border-gray-200 shadow-md">
+        <Card className="border border-border shadow-md">
           <CardContent className="p-8 text-center">
-            <div className="text-gray-500">
+            <div className="text-muted-foreground">
               <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">Tidak ada data penjualan</p>
               <p className="text-sm mt-2">Belum ada transaksi pada periode yang dipilih</p>

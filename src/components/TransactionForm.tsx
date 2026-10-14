@@ -281,13 +281,13 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
               </div>
 
               <div>
-                <Label htmlFor="transactionDate" className="text-base font-bold mb-3 block text-gray-800">📅 Tanggal & Waktu</Label>
+                <Label htmlFor="transactionDate" className="text-base font-semibold mb-3 block text-foreground">Tanggal & Waktu</Label>
                 <Input
                   id="transactionDate"
                   type="datetime-local"
                   value={transactionDate}
                   onChange={(e) => setTransactionDate(e.target.value)}
-                  className="text-base h-12 border-2 border-gray-300"
+                  className="text-base h-12 border border-border"
                   required
                 />
               </div>
@@ -384,13 +384,13 @@ export const TransactionForm = ({ onSubmit, editingTransaction, onCancel }: Tran
               </div>
 
               <div>
-                <Label htmlFor="stockTransactionDate" className="text-base font-bold mb-3 block text-gray-800">📅 Tanggal & Waktu</Label>
+                <Label htmlFor="stockTransactionDate" className="text-base font-semibold mb-3 block text-foreground">Tanggal & Waktu</Label>
                 <Input
                   id="stockTransactionDate"
                   type="datetime-local"
                   value={transactionDate}
                   onChange={(e) => setTransactionDate(e.target.value)}
-                  className="text-base h-12 border-2 border-gray-300"
+                  className="text-base h-12 border border-border"
                   required
                 />
               </div>

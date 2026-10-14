@@ -76,9 +76,9 @@ export const TransactionList = ({
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Select value={filterMonth} onValueChange={setFilterMonth}>
-          <SelectTrigger className="h-12 border-2 border-gray-300 text-base font-semibold">
+          <SelectTrigger aria-label="Filter bulan" className="h-11 bg-card">
             <SelectValue placeholder="Semua Bulan" />
           </SelectTrigger>
           <SelectContent>
@@ -95,7 +95,7 @@ export const TransactionList = ({
         </Select>
 
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="h-12 border-2 border-gray-300 text-base font-semibold">
+          <SelectTrigger aria-label="Filter jenis transaksi" className="h-11 bg-card">
             <SelectValue placeholder="Tipe" />
           </SelectTrigger>
           <SelectContent>
@@ -105,9 +105,9 @@ export const TransactionList = ({
           </SelectContent>
         </Select>
 
-        <div className="col-span-2">
+        <div className="col-span-2 sm:col-span-1">
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="h-12 border-2 border-gray-300 text-base font-semibold">
+            <SelectTrigger aria-label="Filter status pembayaran" className="h-11 bg-card">
               <SelectValue placeholder="Semua Status" />
             </SelectTrigger>
             <SelectContent>
@@ -122,19 +122,20 @@ export const TransactionList = ({
       {filteredTransactions.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <p className="text-xl text-gray-500 font-semibold">Belum ada transaksi</p>
+            <p className="font-medium">{transactions.length ? "Tidak ada transaksi yang sesuai filter" : "Belum ada transaksi"}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{transactions.length ? "Coba ubah pilihan filter di atas." : "Pilih Tambah transaksi untuk mencatat penjualan atau pembelian stok pertama."}</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
           {filteredTransactions.map((transaction) => (
-            <Card key={transaction.id} className="overflow-hidden border-2 border-gray-300 shadow-md">
+            <Card key={transaction.id} className="overflow-hidden border border-border shadow-sm">
               <CardContent className="p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-3">
                       {transaction.type === "stock" ? (
-                        <Badge variant="secondary" className="gap-1 text-base font-bold px-3 py-1">
+                        <Badge variant="secondary" className="gap-1 text-xs px-2 py-1">
                           <Package className="h-4 w-4" />
                           Stok
                         </Badge>
@@ -143,8 +144,8 @@ export const TransactionList = ({
                           variant={transaction.paymentStatus === "Paid" ? "default" : "destructive"}
                           className={
                             transaction.paymentStatus === "Paid"
-                              ? "bg-success hover:bg-success/90 text-base font-bold px-3 py-1"
-                              : "bg-pending hover:bg-pending/90 text-base font-bold px-3 py-1"
+                              ? "bg-success/10 text-success hover:bg-success/15 text-xs px-2 py-1"
+                              : "bg-pending/10 text-pending hover:bg-pending/15 text-xs px-2 py-1"
                           }
                         >
                           {transaction.paymentStatus === "Paid" ? "Lunas" : "Belum Lunas"}
@@ -154,34 +155,34 @@ export const TransactionList = ({
 
                     {transaction.type === "sale" ? (
                       <>
-                        <h3 className="font-bold text-xl mb-2 text-gray-800">
+                        <h3 className="font-semibold text-lg mb-2 text-foreground">
                           {transaction.items && transaction.items.length > 1 
                             ? `${transaction.items.length} Produk` 
                             : transaction.items?.[0]?.productName}
                         </h3>
-                        <p className="text-base text-gray-600 font-semibold">{transaction.buyerName}</p>
-                        <p className="text-sm text-gray-500 mt-1">{formatDate(transaction.date)}</p>
+                        <p className="text-sm text-muted-foreground">{transaction.buyerName}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{formatDate(transaction.date)}</p>
 
                         <div className="space-y-2 mt-3">
                           <div className="flex justify-between text-base">
-                            <span className="text-gray-700 font-semibold">Harga Jual:</span>
-                            <span className="font-bold text-blue-700">{formatRupiah(transaction.totalSellingPrice || 0)}</span>
+                            <span className="text-muted-foreground">Harga Jual:</span>
+                            <span className="font-semibold text-foreground">{formatRupiah(transaction.totalSellingPrice || 0)}</span>
                           </div>
                           <div className="flex justify-between text-base">
-                            <span className="text-gray-700 font-semibold">Keuntungan:</span>
-                            <span className="font-bold text-green-700 text-lg">{formatRupiah(transaction.totalProfit || 0)}</span>
+                            <span className="text-muted-foreground">Keuntungan:</span>
+                            <span className="font-semibold text-foreground">{formatRupiah(transaction.totalProfit || 0)}</span>
                           </div>
                         </div>
                       </>
                     ) : (
                       <>
-                        <h3 className="font-bold text-xl mb-2 text-gray-800">{transaction.productName}</h3>
-                        <p className="text-base text-gray-600 font-semibold">Jumlah: {transaction.quantity}</p>
-                        <p className="text-sm text-gray-500 mt-1">{formatDate(transaction.date)}</p>
+                        <h3 className="font-semibold text-lg mb-2 text-foreground">{transaction.productName}</h3>
+                        <p className="text-sm text-muted-foreground">Jumlah: {transaction.quantity}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{formatDate(transaction.date)}</p>
                         <div className="mt-3">
                           <div className="flex justify-between text-base">
-                            <span className="text-gray-700 font-semibold">Harga Modal:</span>
-                            <span className="font-bold text-purple-700">{formatRupiah(transaction.basePrice || 0)}</span>
+                            <span className="text-muted-foreground">Harga Modal:</span>
+                            <span className="font-semibold text-foreground">{formatRupiah(transaction.basePrice || 0)}</span>
                           </div>
                         </div>
                       </>
@@ -194,7 +195,7 @@ export const TransactionList = ({
                     <Button
                       size="default"
                       variant="outline"
-                      className="flex-1 h-11 text-base font-bold border-2 border-blue-300 hover:bg-blue-50"
+                      className="h-11"
                       onClick={() => onViewInvoice(transaction)}
                     >
                       <FileText className="h-5 w-5 mr-2" />
@@ -209,7 +210,7 @@ export const TransactionList = ({
                         <Button
                           size="default"
                           variant="outline"
-                          className="text-green-700 hover:text-green-800 hover:bg-green-50 border-2 border-green-300 flex-shrink-0 font-bold h-11"
+                          className="text-green-700 hover:text-green-800 hover:bg-green-50 border border-green-300 flex-shrink-0 font-semibold h-11"
                           onClick={() => onStatusChange(transaction.id, 'Paid')}
                         >
                           <CheckCircle className="h-5 w-5 mr-2" />
@@ -220,7 +221,7 @@ export const TransactionList = ({
                         <Button
                           size="default"
                           variant="outline"
-                          className="text-orange-700 hover:text-orange-800 hover:bg-orange-50 border-2 border-orange-300 flex-shrink-0 font-bold h-11"
+                          className="text-orange-700 hover:text-orange-800 hover:bg-orange-50 border border-orange-300 flex-shrink-0 font-semibold h-11"
                           onClick={() => onStatusChange(transaction.id, 'Pending')}
                         >
                           <Clock className="h-5 w-5 mr-2" />
@@ -230,14 +231,14 @@ export const TransactionList = ({
                     </>
                   )}
                   
-                  <Button size="default" variant="outline" onClick={() => onEdit(transaction)} className="h-11 w-11 border-2 border-gray-300">
+                  <Button size="default" variant="outline" aria-label="Edit transaksi" onClick={() => onEdit(transaction)} className="h-11 w-11 border border-border">
                     <Pencil className="h-5 w-5" />
                   </Button>
                   <Button
                     size="default"
                     variant="outline"
-                    className="text-red-700 hover:text-red-800 hover:bg-red-50 h-11 w-11 border-2 border-red-300"
-                    onClick={() => handleDeleteClick(transaction.id)}
+                    className="text-red-700 hover:text-red-800 hover:bg-red-50 h-11 w-11 border border-red-300"
+                    aria-label="Hapus transaksi" onClick={() => handleDeleteClick(transaction.id)}
                   >
                     <Trash2 className="h-5 w-5" />
                   </Button>

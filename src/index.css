@@ -8,41 +8,41 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 40 30% 96%;
-    --foreground: 30 20% 20%;
+    --background: 210 25% 97%;
+    --foreground: 222 28% 16%;
 
-    --card: 40 40% 98%;
-    --card-foreground: 30 20% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 28% 16%;
 
-    --popover: 40 40% 98%;
-    --popover-foreground: 30 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 28% 16%;
 
-    --primary: 145 60% 45%;
+    --primary: 173 80% 26%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 35% 75%;
-    --secondary-foreground: 30 20% 20%;
+    --secondary: 210 20% 94%;
+    --secondary-foreground: 222 28% 16%;
 
-    --muted: 40 25% 90%;
-    --muted-foreground: 30 15% 45%;
+    --muted: 210 20% 94%;
+    --muted-foreground: 215 14% 42%;
 
-    --accent: 25 45% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 210 20% 94%;
+    --accent-foreground: 222 28% 16%;
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 145 60% 45%;
+    --success: 173 80% 26%;
     --success-foreground: 0 0% 100%;
 
-    --pending: 15 85% 55%;
+    --pending: 25 85% 38%;
     --pending-foreground: 0 0% 100%;
 
-    --border: 40 20% 85%;
-    --input: 40 20% 85%;
-    --ring: 145 60% 45%;
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+    --ring: 173 80% 26%;
 
-    --radius: 1rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
@@ -63,38 +63,38 @@ All colors MUST be HSL.
 
   .dark {
     --background: 30 15% 12%;
-    --foreground: 40 30% 96%;
+    --foreground: 210 25% 97%;
 
     --card: 30 15% 15%;
-    --card-foreground: 40 30% 96%;
+    --card-foreground: 210 25% 97%;
 
     --popover: 30 15% 15%;
-    --popover-foreground: 40 30% 96%;
+    --popover-foreground: 210 25% 97%;
 
-    --primary: 145 60% 45%;
+    --primary: 173 80% 26%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 30 20% 25%;
-    --secondary-foreground: 40 30% 96%;
+    --secondary-foreground: 210 25% 97%;
 
     --muted: 30 15% 20%;
     --muted-foreground: 40 15% 60%;
 
-    --accent: 25 45% 55%;
+    --accent: 222 20% 24%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 145 60% 45%;
+    --success: 173 80% 26%;
     --success-foreground: 0 0% 100%;
 
-    --pending: 15 85% 55%;
+    --pending: 25 85% 38%;
     --pending-foreground: 0 0% 100%;
 
     --border: 30 15% 25%;
     --input: 30 15% 25%;
-    --ring: 145 60% 45%;
+    --ring: 173 80% 26%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -116,27 +116,10 @@ All colors MUST be HSL.
     font-size: 16px; /* Base font size for better readability */
   }
 
-  /* Larger base font sizes for better readability for older users */
-  p, span, div {
-    font-size: 1rem;
-  }
+  body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+  button, input, select, textarea { font: inherit; }
+  :focus-visible { outline-offset: 3px; }
 
-  h1 {
-    font-size: 2rem;
-  }
-
-  h2 {
-    font-size: 1.75rem;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
-
-  /* Improve text readability with better line height */
-  p, span, div, button {
-    line-height: 1.6;
-  }
 }
 
 @layer utilities {
