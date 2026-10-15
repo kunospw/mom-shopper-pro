@@ -11,6 +11,7 @@ A modern reseller management application built with React, TypeScript, Vite, and
 - 📱 **WhatsApp Sharing** - Share invoices directly via WhatsApp
 - 📊 **Transaction Management** - Track sales, purchases, and payments
 - 📈 **Monthly Reports** - View detailed sales analytics
+- 🛍️ **Buyer Catalog Pilot** - Separate public listings and WhatsApp order requests; see [pilot setup and security prerequisites](docs/catalog-pilot.md).
 
 ## Setup Instructions
 
@@ -52,19 +53,9 @@ npm install
 
 ### 4. Firebase Security Rules
 
-Update your Firestore rules to allow authenticated users to manage their profiles:
+Review [firebase/firestore.rules](firebase/firestore.rules) and the [catalog activation procedure](docs/catalog-pilot.md) before publishing rules in Firebase Console. The proposed policy preserves each owner's profile and transaction access and adds anonymous reads of published catalogs. It removes the development catch-all that allowed every signed-in user to access every document.
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users can only access their own profile
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-```
+Rules are not deployed by a Vercel build. The checked-in rules must be tested and explicitly published before buyer catalogs are usable. Do not retain a global `request.auth != null` catch-all alongside them: overlapping Firestore rules grant access if **any** matching allow condition succeeds.
 
 **Note**: QRIS images are stored as base64 strings in Firestore, so Firebase Storage is not required.
 

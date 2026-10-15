@@ -1,69 +1,78 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createBrowserRouter,
   Navigate,
-  Outlet,
   RouterProvider,
 } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { BusinessTheme } from "@/components/BusinessBrand";
-import { AppearanceProvider } from "@/components/AppearanceProvider";
-import { AppShell } from "@/components/AppShell";
-import Index from "./pages/Index";
-import { Login } from "./pages/Login";
-import { Profile } from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
-function RootLayout() {
-  return (
-    <AuthProvider>
-      <AppearanceProvider>
-        <Toaster />
-        <Sonner position="top-right" />
-        <BusinessTheme />
-        <Outlet />
-      </AppearanceProvider>
-    </AuthProvider>
-  );
-}
+const workspacePage = async () => ({
+  Component: (await import("./pages/Index")).default,
+});
 const router = createBrowserRouter([
   {
-    element: <RootLayout />,
+    path: "/shop/:storeId",
+    lazy: async () => ({
+      Component: (await import("./pages/BuyerCatalog")).BuyerCatalog,
+    }),
+  },
+  {
+    lazy: async () => ({
+      Component: (await import("./components/OwnerLayout")).OwnerLayout,
+    }),
     children: [
-      { path: "/login", element: <Login /> },
       {
-        element: (
-          <ProtectedRoute>
-            <AppShell />
-          </ProtectedRoute>
-        ),
+        path: "/login",
+        lazy: async () => ({
+          Component: (await import("./pages/Login")).Login,
+        }),
+      },
+      {
+        lazy: async () => ({
+          Component: (await import("./components/OwnerLayout")).OwnerWorkspace,
+        }),
         children: [
-          { path: "/", element: <Index /> },
-          { path: "/transactions", element: <Index /> },
-          { path: "/reports", element: <Index /> },
+          { path: "/", lazy: workspacePage },
+          { path: "/transactions", lazy: workspacePage },
+          { path: "/reports", lazy: workspacePage },
+          {
+            path: "/catalog",
+            lazy: async () => ({
+              Component: (await import("./pages/Catalog")).Catalog,
+            }),
+          },
           {
             path: "/settings",
             element: <Navigate to="/settings/appearance" replace />,
           },
-          { path: "/settings/:section", element: <Profile /> },
+          {
+            path: "/settings/:section",
+            lazy: async () => ({
+              Component: (await import("./pages/Profile")).Profile,
+            }),
+          },
           {
             path: "/profile",
             element: <Navigate to="/settings/business" replace />,
           },
         ],
       },
-      { path: "*", element: <NotFound /> },
     ],
   },
+  { path: "*", element: <NotFound /> },
 ]);
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <RouterProvider router={router} />
+      <RouterProvider
+        router={router}
+        fallbackElement={
+          <p role="status" className="p-8 text-center">
+            Memuat halaman…
+          </p>
+        }
+      />
     </TooltipProvider>
   </QueryClientProvider>
 );

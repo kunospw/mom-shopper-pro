@@ -1,0 +1,55 @@
+rules_version = '2';
+// Proposed replacement based on the live policy supplied on 2026-10-15.
+// Review and test before publishing. This file is not deployed automatically.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Preserve profile and transaction access for each signed-in owner.
+    // The former global authenticated catch-all is intentionally removed.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /storefronts/{storeId} {
+      function owner() { return request.auth != null && request.auth.uid == storeId; }
+      function raster(value, limit) {
+        return value is string && value.size() <= limit &&
+          (value == '' || value.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$'));
+      }
+      function validStore(d) {
+        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','updatedAt']) &&
+          d.keys().hasAll(['name','description','whatsapp','accent','logo','published','updatedAt']) &&
+          d.name is string && d.name.size() <= 80 && d.description is string && d.description.size() <= 600 &&
+          d.whatsapp is string && (d.whatsapp == '' || d.whatsapp.matches('^[1-9][0-9]{7,14}$')) &&
+          d.accent in ['teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
+          (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) && d.updatedAt == request.time;
+      }
+      function choice(values, i) {
+        return values.size() <= i || (values[i] is string && values[i].size() > 0 && values[i].size() <= 50);
+      }
+      function validProduct(d) {
+        return d.keys().hasOnly(['name','description','category','price','image','availability','leadTime','optionLabel','options','published','updatedAt']) &&
+          d.keys().hasAll(['name','description','category','price','image','availability','leadTime','optionLabel','options','published','updatedAt']) &&
+          d.name is string && d.name.size() > 0 && d.name.size() <= 80 && d.description is string && d.description.size() <= 1500 &&
+          d.category is string && d.category.size() <= 40 && d.price is int && d.price > 0 && d.price <= 1000000000 && raster(d.image,180000) &&
+          d.availability in ['ready','preorder','unavailable'] && d.leadTime is string && d.leadTime.size() <= 100 &&
+          (d.availability != 'preorder' || d.leadTime.size() > 0) && d.optionLabel is string && d.optionLabel.size() > 0 && d.optionLabel.size() <= 30 &&
+          d.options is list && d.options.size() <= 8 && d.options.toSet().size() == d.options.size() &&
+          choice(d.options,0) && choice(d.options,1) && choice(d.options,2) && choice(d.options,3) &&
+          choice(d.options,4) && choice(d.options,5) && choice(d.options,6) && choice(d.options,7) &&
+          d.published is bool && d.updatedAt == request.time;
+      }
+      allow get: if owner() || resource.data.published == true;
+      allow list: if false;
+      allow create, update: if owner() && validStore(request.resource.data);
+      allow delete: if owner();
+      match /products/{productId} {
+        allow read: if owner() || (resource.data.published == true && get(/databases/$(database)/documents/storefronts/$(storeId)).data.published == true);
+        allow create, update: if owner() && validProduct(request.resource.data);
+        allow delete: if owner();
+      }
+    }
+  }
+}

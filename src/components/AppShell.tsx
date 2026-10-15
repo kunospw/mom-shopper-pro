@@ -7,6 +7,7 @@ import {
   Settings,
   UserRound,
   Menu,
+  ShoppingBag,
 } from "lucide-react";
 import { BusinessBrand } from "@/components/BusinessBrand";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +26,7 @@ const icons = {
   overview: LayoutDashboard,
   transactions: List,
   reports: BarChart3,
+  catalog: ShoppingBag,
   settings: Settings,
 };
 

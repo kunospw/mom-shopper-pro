@@ -1,6 +1,7 @@
 export const workspaceSections = [
   { id: "overview", path: "/", label: "Ringkasan" },
   { id: "transactions", path: "/transactions", label: "Transaksi" },
+  { id: "catalog", path: "/catalog", label: "Katalog" },
   { id: "reports", path: "/reports", label: "Laporan" },
   { id: "settings", path: "/settings", label: "Pengaturan" },
 ] as const;
