@@ -1,16 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import {
-  Plus,
-  ShoppingBag,
-  ExternalLink,
-  Copy,
-  Pencil,
-  Trash2,
-  Settings2,
-  Store,
-} from "lucide-react";
+import { Copy, ExternalLink, Pencil, Plus, Settings2, ShoppingBag, Store, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBooks } from "@/contexts/BooksContext";
 import { saveInventory } from "@/lib/books-storage";
@@ -21,25 +12,13 @@ import {
   saveStorefront,
   isSlugAvailable,
 } from "@/lib/catalog-owner-storage";
-import {
-  availabilityLabels,
-  type CatalogProduct,
-  type Storefront,
-  type StorefrontFields,
-} from "@/lib/catalog";
+import type { CatalogProduct, Storefront, StorefrontFields } from "@/lib/catalog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -51,6 +30,9 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { ProductEditor } from "@/components/ProductEditor";
+import { AvailabilityBadge, priceLabel, productMeta } from "@/components/ShopProductCard";
+import { ShopAvatar } from "@/components/shop/shop-ui";
+import { FilterChips, SearchBox, StatCard } from "@/components/form-parts";
 import { SubscriptionNotice } from "@/components/SubscriptionNotice";
 import { usePlan } from "@/hooks/use-plan";
 import { canPublish, needsTrialStart } from "@/lib/entitlement";
@@ -60,8 +42,21 @@ import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { formatRupiah } from "@/lib/currency";
 import { toast } from "sonner";
-import { formDialogClass } from "@/lib/utils";
+import { cn, formDialogClass } from "@/lib/utils";
 import { effectiveAccentKey } from "@/lib/branding";
+import type { Inventory } from "@/types/books";
+
+/** Stock at or below this shows as "tinggal sedikit". */
+const LOW_STOCK = 3;
+const stockOf = (inventory: Inventory | undefined) => (typeof inventory?.stock === "number" ? inventory.stock : null);
+const filters = [
+  { id: "all", label: "Semua", test: () => true },
+  { id: "shown", label: "Tampil", test: (p: CatalogProduct) => p.published },
+  { id: "hidden", label: "Tersembunyi", test: (p: CatalogProduct) => !p.published },
+  { id: "preorder", label: "Preorder", test: (p: CatalogProduct) => p.availability === "preorder" },
+  { id: "low", label: "Stok menipis", test: (p: CatalogProduct, stock: number | null) => p.availability === "unavailable" || (stock !== null && stock <= LOW_STOCK) },
+] as const;
+type FilterId = (typeof filters)[number]["id"];
 
 export function Catalog() {
   const { user } = useAuth();
@@ -75,13 +70,14 @@ export function Catalog() {
   const [retry, setRetry] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const edit = params.get("edit");
   const editor = params.get("new") === "product" || !!edit;
   const storeEditor = params.get("store") === "edit";
   const open = editor || storeEditor;
+  const search = params.get("q") ?? "";
+  const filter = (params.get("f") ?? "all") as FilterId;
   const [setupFlow, setSetupFlow] = useState(false);
   // A shop without a storefront gets the guided setup; it stays on it after saving to show the next step.
   const setup = storeEditor && (setupFlow || (!loading && !failed && !store));
@@ -153,222 +149,232 @@ export function Catalog() {
       toast.error("Status produk belum berubah. Coba lagi.");
     }
   }
-  const visible = products.filter((product) =>
-    `${product.name} ${product.category}`
-      .toLocaleLowerCase("id-ID")
-      .includes(search.trim().toLocaleLowerCase("id-ID")),
+  const categories = useMemo(() => [...new Set(products.map((p) => p.category.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "id")), [products]);
+  const stockFor = (product: CatalogProduct) => stockOf(books.inventory[product.id]);
+  const term = search.trim().toLocaleLowerCase("id-ID");
+  const activeFilter = filters.find((f) => f.id === filter) ?? filters[0];
+  const visible = products.filter(
+    (product) =>
+      activeFilter.test(product, stockFor(product)) &&
+      `${product.name} ${product.category}`.toLocaleLowerCase("id-ID").includes(term),
   );
+  const shownCount = products.filter((p) => p.published).length;
+  const lowCount = products.filter((p) => filters[4].test(p, stockFor(p))).length;
+  function setQuery(key: string, value: string) {
+    const next = new URLSearchParams(params);
+    if (value && value !== "all") next.set(key, value);
+    else next.delete(key);
+    setParams(next, { replace: true });
+  }
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      toast.success("Tautan katalog disalin");
+    } catch {
+      toast.error("Tautan belum tersalin. Salin dari kolom tautan publik.");
+    }
+  }
+
   return (
     <>
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold sm:text-3xl">Katalog</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Kelola produk untuk pembeli. Daftar ini terpisah dari catatan
-            transaksi.
-          </p>
+          <h1 className="text-[28px] font-bold leading-tight tracking-tight">Katalog</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Produk yang dilihat pembeli di toko online. Modal dan stok hanya terlihat oleh Anda.</p>
         </div>
-        <Button
-          disabled={loading || failed}
-          onClick={() => navigateEditor("new", "product")}
-        >
+        <Button className="h-11 rounded-[10px]" disabled={loading || failed} onClick={() => navigateEditor("new", "product")}>
           <Plus />
           Tambah produk
         </Button>
       </header>
       {planLoaded && <SubscriptionNotice plan={plan} published={!!store?.published} />}
       {loading ? (
-        <p role="status">Memuat katalog…</p>
+        <div role="status" aria-label="Memuat katalog" className="space-y-3">
+          <Skeleton className="h-24" />
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" />
+          </div>
+          <p className="text-sm text-muted-foreground">Memuat katalog…</p>
+        </div>
       ) : failed ? (
-        <Card>
-          <CardContent className="space-y-3 p-6">
-            <p role="alert">
-              Katalog belum dapat dimuat. Coba lagi atau hubungi pengelola
-              aplikasi jika masalah berlanjut.
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => setRetry((value) => value + 1)}
-            >
-              Coba lagi
-            </Button>
-          </CardContent>
+        <Card className="space-y-3 p-6">
+          <p role="alert">Katalog belum dapat dimuat. Coba lagi atau hubungi pengelola aplikasi jika masalah berlanjut.</p>
+          <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
+            Coba lagi
+          </Button>
         </Card>
       ) : (
         <>
-          <Card>
-            <CardContent className="space-y-4 p-5">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-medium">
-                    {store?.name || "Siapkan toko Anda"}
+          {store ? (
+            <Card className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <ShopAvatar name={store.name} logo={store.logo} size={48} ring={false} />
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="truncate text-base font-semibold">{store.name || "Toko Anda"}</span>
+                    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold", store.published ? "bg-success-soft text-success" : "bg-muted text-muted-foreground")}>
+                      <span aria-hidden="true" className={cn("h-1.5 w-1.5 rounded-full", store.published ? "bg-success" : "bg-muted-foreground")} />
+                      {store.published ? "Terbuka" : "Ditutup"}
+                    </span>
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {store?.published
-                      ? "Katalog terbuka. Hanya produk yang ditampilkan dapat dilihat pembeli."
-                      : "Katalog masih ditutup. Lengkapi informasi toko, tambahkan produk, lalu buka untuk pembeli."}
-                  </p>
+                  {store.published ? (
+                    <label htmlFor="public-catalog-url" className="mt-1 block min-w-0">
+                      <span className="sr-only">Tautan publik</span>
+                      <input
+                        id="public-catalog-url"
+                        readOnly
+                        value={publicUrl}
+                        onFocus={(event) => event.target.select()}
+                        className="w-full min-w-0 truncate bg-transparent text-[13px] text-muted-foreground outline-none focus-visible:text-foreground"
+                      />
+                    </label>
+                  ) : (
+                    <p className="mt-1 text-[13px] text-muted-foreground">Toko belum terlihat oleh pembeli. Buka dari Atur toko.</p>
+                  )}
                 </div>
-                <Badge variant={store?.published ? "success" : "neutral"}>
-                  {store?.published ? "Terbuka" : "Ditutup"}
-                </Badge>
               </div>
               <div className="flex flex-wrap gap-2">
-                {store ? (
-                  <Button variant="outline" onClick={() => navigateEditor("store", "edit")}>
-                    <Settings2 />
-                    Atur toko
-                  </Button>
-                ) : (
-                  <Button onClick={() => navigateEditor("store", "edit")}>
-                    <Store />
-                    Buat toko
-                  </Button>
-                )}
-                {store?.published && (
+                {store.published && (
                   <>
+                    <Button variant="outline" onClick={() => void copyLink()}>
+                      <Copy />
+                      Salin tautan
+                    </Button>
                     <Button asChild variant="outline">
-                      <a
-                        href={publicPath}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      <a href={publicPath} target="_blank" rel="noopener noreferrer">
                         <ExternalLink />
                         Lihat sebagai pembeli
                       </a>
                     </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(publicUrl);
-                          toast.success("Tautan katalog disalin");
-                        } catch {
-                          toast.error(
-                            "Tautan belum tersalin. Salin dari kolom tautan publik.",
-                          );
-                        }
-                      }}
-                    >
-                      <Copy />
-                      Salin tautan
-                    </Button>
                   </>
                 )}
+                <Button variant={store.published ? "ghost" : "default"} onClick={() => navigateEditor("store", "edit")}>
+                  <Settings2 />
+                  Atur toko
+                </Button>
               </div>
-              {store?.published && (
-                <div className="space-y-2">
-                  <Label htmlFor="public-catalog-url">Tautan publik</Label>
-                  <Input
-                    id="public-catalog-url"
-                    readOnly
-                    value={publicUrl}
-                    onFocus={(event) => event.target.select()}
-                  />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <div className="space-y-2">
-            <Label htmlFor="owner-catalog-search">Cari produk</Label>
-            <Input
-              id="owner-catalog-search"
-              type="search"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Nama produk atau kategori"
-            />
-          </div>
-          {!visible.length ? (
-            <Card>
-              <CardContent className="space-y-3 p-8 text-center">
-                <ShoppingBag className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="font-medium">
-                  {products.length
-                    ? "Produk tidak ditemukan"
-                    : "Belum ada produk katalog"}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {products.length
-                    ? "Coba kata pencarian lain."
-                    : "Tambahkan produk pertama. Produk baru disimpan sebagai tersembunyi sampai Anda memilih untuk menampilkannya."}
-                </p>
-              </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3 lg:grid-cols-2">
-              {visible.map((product) => (
-                <Card key={product.id}>
-                  <CardContent className="flex min-w-0 gap-4 p-4">
-                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
-                      {product.image ? (
-                        <img
-                          src={product.image}
-                          alt=""
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <ShoppingBag className="text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="break-words font-medium">
-                        {product.name}
-                      </h2>
-                      <p className="mt-1 text-sm">
-                        {formatRupiah(product.price)}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant={product.published ? "success" : "neutral"}>
-                          {product.published ? "Ditampilkan" : "Tersembunyi"}
-                        </Badge>
-                        <Badge variant="outline">
-                          {availabilityLabels[product.availability]}
-                        </Badge>
-                        {product.kind === "digital" && <Badge variant="outline">Digital</Badge>}
-                        {typeof books.inventory[product.id]?.stock === "number" && (
-                          <Badge variant={books.inventory[product.id].stock! <= 0 ? "danger" : "neutral"}>
-                            Stok {books.inventory[product.id].stock}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <Button
-                          variant="outline"
+            <Card className="flex flex-col gap-4 border-dashed p-5 sm:flex-row sm:items-center">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary-ink dark:bg-primary/15 dark:text-primary">
+                <Store className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-base font-semibold">Siapkan toko Anda</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">Beri nama toko dan nomor WhatsApp pesanan. Sekitar 2 menit, lalu tambahkan produk.</p>
+              </div>
+              <Button onClick={() => navigateEditor("store", "edit")}>
+                <Store />
+                Buat toko
+              </Button>
+            </Card>
+          )}
+
+          {products.length > 0 && (
+            <section aria-label="Ringkasan katalog" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard label="Produk" value={products.length} hint={`${categories.length} kategori`} />
+              <StatCard label="Tampil di toko" value={shownCount} hint={`${products.length - shownCount} tersembunyi`} />
+              <StatCard label="Preorder" value={products.filter((p) => p.availability === "preorder").length} />
+              <StatCard label="Stok menipis" value={lowCount} tone={lowCount ? "text-request" : undefined} hint={`Termasuk belum tersedia`} />
+            </section>
+          )}
+
+          <Card className="overflow-hidden">
+            {products.length > 0 && (
+              <div className="flex flex-wrap items-center gap-3 border-b p-4 sm:p-[18px]">
+                <FilterChips
+                  label="Saring produk"
+                  value={activeFilter.id}
+                  onChange={(value) => setQuery("f", value)}
+                  options={filters.map((f) => ({ id: f.id, label: f.label, count: products.filter((p) => f.test(p, stockFor(p))).length }))}
+                />
+                <SearchBox id="owner-catalog-search" label="Cari produk" value={search} onChange={(value) => setQuery("q", value)} placeholder="Nama produk atau kategori" />
+              </div>
+            )}
+            {!visible.length ? (
+              <div className="flex flex-col items-center gap-2 p-10 text-center">
+                <ShoppingBag className="h-9 w-9 text-muted-foreground/60" aria-hidden="true" />
+                <p className="font-semibold">{products.length ? "Produk tidak ditemukan" : "Belum ada produk"}</p>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  {products.length
+                    ? "Coba kata pencarian atau saringan lain."
+                    : "Tambahkan produk pertama dengan foto, harga, dan pilihan ukuran atau warna. Pembeli bisa langsung memesan dari toko."}
+                </p>
+                {products.length ? (
+                  <button type="button" className="text-sm font-semibold text-primary hover:underline" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
+                    Tampilkan semua
+                  </button>
+                ) : (
+                  <Button className="mt-2" onClick={() => navigateEditor("new", "product")}>
+                    <Plus /> Tambah produk pertama
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <ul aria-label="Daftar produk" className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-3 xl:grid-cols-4">
+                {visible.map((product) => {
+                  const stock = stockFor(product);
+                  const cost = books.inventory[product.id]?.cost ?? 0;
+                  const meta = [product.category, productMeta(product)].filter(Boolean).join(" · ");
+                  return (
+                    <li key={product.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card">
+                      <div className="flex min-w-0 gap-3 p-3 sm:flex-col sm:gap-0 sm:p-0">
+                        <button
+                          type="button"
                           onClick={() => navigateEditor("edit", product.id)}
-                          aria-label={`Edit ${product.name}`}
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          className={cn("relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F1EDE6] sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none", !product.published && "opacity-70")}
                         >
+                          {product.image ? <img src={product.image} alt="" className="h-full w-full object-cover" loading="lazy" /> : <ShoppingBag className="h-8 w-8 text-[#8C7A68]/40" />}
+                          <AvailabilityBadge product={product} className="absolute left-1.5 top-1.5 max-sm:hidden sm:left-2.5 sm:top-2.5" />
+                        </button>
+                        <div className="min-w-0 flex-1 sm:p-3.5">
+                          <h2 className="line-clamp-2 break-words text-[15px] font-semibold leading-snug">{product.name}</h2>
+                          {meta && <p className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</p>}
+                          <p className="num mt-1 font-bold">{priceLabel(product)}</p>
+                          <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                            <AvailabilityBadge product={product} className="border sm:hidden" />
+                            {!product.published && <span className="rounded-md bg-muted px-1.5 py-0.5 font-semibold text-muted-foreground">Tersembunyi</span>}
+                            {stock !== null && (
+                              <span className={cn("font-semibold", stock <= 0 ? "text-destructive" : stock <= LOW_STOCK ? "text-request" : "text-muted-foreground")}>
+                                {stock <= 0 ? "Stok habis" : stock <= LOW_STOCK ? `Stok tinggal ${stock}` : `Stok ${stock}`}
+                              </span>
+                            )}
+                            {cost > 0 && product.price > cost && <span className="num text-muted-foreground">Untung {formatRupiah(product.price - cost)}/unit</span>}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-auto flex items-center gap-1 border-t px-2 py-1.5">
+                        <label className="mr-auto flex min-h-11 cursor-pointer items-center gap-2 px-1.5 text-[13px] font-medium">
+                          <Switch checked={product.published} onCheckedChange={() => void togglePublished(product)} aria-label={`Tampilkan ${product.name} di katalog`} />
+                          <span aria-hidden="true">{product.published ? "Tampil" : "Sembunyi"}</span>
+                        </label>
+                        <Button variant="ghost" className="h-11" onClick={() => navigateEditor("edit", product.id)} aria-label={`Edit ${product.name}`}>
                           <Pencil />
                           Edit
                         </Button>
-                        <label className="flex min-h-11 items-center gap-2 text-sm">
-                          <Switch
-                            checked={product.published}
-                            onCheckedChange={() => void togglePublished(product)}
-                            aria-label={`Tampilkan ${product.name} di katalog`}
-                          />
-                          Tampil
-                        </label>
-                        <Button
-                          variant="ghost"
-                          onClick={() => setDeleteId(product.id)}
-                          aria-label={`Hapus ${product.name}`}
-                        >
+                        <Button variant="ghost" size="icon" className="h-11 w-11 text-muted-foreground hover:text-destructive" onClick={() => setDeleteId(product.id)} aria-label={`Hapus ${product.name}`}>
                           <Trash2 />
-                          Hapus
                         </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {visible.length > 0 && (
+              <p className="flex flex-wrap justify-between gap-2 border-t px-[18px] py-3 text-[13px] text-muted-foreground">
+                <span>Menampilkan {visible.length} dari {products.length} produk</span>
+                <span>Produk tersembunyi tidak terlihat oleh pembeli.</span>
+              </p>
+            )}
+          </Card>
         </>
       )}
+
       <Dialog
-        open={open && !loading && !failed}
+        open={storeEditor && !loading && !failed}
         onOpenChange={(value) => {
           if (!value && !busy) navigateEditor();
         }}
@@ -382,20 +388,6 @@ export function Catalog() {
             if (busy) event.preventDefault();
           }}
         >
-          {!setup && <DialogHeader>
-            <DialogTitle>
-              {storeEditor
-                ? "Toko publik"
-                : edit
-                  ? "Edit produk"
-                  : "Tambah produk"}
-            </DialogTitle>
-            <DialogDescription>
-              {storeEditor
-                ? "Pilih informasi yang akan Anda bagikan kepada pembeli."
-                : "Isi informasi produk dan tentukan apakah produk ditampilkan kepada pembeli."}
-            </DialogDescription>
-          </DialogHeader>}
           {setup ? (
             <StoreSetup
               key="setup"
@@ -425,67 +417,93 @@ export function Catalog() {
                 else done();
               }}
             />
-          ) : storeEditor ? (
-            <StorefrontEditor
-              key="store"
-              initial={initialStore}
-              wasPublished={!!store?.published}
-              trialLocked={planLoaded && !canPublish(plan, !!store?.published)}
-              trialStarts={planLoaded && !entitlement}
-              onUpgrade={openUpgrade}
-              checkSlug={isSlugAvailable}
-              onDirtyChange={setDirty}
-              onBusyChange={setBusy}
-              onCancel={() => navigateEditor()}
-              onSave={async (fields) => {
-                setStore(
-                  await saveStorefront(fields, store?.slug ?? "", {
-                    startTrial: needsTrialStart(entitlement, fields.published),
-                    reopening: fields.published && !store?.published,
-                  }),
-                );
-                void reloadPlan();
-                void books.reload();
-                done();
-                toast.success("Pengaturan toko disimpan");
-              }}
-            />
-          ) : edit && !selected ? (
-            <p>Produk tidak ditemukan.</p>
           ) : (
-            <ProductEditor
-              key={edit || "new"}
-              product={selected}
-              inventory={selected ? books.inventory[selected.id] : undefined}
-              onDirtyChange={setDirty}
-              onBusyChange={setBusy}
-              onCancel={() => navigateEditor()}
-              onSave={async (fields, inventory) => {
-                const saved = await saveCatalogProduct(
-                  fields,
-                  edit || undefined,
-                );
-                try {
-                  await saveInventory(saved.id, inventory);
-                  void books.reload();
-                } catch {
-                  toast.error(
-                    "Produk tersimpan, tetapi modal dan stok belum. Buka produk lagi untuk menyimpannya.",
+            <>
+              <DialogHeader>
+                <DialogTitle>Toko publik</DialogTitle>
+                <DialogDescription>Pilih informasi yang akan Anda bagikan kepada pembeli.</DialogDescription>
+              </DialogHeader>
+              <StorefrontEditor
+                key="store"
+                initial={initialStore}
+                wasPublished={!!store?.published}
+                trialLocked={planLoaded && !canPublish(plan, !!store?.published)}
+                trialStarts={planLoaded && !entitlement}
+                onUpgrade={openUpgrade}
+                checkSlug={isSlugAvailable}
+                onDirtyChange={setDirty}
+                onBusyChange={setBusy}
+                onCancel={() => navigateEditor()}
+                onSave={async (fields) => {
+                  setStore(
+                    await saveStorefront(fields, store?.slug ?? "", {
+                      startTrial: needsTrialStart(entitlement, fields.published),
+                      reopening: fields.published && !store?.published,
+                    }),
                   );
-                }
-                setProducts((previous) =>
-                  [
-                    ...previous.filter((product) => product.id !== saved.id),
-                    saved,
-                  ].sort((a, b) => a.name.localeCompare(b.name, "id")),
-                );
-                done();
-                toast.success("Produk disimpan");
-              }}
-            />
+                  void reloadPlan();
+                  void books.reload();
+                  done();
+                  toast.success("Pengaturan toko disimpan");
+                }}
+              />
+            </>
           )}
         </DialogContent>
       </Dialog>
+
+      <Sheet
+        open={editor && !loading && !failed}
+        onOpenChange={(value) => {
+          if (!value && !busy) navigateEditor();
+        }}
+      >
+        <SheetContent
+          side="right"
+          closeLabel="Tutup formulir"
+          className="flex w-full flex-col gap-0 overflow-y-auto bg-background p-0 sm:max-w-[1040px]"
+          onEscapeKeyDown={(event) => {
+            if (busy) event.preventDefault();
+          }}
+          onPointerDownOutside={(event) => {
+            if (busy) event.preventDefault();
+          }}
+        >
+          <SheetHeader className="sticky top-0 z-10 border-b bg-card px-5 py-4 pr-16 text-left sm:px-7">
+            <SheetTitle className="text-xl">{edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
+            <SheetDescription>Isi foto, harga, dan pilihan. Produk baru tersembunyi sampai Anda menampilkannya.</SheetDescription>
+          </SheetHeader>
+          <div className="p-4 sm:p-7">
+            {edit && !selected ? (
+              <p>Produk tidak ditemukan.</p>
+            ) : (
+              <ProductEditor
+                key={edit || "new"}
+                product={selected}
+                inventory={selected ? books.inventory[selected.id] : undefined}
+                categories={categories}
+                onDirtyChange={setDirty}
+                onBusyChange={setBusy}
+                onCancel={() => navigateEditor()}
+                onSave={async (fields, inventory) => {
+                  const saved = await saveCatalogProduct(fields, edit || undefined);
+                  try {
+                    await saveInventory(saved.id, inventory);
+                    void books.reload();
+                  } catch {
+                    toast.error("Produk tersimpan, tetapi modal dan stok belum. Buka produk lagi untuk menyimpannya.");
+                  }
+                  setProducts((previous) =>
+                    [...previous.filter((product) => product.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name, "id")),
+                  );
+                  done();
+                  toast.success("Produk disimpan");
+                }}
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
       <AlertDialog
         open={!!deleteId}
         onOpenChange={(value) => {
@@ -494,7 +512,7 @@ export function Catalog() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus produk katalog?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus {products.find((p) => p.id === deleteId)?.name ?? "produk"}?</AlertDialogTitle>
             <AlertDialogDescription>
               Produk hilang dari katalog. Catatan transaksi yang sudah ada tetap
               tersimpan.

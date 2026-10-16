@@ -1,4 +1,5 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState } from "react";
+import { MoneyInput, Section, field, parseRupiah } from "@/components/form-parts";
 import { Check, Inbox, Lock, Minus, Plus, Search, ShoppingBag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,8 +15,7 @@ const toLocalInput = (iso: string) => {
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 16);
 };
-/** Accepts "150.000", "150000" or "Rp 150.000". */
-const num = (value: string) => Math.max(0, Math.round(Number(value.replace(/[^\d]/g, ""))) || 0);
+const num = parseRupiah;
 const blankItem = (): SaleItem => ({ name: "", option: "", kind: "physical", quantity: 1, unitPrice: 0, unitCost: 0 });
 const methods: { id: PaymentMethodV2; label: string }[] = [
   { id: "Transfer", label: "Transfer" },
@@ -23,43 +23,6 @@ const methods: { id: PaymentMethodV2; label: string }[] = [
   { id: "Cash", label: "Tunai" },
   { id: "EWallet", label: "E-wallet" },
 ];
-const field =
-  "h-11 w-full rounded-[10px] border border-input bg-card px-3 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-[3px] focus-visible:ring-primary/15";
-
-/** Input with an "Rp" prefix, as in the design. */
-function MoneyInput({ id, value, onChange, label, className }: { id: string; value: string; onChange: (v: string) => void; label?: string; className?: string }) {
-  return (
-    <span className={cn("flex h-11 items-center overflow-hidden rounded-[10px] border border-input bg-card focus-within:border-primary focus-within:ring-[3px] focus-within:ring-primary/15", className)}>
-      <span aria-hidden="true" className="flex h-full items-center border-r bg-background px-2.5 text-sm text-muted-foreground">Rp</span>
-      <input
-        id={id}
-        aria-label={label}
-        inputMode="numeric"
-        value={value ? Number(value).toLocaleString("id-ID") : ""}
-        placeholder="0"
-        onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ""))}
-        className="num h-full min-w-0 flex-1 bg-transparent px-3 text-sm outline-none"
-      />
-    </span>
-  );
-}
-
-function Section({ step, title, hint, children }: { step: number; title: string; hint?: string; children: ReactNode }) {
-  const id = useId();
-  return (
-    <section aria-labelledby={id} className="rounded-2xl bg-card p-5 shadow-card sm:p-6">
-      <div className="mb-4 flex items-center gap-2.5">
-        <span aria-hidden="true" className="flex h-6 w-6 items-center justify-center rounded-full bg-primary-soft text-xs font-bold text-primary-ink dark:bg-primary/15 dark:text-primary">
-          {step}
-        </span>
-        <h3 id={id} className="flex-1 text-base font-semibold">{title}</h3>
-        {hint && <span className="text-[13px] text-muted-foreground">{hint}</span>}
-      </div>
-      {children}
-    </section>
-  );
-}
-
 export function SaleForm({
   sale,
   prefill,

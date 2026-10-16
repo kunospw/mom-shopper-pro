@@ -1,28 +1,27 @@
-import { useState } from "react";
-import { ImagePlus, Loader2, Plus, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImagePlus, Loader2, Lock, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  productSchema,
-  emptyProduct,
-  type CatalogProduct,
-  type CatalogProductFields,
-} from "@/lib/catalog";
+import { MoneyInput, Section, Segmented, field, parseRupiah } from "@/components/form-parts";
+import { AvailabilityBadge, priceLabel, productMeta } from "@/components/ShopProductCard";
+import { productSchema, emptyProduct, type CatalogProduct, type CatalogProductFields } from "@/lib/catalog";
 import { catalogPhoto } from "@/lib/catalog-image";
+import { formatRupiah } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 import type { Inventory } from "@/types/books";
+
+const optionLabelIdeas = ["Ukuran", "Warna", "Varian", "Rasa", "Paket"];
+
+/**
+ * Product form for the Katalog slide-over: numbered sections on the left, a
+ * buyer-card preview with the publish switch and margin on the right.
+ */
 export function ProductEditor({
   product,
   inventory,
+  categories = [],
   onSave,
   onCancel,
   onDirtyChange,
@@ -30,6 +29,8 @@ export function ProductEditor({
 }: {
   product?: CatalogProduct;
   inventory?: Inventory;
+  /** Categories already used, offered as suggestions. */
+  categories?: string[];
   onSave: (value: CatalogProductFields, inventory: Inventory) => Promise<void>;
   onCancel: () => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -40,59 +41,66 @@ export function ProductEditor({
     const { id: _id, ...fields } = product;
     return fields;
   });
+  const [price, setPrice] = useState(product?.price ? String(product.price) : "");
   const [optionRows, setOptionRows] = useState(
-    () =>
-      product?.options.map((o) => ({
-        label: o.label,
-        price: o.price ? String(o.price) : "",
-      })) ?? [],
+    () => product?.options.map((o) => ({ label: o.label, price: o.price ? String(o.price) : "" })) ?? [],
   );
   const [cost, setCost] = useState(String(inventory?.cost || ""));
-  const [trackStock, setTrackStock] = useState(
-    typeof inventory?.stock === "number",
-  );
+  const [trackStock, setTrackStock] = useState(typeof inventory?.stock === "number");
   const [stock, setStock] = useState(String(inventory?.stock ?? ""));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
-  function change<K extends keyof CatalogProductFields>(
-    key: K,
-    value: CatalogProductFields[K],
-  ) {
+  const [photoError, setPhotoError] = useState("");
+  const photoInput = useRef<HTMLInputElement>(null);
+
+  function change<K extends keyof CatalogProductFields>(key: K, value: CatalogProductFields[K]) {
     setDraft((previous) => ({ ...previous, [key]: value }));
+    setError("");
+    onDirtyChange(true);
+  }
+  function editOptions(update: (rows: typeof optionRows) => typeof optionRows) {
+    setOptionRows(update);
+    setError("");
     onDirtyChange(true);
   }
   async function upload(file?: File) {
     if (!file) return;
     setUploading(true);
     onBusyChange(true);
-    setError("");
+    setPhotoError("");
     try {
       change("image", await catalogPhoto(file));
     } catch (failure) {
-      setError(
-        failure instanceof Error ? failure.message : "Foto tidak dapat dibaca.",
-      );
+      setPhotoError(failure instanceof Error ? failure.message : "Foto tidak dapat dibaca.");
     } finally {
       setUploading(false);
       onBusyChange(false);
     }
   }
+
+  const options = optionRows
+    .map((row) => ({ label: row.label.trim(), price: parseRupiah(row.price) }))
+    .filter((row) => row.label);
+  const preview: CatalogProduct = { ...draft, id: product?.id ?? "preview", price: parseRupiah(price), options };
+  const unitCost = parseRupiah(cost);
+  const margin = preview.price > 0 && unitCost > 0 ? preview.price - unitCost : null;
+
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (saving || uploading) return;
     const result = productSchema.safeParse({
       ...draft,
-      options: optionRows
-        .map((row) => ({
-          label: row.label.trim(),
-          price: Math.max(0, Math.round(Number(row.price)) || 0),
-        }))
-        .filter((row) => row.label),
+      price: parseRupiah(price),
+      options,
       leadTime: draft.availability === "preorder" ? draft.leadTime : "",
     });
     if (!result.success) {
       setError(result.error.issues[0].message);
+      return;
+    }
+    if (trackStock && stock.trim() === "") {
+      setError("Isi stok saat ini, atau matikan hitung stok.");
       return;
     }
     setSaving(true);
@@ -100,326 +108,262 @@ export function ProductEditor({
     setError("");
     try {
       await onSave(result.data, {
-        cost: Math.max(0, Math.round(Number(cost)) || 0),
+        cost: unitCost,
         stock: trackStock ? Math.round(Number(stock)) || 0 : null,
       });
     } catch {
-      setError(
-        "Produk belum tersimpan. Isian tetap tersedia; silakan coba lagi.",
-      );
+      setError("Produk belum tersimpan. Isian tetap tersedia; silakan coba lagi.");
     } finally {
       setSaving(false);
       onBusyChange(false);
     }
   }
+
+  const busy = saving || uploading;
+  const meta = productMeta(preview);
   return (
-    <form onSubmit={save} className="space-y-5">
-      <fieldset disabled={saving || uploading} className="min-w-0 space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="product-name">Nama produk</Label>
-          <Input
-            id="product-name"
-            required
-            maxLength={80}
-            value={draft.name}
-            onChange={(event) => change("name", event.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="product-photo">Foto produk</Label>
-          <div className="flex flex-wrap items-center gap-3">
-            {draft.image ? (
-              <img
-                src={draft.image}
-                alt="Foto produk yang dipilih"
-                className="h-28 w-28 rounded-lg border object-cover"
-              />
-            ) : (
-              <div className="flex h-28 w-28 items-center justify-center rounded-lg border border-dashed">
-                <ImagePlus className="text-muted-foreground" />
-              </div>
-            )}
-            <div className="min-w-0 flex-1 space-y-2">
-              <Input
+    <form onSubmit={save} noValidate className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <fieldset disabled={busy} className="min-w-0 space-y-4">
+        <Section step={1} title="Foto & nama">
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <div className="shrink-0">
+              <button
+                type="button"
+                onClick={() => photoInput.current?.click()}
+                className="group relative flex h-32 w-32 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-input bg-muted/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                aria-describedby="product-photo-hint"
+              >
+                {draft.image ? (
+                  <img src={draft.image} alt="Foto produk yang dipilih" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="flex flex-col items-center gap-1 text-xs font-medium text-muted-foreground">
+                    <ImagePlus className="h-6 w-6" aria-hidden="true" />
+                    {uploading ? "Menyiapkan…" : "Tambah foto"}
+                  </span>
+                )}
+                <span className="sr-only">{draft.image ? "Ganti foto produk" : "Tambah foto produk"}</span>
+              </button>
+              <input
+                ref={photoInput}
                 id="product-photo"
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
-                className="h-auto py-3"
+                className="sr-only"
+                tabIndex={-1}
+                aria-label="Foto produk"
                 onChange={(event) => {
                   void upload(event.target.files?.[0]);
                   event.target.value = "";
                 }}
               />
-              <p className="text-xs text-muted-foreground">
-                PNG, JPG, WebP hingga 10 MB. Foto diperkecil otomatis untuk
-                katalog.
-              </p>
               {draft.image && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => change("image", "")}
-                >
-                  <X />
-                  Hapus foto
-                </Button>
+                <button type="button" className="mt-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => change("image", "")}>
+                  <X className="h-3.5 w-3.5" aria-hidden="true" /> Hapus foto
+                </button>
               )}
             </div>
+            <div className="min-w-0 flex-1 space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="product-name">Nama produk</Label>
+                <input id="product-name" className={field} required maxLength={80} value={draft.name} placeholder="Contoh: Gamis Katun Rayon" onChange={(event) => change("name", event.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="product-category">
+                  Kategori <span className="font-normal text-muted-foreground">(opsional)</span>
+                </Label>
+                <input id="product-category" className={field} list="product-categories" maxLength={40} placeholder="Contoh: Pakaian" value={draft.category} onChange={(event) => change("category", event.target.value)} />
+                <datalist id="product-categories">
+                  {categories.map((category) => (
+                    <option key={category} value={category} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="product-price">Harga jual (Rp)</Label>
-            <Input
-              id="product-price"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={1000000000}
-              step={1}
-              required
-              value={draft.price || ""}
-              onChange={(event) => change("price", Number(event.target.value))}
+          <p id="product-photo-hint" className={cn("mt-3 text-xs", photoError ? "text-destructive" : "text-muted-foreground")} role={photoError ? "alert" : undefined}>
+            {photoError || "PNG, JPG, atau WebP hingga 10 MB. Foto diperkecil otomatis untuk katalog."}
+          </p>
+          <div className="mt-4 space-y-1.5">
+            <Label htmlFor="product-description">
+              Deskripsi <span className="font-normal text-muted-foreground">(opsional)</span>
+            </Label>
+            <Textarea
+              id="product-description"
+              rows={4}
+              maxLength={1500}
+              value={draft.description}
+              onChange={(event) => change("description", event.target.value)}
+              placeholder="Bahan, ukuran, isi paket, atau informasi lain yang dibutuhkan pembeli."
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="product-category">Kategori</Label>
-            <Input
-              id="product-category"
-              maxLength={40}
-              placeholder="Contoh: Pakaian"
-              value={draft.category}
-              onChange={(event) => change("category", event.target.value)}
-            />
+        </Section>
+
+        <Section step={2} title="Harga & pilihan">
+          <div className="space-y-1.5">
+            <Label htmlFor="product-price">Harga jual</Label>
+            <MoneyInput id="product-price" value={price} onChange={(value) => { setPrice(value); setError(""); onDirtyChange(true); }} className="sm:max-w-[240px]" />
           </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="product-description">Deskripsi</Label>
-          <Textarea
-            id="product-description"
-            rows={4}
-            maxLength={1500}
-            value={draft.description}
-            onChange={(event) => change("description", event.target.value)}
-            placeholder="Bahan, ukuran, isi paket, atau informasi lain yang dibutuhkan pembeli."
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="product-kind">Jenis produk</Label>
-          <Select
-            value={draft.kind}
-            onValueChange={(value) => change("kind", value as CatalogProductFields["kind"])}
-          >
-            <SelectTrigger id="product-kind"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="physical">Barang fisik (dikirim)</SelectItem>
-              <SelectItem value="digital">Produk digital (dikirim lewat WhatsApp)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="product-availability">Ketersediaan</Label>
-          <Select
-            value={draft.availability}
-            onValueChange={(value) =>
-              change(
-                "availability",
-                value as CatalogProductFields["availability"],
-              )
-            }
-          >
-            <SelectTrigger id="product-availability">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ready">Ready stock</SelectItem>
-              <SelectItem value="preorder">Preorder</SelectItem>
-              <SelectItem value="unavailable">Belum tersedia</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        {draft.availability === "preorder" && (
-          <div className="space-y-2">
-            <Label htmlFor="product-lead-time">Estimasi waktu preorder</Label>
-            <Input
-              id="product-lead-time"
-              required
-              maxLength={100}
-              value={draft.leadTime}
-              onChange={(event) => change("leadTime", event.target.value)}
-              placeholder="Contoh: 7–10 hari setelah konfirmasi"
-            />
-          </div>
-        )}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="option-label">Nama pilihan</Label>
-            <Input
-              id="option-label"
-              required
-              maxLength={30}
-              value={draft.optionLabel}
-              onChange={(event) => change("optionLabel", event.target.value)}
-              placeholder="Contoh: Warna"
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <p className="text-sm font-medium leading-none">Pilihan produk (opsional)</p>
-            <p className="text-xs text-muted-foreground">
-              Isi harga hanya jika pilihan itu harganya berbeda. Kosongkan untuk memakai harga produk. Maksimal 8 pilihan.
+          <div className="mt-5 space-y-2">
+            <p className="text-sm font-medium">
+              Pilihan produk <span className="font-normal text-muted-foreground">(opsional, maks. 8)</span>
             </p>
+            <p className="text-xs text-muted-foreground">Misalnya ukuran atau warna. Isi harga hanya jika pilihan itu harganya berbeda.</p>
+            {optionRows.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="option-label">Nama pilihan</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input id="option-label" className={cn(field, "w-40")} required maxLength={30} value={draft.optionLabel} placeholder="Contoh: Warna" onChange={(event) => change("optionLabel", event.target.value)} />
+                  {optionLabelIdeas
+                    .filter((idea) => idea !== draft.optionLabel)
+                    .map((idea) => (
+                      <button key={idea} type="button" className="h-8 rounded-full border px-3 text-xs font-medium hover:bg-accent" onClick={() => change("optionLabel", idea)}>
+                        {idea}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
             <ul className="space-y-2">
               {optionRows.map((row, index) => (
                 <li key={index} className="flex items-end gap-2">
                   <div className="min-w-0 flex-1 space-y-1">
-                    <Label htmlFor={`opt-label-${index}`} className="text-xs">Pilihan {index + 1}</Label>
-                    <Input
+                    <Label htmlFor={`opt-label-${index}`} className="text-xs">
+                      {draft.optionLabel || "Pilihan"} {index + 1}
+                    </Label>
+                    <input
                       id={`opt-label-${index}`}
+                      className={field}
                       maxLength={50}
                       value={row.label}
                       placeholder="Contoh: Hitam"
-                      onChange={(event) => {
-                        setOptionRows((rows) => rows.map((r, i) => (i === index ? { ...r, label: event.target.value } : r)));
-                        onDirtyChange(true);
-                      }}
+                      onChange={(event) => editOptions((rows) => rows.map((r, i) => (i === index ? { ...r, label: event.target.value } : r)))}
                     />
                   </div>
-                  <div className="w-32 space-y-1">
-                    <Label htmlFor={`opt-price-${index}`} className="text-xs">Harga (Rp)</Label>
-                    <Input
-                      id={`opt-price-${index}`}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      value={row.price}
-                      placeholder="Sama"
-                      onChange={(event) => {
-                        setOptionRows((rows) => rows.map((r, i) => (i === index ? { ...r, price: event.target.value } : r)));
-                        onDirtyChange(true);
-                      }}
-                    />
+                  <div className="w-36 space-y-1">
+                    <Label htmlFor={`opt-price-${index}`} className="text-xs">Harga</Label>
+                    <MoneyInput id={`opt-price-${index}`} value={row.price} placeholder="Sama" onChange={(value) => editOptions((rows) => rows.map((r, i) => (i === index ? { ...r, price: value } : r)))} />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Hapus pilihan ${index + 1}`}
-                    onClick={() => {
-                      setOptionRows((rows) => rows.filter((_, i) => i !== index));
-                      onDirtyChange(true);
-                    }}
-                  >
-                    <X />
+                  <Button type="button" variant="ghost" size="icon" className="h-11 w-11" aria-label={`Hapus pilihan ${index + 1}`} onClick={() => editOptions((rows) => rows.filter((_, i) => i !== index))}>
+                    <Trash2 />
                   </Button>
                 </li>
               ))}
             </ul>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={optionRows.length >= 8}
-              onClick={() => {
-                setOptionRows((rows) => [...rows, { label: "", price: "" }]);
-                onDirtyChange(true);
-              }}
-            >
+            <Button type="button" variant="outline" disabled={optionRows.length >= 8} onClick={() => editOptions((rows) => [...rows, { label: "", price: "" }])}>
               <Plus /> Tambah pilihan
             </Button>
           </div>
-        </div>
-        <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
-          <div>
-            <Label htmlFor="product-published">Tampilkan di katalog</Label>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Produk tersembunyi hanya terlihat oleh pemilik. Toko juga harus
-              dibuka agar pembeli dapat mengaksesnya.
-            </p>
-          </div>
-          <Switch
-            id="product-published"
-            checked={draft.published}
-            onCheckedChange={(value) => change("published", value)}
-          />
-        </div>
-        <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
-          <div>
-            <h3 className="text-sm font-semibold">Modal & stok (privat)</h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Hanya terlihat oleh Anda. Tidak pernah tampil di katalog pembeli.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="product-cost">Modal per unit (Rp)</Label>
-            <Input
-              id="product-cost"
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={cost}
-              onChange={(event) => {
-                setCost(event.target.value);
-                onDirtyChange(true);
-              }}
-            />
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <Label htmlFor="product-track">Hitung stok otomatis</Label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Stok berkurang saat penjualan dicatat dan bertambah saat
-                pembelian dicatat.
+        </Section>
+
+        <Section step={3} title="Ketersediaan">
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">Jenis produk</p>
+              <Segmented
+                label="Jenis produk"
+                value={draft.kind}
+                onChange={(value) => change("kind", value)}
+                options={[
+                  { value: "physical", label: "Barang fisik" },
+                  { value: "digital", label: "Produk digital" },
+                ]}
+              />
+              <p className="text-xs text-muted-foreground">
+                {draft.kind === "digital" ? "Dikirim lewat WhatsApp setelah pembayaran. Tidak perlu ongkir." : "Dikirim ke alamat pembeli."}
               </p>
             </div>
-            <Switch
-              id="product-track"
-              checked={trackStock}
-              onCheckedChange={(value) => {
-                setTrackStock(value);
-                onDirtyChange(true);
-              }}
-            />
-          </div>
-          {trackStock && (
-            <div className="space-y-2">
-              <Label htmlFor="product-stock">Stok saat ini</Label>
-              <Input
-                id="product-stock"
-                type="number"
-                inputMode="numeric"
-                value={stock}
-                onChange={(event) => {
-                  setStock(event.target.value);
-                  onDirtyChange(true);
-                }}
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">Status</p>
+              <Segmented
+                label="Ketersediaan"
+                value={draft.availability}
+                onChange={(value) => change("availability", value)}
+                options={[
+                  { value: "ready", label: "Ready" },
+                  { value: "preorder", label: "Preorder" },
+                  { value: "unavailable", label: "Belum tersedia" },
+                ]}
               />
             </div>
-          )}
-        </div>
+            {draft.availability === "preorder" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="product-lead-time">Estimasi waktu preorder</Label>
+                <input id="product-lead-time" className={field} required maxLength={100} value={draft.leadTime} onChange={(event) => change("leadTime", event.target.value)} placeholder="Contoh: 7–10 hari" />
+              </div>
+            )}
+          </div>
+        </Section>
+
+        <Section step={4} title="Modal & stok" hint={<span className="inline-flex items-center gap-1"><Lock className="h-3.5 w-3.5" aria-hidden="true" /> Hanya Anda</span>}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="product-cost">Modal per unit</Label>
+              <MoneyInput id="product-cost" value={cost} onChange={(value) => { setCost(value); onDirtyChange(true); }} />
+              <p className="text-xs text-muted-foreground">Dipakai untuk menghitung keuntungan. Tidak pernah tampil di katalog.</p>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="product-track">Hitung stok otomatis</Label>
+                <Switch id="product-track" checked={trackStock} onCheckedChange={(value) => { setTrackStock(value); onDirtyChange(true); }} />
+              </div>
+              {trackStock ? (
+                <>
+                  <Label htmlFor="product-stock" className="sr-only">Stok saat ini</Label>
+                  <input id="product-stock" className={cn(field, "num")} type="number" inputMode="numeric" placeholder="Stok saat ini" value={stock} onChange={(event) => { setStock(event.target.value); setError(""); onDirtyChange(true); }} />
+                  <p className="text-xs text-muted-foreground">Berkurang saat penjualan dicatat, bertambah saat pembelian dicatat.</p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">Nyalakan untuk melacak sisa stok dari penjualan dan pembelian.</p>
+              )}
+            </div>
+          </div>
+        </Section>
       </fieldset>
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap justify-end gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={saving || uploading}
-          onClick={onCancel}
-        >
-          Batal
-        </Button>
-        <Button type="submit" disabled={saving || uploading}>
-          {(saving || uploading) && <Loader2 className="animate-spin" />}
-          {uploading
-            ? "Menyiapkan foto…"
-            : saving
-              ? "Menyimpan…"
-              : "Simpan produk"}
-        </Button>
-      </div>
+
+      <aside className="min-w-0 space-y-4 lg:sticky lg:top-24">
+        <div className="rounded-2xl bg-card p-5 shadow-card">
+          <p className="mb-3 text-[13px] font-semibold text-muted-foreground">Pratinjau di katalog</p>
+          <div className={cn("mx-auto flex max-w-[200px] flex-col gap-1.5", draft.availability === "unavailable" && "opacity-60")} aria-hidden="true">
+            <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[14px] bg-[#F1EDE6]">
+              {draft.image ? <img src={draft.image} alt="" className="h-full w-full object-cover" /> : <ShoppingBag className="h-10 w-10 text-[#8C7A68]/40" />}
+              <AvailabilityBadge product={preview} className="absolute left-2 top-2" />
+            </span>
+            <span className="line-clamp-2 break-words text-[13.5px] font-semibold leading-tight">{draft.name || "Nama produk"}</span>
+            {meta && <span className="line-clamp-1 text-xs text-muted-foreground">{meta}</span>}
+            <span className="num text-[14.5px] font-bold text-primary-ink dark:text-primary">{preview.price > 0 ? priceLabel(preview) : "Rp 0"}</span>
+          </div>
+          {margin !== null && (
+            <p className={cn("mt-4 rounded-lg px-3 py-2 text-[13px]", margin >= 0 ? "bg-success-soft text-success" : "bg-destructive-soft text-destructive")}>
+              {margin >= 0 ? "Untung per unit" : "Rugi per unit"} <span className="num font-semibold">{formatRupiah(Math.abs(margin))}</span>
+              {margin >= 0 && preview.price > 0 && <span className="num"> · {Math.round((margin / preview.price) * 100)}%</span>}
+            </p>
+          )}
+          <div className="mt-4 flex items-start justify-between gap-3 border-t pt-4">
+            <div className="min-w-0">
+              <Label htmlFor="product-published">Tampilkan di katalog</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {draft.published ? "Pembeli bisa melihat produk ini saat toko dibuka." : "Tersembunyi. Hanya Anda yang bisa melihat."}
+              </p>
+            </div>
+            <Switch id="product-published" checked={draft.published} disabled={busy} onCheckedChange={(value) => change("published", value)} />
+          </div>
+        </div>
+
+        {error && (
+          <p role="alert" className="rounded-xl bg-destructive-soft px-3 py-2 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <div className="sticky bottom-0 -mx-4 flex gap-2 border-t bg-background px-4 py-3 sm:-mx-7 sm:px-7 lg:static lg:mx-0 lg:border-0 lg:bg-transparent lg:p-0">
+          <Button type="button" variant="outline" className="h-11 rounded-[10px]" disabled={busy} onClick={onCancel}>
+            Batal
+          </Button>
+          <Button type="submit" className="h-11 flex-1 rounded-[10px]" disabled={busy}>
+            {busy && <Loader2 className="animate-spin" />}
+            {uploading ? "Menyiapkan foto…" : saving ? "Menyimpan…" : "Simpan produk"}
+          </Button>
+        </div>
+      </aside>
     </form>
   );
 }
