@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
+  Bell,
   Home,
+  Link2,
   Inbox,
   Menu,
   PackagePlus,
@@ -17,6 +19,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { BusinessBrand } from "@/components/BusinessBrand";
+import { WorkspaceSearch } from "@/components/WorkspaceSearch";
+import { isBusinessLogo } from "@/lib/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { BooksProvider, useBooks } from "@/contexts/BooksContext";
 import {
@@ -69,6 +73,14 @@ function Shell() {
   const [quickOpen, setQuickOpen] = useState(false);
   const menuNavigation = useRef(false);
   const active = workspaceSection(pathname);
+  const shopName = user?.businessName?.trim() || store?.name || "Toko saya";
+  const initials =
+    (user?.displayName || user?.email || "?")
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -80,11 +92,11 @@ function Shell() {
     setMenuOpen(false);
     navigate(path);
   };
-  async function copyShopLink() {
+  async function copyShopLink(share = false) {
     setQuickOpen(false);
     const url = shopUrl(store, user?.uid);
     try {
-      if (navigator.share) await navigator.share({ title: store?.name, url });
+      if (share && navigator.share) await navigator.share({ title: store?.name, url });
       else {
         await navigator.clipboard.writeText(url);
         toast.success("Tautan toko disalin. Tempel di grup atau status WhatsApp.");
@@ -108,10 +120,10 @@ function Shell() {
         }}
         className={({ isActive }) =>
           cn(
-            "flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm transition-colors hover:bg-accent md:min-h-10",
+            "flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-sm transition-colors hover:bg-accent md:min-h-10",
             isActive
-              ? "bg-primary/10 font-medium text-primary hover:bg-primary/10"
-              : "text-muted-foreground hover:text-foreground",
+              ? "bg-primary-soft font-semibold text-primary-ink hover:bg-primary-soft dark:bg-primary/15 dark:text-primary"
+              : "text-foreground/85 hover:text-foreground",
           )
         }
       >
@@ -166,7 +178,7 @@ function Shell() {
     { icon: ReceiptText, label: "Catat penjualan", hint: "Pesanan, DP, dan pengiriman", run: () => go("/sales?new=1") },
     { icon: Wallet, label: "Catat biaya", hint: "Ongkir, kemasan, iklan", run: () => go("/costs?new=expense") },
     { icon: PackagePlus, label: "Tambah produk", hint: "Foto, harga, dan stok", run: () => go("/catalog?new=product") },
-    { icon: Share2, label: "Bagikan toko", hint: "Kirim tautan ke grup atau status", run: () => void copyShopLink() },
+    { icon: Share2, label: "Bagikan toko", hint: "Kirim tautan ke grup atau status", run: () => void copyShopLink(true) },
   ];
 
   return (
@@ -179,17 +191,27 @@ function Shell() {
       </a>
 
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-card px-3 py-5 md:flex">
-        <div className="px-2">
-          <BusinessBrand name={user?.businessName} logo={user?.businessLogo} />
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r bg-card px-3.5 py-5 md:flex">
+        <div className="flex items-center gap-3 px-1.5">
+          {isBusinessLogo(user?.businessLogo) ? (
+            <img src={user?.businessLogo} alt="" className="h-10 w-10 shrink-0 rounded-xl border bg-card object-contain p-0.5" />
+          ) : (
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-clay text-base font-bold text-white">
+              {(shopName[0] || "T").toUpperCase()}
+            </span>
+          )}
+          <div className="min-w-0">
+            <p className="truncate text-[15px] font-bold tracking-tight">{shopName}</p>
+            <p className="text-xs text-muted-foreground">Ruang usaha</p>
+          </div>
         </div>
-        <Button className="mx-1 mt-5 justify-start" onClick={() => go("/sales?new=1")}>
+        <Button className="mt-5 h-11 justify-center rounded-[10px] text-sm" onClick={() => go("/sales?new=1")}>
           <Plus /> Catat penjualan
         </Button>
-        <nav aria-label="Navigasi utama" className="mt-5 flex-1 space-y-5 overflow-y-auto px-1">
+        <nav aria-label="Navigasi utama" className="mt-6 flex-1 space-y-5 overflow-y-auto">
           {groups.map((group) => (
             <div key={group.id} className="space-y-1">
-              <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 {group.label}
               </p>
               {workspaceSections
@@ -198,22 +220,45 @@ function Shell() {
             </div>
           ))}
         </nav>
-        <div className="space-y-1 border-t px-1 pt-3">
+        <div className="space-y-1 border-t pt-3">
           <a
             href={shopUrl(store, user?.uid)}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex min-h-10 items-center gap-3 rounded-[10px] px-3 text-sm text-foreground/85 transition-colors hover:bg-accent hover:text-foreground"
           >
             <Store className="h-[18px] w-[18px]" aria-hidden="true" />
             Lihat toko saya
           </a>
           {link("settings")}
-          <p className="truncate px-3 pt-2 text-xs text-muted-foreground">{user?.email}</p>
+          <div className="mt-2 flex items-center gap-2.5 px-2 pt-2">
+            <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-semibold">{user?.displayName || "Pemilik"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+            </div>
+          </div>
         </div>
       </aside>
 
       <div className="md:pl-64">
+        {/* Desktop top bar */}
+        <header className="sticky top-0 z-20 hidden items-center gap-3 bg-background/90 px-8 py-3.5 backdrop-blur md:flex">
+          <WorkspaceSearch />
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" className="h-11 rounded-[10px] bg-card" onClick={() => void copyShopLink()}>
+              <Link2 /> Salin tautan toko
+            </Button>
+            <Button asChild variant="outline" size="icon" className="relative h-11 w-11 rounded-[10px] bg-card">
+              <NavLink to="/orders" aria-label={pendingOrders ? `Pesanan, ${pendingOrders} menunggu` : "Pesanan"}>
+                <Bell className="h-[18px] w-[18px]" aria-hidden="true" />
+                {pendingOrders > 0 && <span aria-hidden="true" className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-clay ring-2 ring-card" />}
+              </NavLink>
+            </Button>
+          </div>
+        </header>
         {/* Mobile top bar */}
         <header className="sticky top-0 z-30 border-b bg-card/90 backdrop-blur md:hidden">
           <div className="flex items-center justify-between gap-3 px-4 py-2.5">
@@ -228,7 +273,7 @@ function Shell() {
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto max-w-5xl space-y-6 px-4 pb-32 pt-6 outline-none sm:px-6 md:pb-12 md:pt-10"
+          className="mx-auto max-w-[1280px] space-y-6 px-4 pb-32 pt-6 outline-none sm:px-6 md:px-8 md:pb-12 md:pt-2"
         >
           <Outlet />
         </main>

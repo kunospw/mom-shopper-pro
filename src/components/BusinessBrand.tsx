@@ -14,9 +14,10 @@ export function BusinessTheme() {
     const accent = getAccent(user.businessAccent);
     root.style.setProperty("--brand", accent.color);
     root.style.setProperty("--brand-dark", accent.darkColor);
+    root.style.setProperty("--brand-soft", accent.soft);
+    root.style.setProperty("--brand-ink", accent.ink);
     return () => {
-      root.style.removeProperty("--brand");
-      root.style.removeProperty("--brand-dark");
+      for (const name of ["--brand", "--brand-dark", "--brand-soft", "--brand-ink"]) root.style.removeProperty(name);
     };
   }, [user, user?.businessAccent, user?.businessName]);
   return null;

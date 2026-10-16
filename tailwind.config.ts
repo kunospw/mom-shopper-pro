@@ -22,6 +22,9 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          // Tinted background of the owner's accent (active nav, quiet buttons); light mode only.
+          soft: "hsl(var(--brand-soft, var(--accent)))",
+          ink: "hsl(var(--brand-ink, var(--primary)))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
