@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatRupiah } from "@/lib/currency";
-import { derive, isAllDigital, newPayment, waNumber } from "@/lib/books";
+import { derive, isAllDigital, newPayment, validatePayments, waNumber } from "@/lib/books";
 import { optionPrice, type CatalogProduct } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 import type {
@@ -184,6 +184,15 @@ export function SaleForm({
       return setError("Isi jumlah DP, atau pilih Belum bayar.");
     if (!sale && payAmount > totals.total)
       return setError("Pembayaran melebihi total. Kurangi jumlah DP.");
+    if (sale) {
+      const [issue] = validatePayments(sale.payments, { total: totals.total, cancelled: false });
+      if (issue)
+        return setError(
+          issue.code === "overpaid"
+            ? "Total baru lebih kecil dari yang sudah dibayar. Catat pengembalian dana atau sesuaikan total."
+            : issue.message,
+        );
+    }
     setError("");
     setSaving(true);
     try {

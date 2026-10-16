@@ -35,6 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { smallDialogClass } from "@/lib/utils";
+import { localDateToISO, localToday } from "@/lib/period";
 
 const categories: Record<ExpenseCategory, string> = {
   ongkir: "Ongkir",
@@ -43,7 +44,7 @@ const categories: Record<ExpenseCategory, string> = {
   admin: "Biaya admin",
   lainnya: "Lainnya",
 };
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => localToday();
 const num = (v: string) => Math.max(0, Math.round(Number(v)) || 0);
 
 function PurchaseDialog({ onClose }: { onClose: () => void }) {
@@ -70,7 +71,7 @@ function PurchaseDialog({ onClose }: { onClose: () => void }) {
     try {
       const purchase: Purchase = {
         id: newId("purchases"),
-        date: new Date(date).toISOString(),
+        date: localDateToISO(date),
         supplier: supplier.trim(),
         items: [{ ...(productId ? { productId } : {}), name: name.trim(), quantity: num(qty), unitCost: num(cost) }],
         shipping: num(shipping),
@@ -129,7 +130,7 @@ function ExpenseDialog({ onClose }: { onClose: () => void }) {
     if (num(amount) <= 0) return setError("Isi jumlah biaya lebih dari nol.");
     setSaving(true);
     try {
-      await saveExpense({ id: newId("expenses"), date: new Date(date).toISOString(), category, amount: num(amount), note: note.trim() });
+      await saveExpense({ id: newId("expenses"), date: localDateToISO(date), category, amount: num(amount), note: note.trim() });
       await books.reload();
       toast.success("Biaya tersimpan");
       onClose();

@@ -17,7 +17,26 @@ const money = (value: unknown) => {
   return Number.isFinite(n) ? Math.max(0, Math.round(n)) : 0;
 };
 
-export function derive(input: SaleInput): Omit<Sale, "id" | "number"> {
+/** Amount of a stored payment as a safe non-negative integer (never throws). */
+const paymentAmount = (value: unknown) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : 0;
+};
+export const isRefund = (p: Pick<Payment, "kind">) => p.kind === "refund";
+/** A refund that only returns money held on a cancelled sale. */
+export const isCancellationRefund = (p: Pick<Payment, "kind" | "reason">) =>
+  isRefund(p) && p.reason === "cancellation";
+export const paymentMethods = ["QRIS", "Transfer", "Cash", "EWallet"] as const;
+
+export type DerivedSale = Omit<Sale, "id" | "number">;
+
+/**
+ * Recompute every derived field from the recorded facts. Payments and refunds
+ * are summed as recorded (never clamped here; `validatePayments` is the gate).
+ * A refund on an active sale is a sales return: it lowers revenue (in the
+ * month of the refund) and cash but does not re-open the receivable.
+ */
+export function derive(input: SaleInput): DerivedSale {
   const items = input.items.map((item) => ({
     ...item,
     quantity: Math.max(1, Math.round(item.quantity) || 1),
@@ -30,10 +49,30 @@ export function derive(input: SaleInput): Omit<Sale, "id" | "number"> {
   const discount = Math.min(money(input.discount), subtotal + shipping);
   const fees = money(input.fees);
   const total = subtotal + shipping - discount;
-  const paid = input.payments.reduce((s, p) => s + money(p.amount), 0);
-  const balance = Math.max(0, total - paid);
+  const cancelled = input.fulfillment.status === "cancelled";
+  const paidGross = input.payments
+    .filter((p) => !isRefund(p))
+    .reduce((s, p) => s + paymentAmount(p.amount), 0);
+  const refunded = input.payments
+    .filter(isRefund)
+    .reduce((s, p) => s + paymentAmount(p.amount), 0);
+  const returnedByCancel = input.payments
+    .filter(isCancellationRefund)
+    .reduce((s, p) => s + paymentAmount(p.amount), 0);
+  const returned = refunded - returnedByCancel;
+  const paid = paidGross - refunded;
+  // Money that still counts toward this sale: a sales return does not re-open
+  // the receivable, a refund of a cancelled sale does (if it is re-opened).
+  const held = paidGross - returnedByCancel;
+  const balance = cancelled ? 0 : Math.max(0, total - held);
   const paymentState: PaymentState =
-    total > 0 && paid >= total ? "paid" : paid > 0 ? "partial" : "unpaid";
+    total === 0 && held === 0
+      ? "paid"
+      : total > 0 && held >= total
+        ? "paid"
+        : held > 0
+          ? "partial"
+          : "unpaid";
   return {
     ...input,
     items,
@@ -44,11 +83,119 @@ export function derive(input: SaleInput): Omit<Sale, "id" | "number"> {
     total,
     cost,
     // Shipping is charged to the buyer; fees (admin/packing) are the seller's cost.
-    profit: total - cost - fees,
+    // Refunds on an active sale are a return of revenue.
+    profit: total - returned - cost - fees,
+    paidGross,
+    refunded,
+    returned,
     paid,
     balance,
-    paymentState: total === 0 && paid === 0 ? "paid" : paymentState,
+    refundDue: cancelled ? Math.max(0, paid) : 0,
+    credit: cancelled ? 0 : Math.max(0, held - total),
+    paymentState,
   };
+}
+
+/** The recorded facts of a sale, without any derived or storage-only fields. */
+export function toInput(sale: Sale | DerivedSale): SaleInput {
+  const {
+    id: _id, number: _number, subtotal: _s, total: _t, cost: _c, profit: _p,
+    paidGross: _pg, refunded: _r, returned: _rt, paid: _pd, balance: _b, refundDue: _rd,
+    credit: _cr, paymentState: _ps, ...input
+  } = sale as Sale;
+  return input;
+}
+
+/** Re-derive a stored sale so stale or legacy derived fields never leak into the UI or reports. */
+export function normalizeSale(sale: Sale): Sale {
+  return { ...(derive(sale) as DerivedSale), id: sale.id, number: sale.number } as Sale;
+}
+
+export interface LedgerIssue {
+  code:
+    | "invalid-amount"
+    | "invalid-kind"
+    | "invalid-reason"
+    | "invalid-method"
+    | "invalid-date"
+    | "refund-exceeds-paid"
+    | "refund-before-payment"
+    | "overpaid";
+  message: string;
+}
+export class LedgerError extends Error {
+  issues: LedgerIssue[];
+  constructor(issues: LedgerIssue[]) {
+    super(issues.map((i) => i.message).join(" "));
+    this.name = "LedgerError";
+    this.issues = issues;
+  }
+}
+
+/**
+ * Validate a sale's payment ledger. Array order is the order of events: the
+ * running net (payments - refunds) may never go below zero, so a refund can
+ * never exceed what is currently held. Active sales cannot be paid beyond
+ * their total (refunds do not re-open room to overpay).
+ */
+export function validatePayments(
+  payments: Payment[],
+  opts: { total: number; cancelled: boolean },
+): LedgerIssue[] {
+  const issues: LedgerIssue[] = [];
+  const add = (code: LedgerIssue["code"], message: string) => issues.push({ code, message });
+  let net = 0;
+  let held = 0;
+  let firstPayment = Infinity;
+  for (const p of payments) {
+    if (!Number.isInteger(p.amount) || p.amount <= 0) {
+      add("invalid-amount", "Jumlah harus bilangan bulat lebih dari nol.");
+      continue;
+    }
+    if (p.kind !== undefined && p.kind !== "payment" && p.kind !== "refund") {
+      add("invalid-kind", "Jenis catatan pembayaran tidak dikenal.");
+      continue;
+    }
+    if (p.reason !== undefined && p.reason !== "return" && p.reason !== "cancellation") {
+      add("invalid-reason", "Alasan pengembalian dana tidak dikenal.");
+      continue;
+    }
+    if (!isRefund(p) && p.reason !== undefined) {
+      add("invalid-reason", "Alasan hanya berlaku untuk pengembalian dana.");
+      continue;
+    }
+    if (!(paymentMethods as readonly string[]).includes(p.method))
+      add("invalid-method", "Metode pembayaran tidak dikenal.");
+    const time = new Date(p.date).getTime();
+    if (!Number.isFinite(time)) add("invalid-date", "Tanggal pembayaran tidak valid.");
+    if (isRefund(p)) {
+      if (Number.isFinite(time) && time < firstPayment)
+        add("refund-before-payment", "Tanggal pengembalian dana tidak boleh sebelum pembayaran pertama.");
+      net -= p.amount;
+      if (isCancellationRefund(p)) held -= p.amount;
+      if (net < 0) {
+        add("refund-exceeds-paid", "Pengembalian dana melebihi jumlah yang sudah dibayar.");
+        net = 0;
+      }
+    } else {
+      net += p.amount;
+      held += p.amount;
+      if (Number.isFinite(time) && time < firstPayment) firstPayment = time;
+    }
+  }
+  if (!opts.cancelled && held > opts.total)
+    add("overpaid", "Pembayaran melebihi total penjualan.");
+  return issues;
+}
+
+/** Throws a `LedgerError` listing every problem; used by storage before any write. */
+export function assertValidSale(input: SaleInput) {
+  const d = derive(input);
+  const issues = validatePayments(input.payments, {
+    total: d.total,
+    cancelled: input.fulfillment.status === "cancelled",
+  });
+  if (issues.length) throw new LedgerError(issues);
 }
 
 export function saleNumber(date: string, sequence: number) {
@@ -115,19 +262,55 @@ export function purchaseStockDeltas(items: Purchase["items"]) {
   return deltas;
 }
 
-export function newPayment(
+function buildPayment(
+  kind: "payment" | "refund",
   amount: number,
   method: Payment["method"],
   date: string,
-  note = "",
+  note: string,
+  reason?: "return" | "cancellation",
 ): Payment {
+  if (!Number.isInteger(amount) || amount <= 0)
+    throw new RangeError("Jumlah harus bilangan bulat lebih dari nol.");
+  if (!Number.isFinite(new Date(date).getTime()))
+    throw new RangeError("Tanggal tidak valid.");
   return {
-    id: `pay-${Math.random().toString(36).slice(2, 10)}`,
-    amount: money(amount),
+    id: `${kind === "refund" ? "ref" : "pay"}-${Math.random().toString(36).slice(2, 10)}`,
+    amount,
+    ...(kind === "refund" ? { kind, reason: reason ?? "return" } : {}),
     method,
     date,
     note,
   };
+}
+/** A payment record. Throws unless `amount` is a positive whole number. */
+export const newPayment = (amount: number, method: Payment["method"], date: string, note = "") =>
+  buildPayment("payment", amount, method, date, note);
+/** A refund record (positive amount; `kind: "refund"` carries the direction). */
+export const newRefund = (
+  amount: number,
+  method: Payment["method"],
+  date: string,
+  note = "",
+  reason: "return" | "cancellation" = "return",
+) => buildPayment("refund", amount, method, date, note, reason);
+
+/**
+ * Append a payment or refund to a sale and return the new recorded facts, or
+ * throw a `LedgerError` if the ledger would become invalid (e.g. a refund
+ * larger than the net amount paid, or overpaying an active sale).
+ */
+export function applyPayment(
+  sale: Sale | SaleInput,
+  entry: { kind: "payment" | "refund"; amount: number; method: Payment["method"]; date: string; note?: string; reason?: "return" | "cancellation" },
+): SaleInput {
+  const input = toInput(sale as Sale);
+  // The reason follows the sale's state at the time, so callers cannot misfile it.
+  const reason = entry.reason ?? (input.fulfillment.status === "cancelled" ? "cancellation" : "return");
+  const record = buildPayment(entry.kind, entry.amount, entry.method, entry.date, entry.note ?? "", reason);
+  const next = { ...input, payments: [...input.payments, record] };
+  assertValidSale(next);
+  return next;
 }
 
 /** Convert one legacy transaction doc to the new model. Pure and deterministic. */
@@ -215,63 +398,30 @@ export function migrateLegacy(
   };
 }
 
-export interface BookSummary {
-  sales: number;
-  received: number;
-  receivable: number;
-  cogs: number;
-  purchases: number;
-  expenses: number;
-  profit: number;
-  netProfit: number;
-}
-
-const inPeriod = (date: string, month?: string) =>
-  !month || month === "all" || date.slice(0, 7) === month;
-
-export function summarizeBooks(
-  sales: Sale[],
-  purchases: Purchase[],
-  expenses: Expense[],
-  month?: string,
-): BookSummary {
-  const live = sales.filter((s) => s.fulfillment.status !== "cancelled");
-  const periodSales = live.filter((s) => inPeriod(s.date, month));
-  const received = live
-    .flatMap((s) => s.payments)
-    .filter((p) => inPeriod(p.date, month))
-    .reduce((s, p) => s + p.amount, 0);
-  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
-  const profit = sum(periodSales.map((s) => s.profit));
-  const expenseTotal = sum(
-    expenses.filter((e) => inPeriod(e.date, month)).map((e) => e.amount),
+/** Purchase amounts recomputed from the recorded lines, never from the stored `total`. */
+export function purchaseTotals(p: Purchase) {
+  const goods = p.items.reduce(
+    (s, i) => s + money(i.quantity) * money(i.unitCost),
+    0,
   );
-  return {
-    sales: sum(periodSales.map((s) => s.total)),
-    received,
-    receivable: sum(periodSales.map((s) => s.balance)),
-    cogs: sum(periodSales.map((s) => s.cost)),
-    purchases: sum(
-      purchases.filter((p) => inPeriod(p.date, month)).map((p) => p.total),
-    ),
-    expenses: expenseTotal,
-    profit,
-    netProfit: profit - expenseTotal,
-  };
+  const shipping = money(p.shipping);
+  return { goods, shipping, total: goods + shipping };
 }
 
 export function customerStats(customer: Customer, sales: Sale[]) {
-  const mine = sales.filter(
-    (s) =>
-      s.fulfillment.status !== "cancelled" &&
-      (s.customerId
-        ? s.customerId === customer.id
-        : s.customer.name.trim().toLowerCase() ===
-          customer.name.trim().toLowerCase()),
-  );
+  const mine = sales
+    .map(normalizeSale)
+    .filter(
+      (s) =>
+        s.fulfillment.status !== "cancelled" &&
+        (s.customerId
+          ? s.customerId === customer.id
+          : s.customer.name.trim().toLowerCase() ===
+            customer.name.trim().toLowerCase()),
+    );
   return {
     orders: mine.length,
-    spent: mine.reduce((s, x) => s + x.total, 0),
+    spent: mine.reduce((s, x) => s + x.total - x.refunded, 0),
     debt: mine.reduce((s, x) => s + x.balance, 0),
     sales: mine,
   };

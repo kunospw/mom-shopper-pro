@@ -6,7 +6,7 @@ import { useBooks } from "@/contexts/BooksContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getOwnerCatalog } from "@/lib/catalog-owner-storage";
 import { saveCustomer, saveSale, deleteSale, newId } from "@/lib/books-storage";
-import { fulfillmentLabels, paymentLabels } from "@/lib/books";
+import { fulfillmentLabels, paymentLabels, toInput } from "@/lib/books";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/lib/catalog";
 import type { Sale, SaleInput } from "@/types/books";
@@ -110,8 +110,7 @@ export default function Sales() {
   }
 
   async function persist(next: Sale) {
-    const { id: _i, number: _n, subtotal: _s, total: _t, cost: _c, profit: _p, paid: _pd, balance: _b, paymentState: _ps, ...input } = next;
-    await saveSale(input, books.sales.find((s) => s.id === next.id));
+    await saveSale(toInput(next), books.sales.find((s) => s.id === next.id));
     await books.reload();
   }
   async function submit(input: SaleInput) {

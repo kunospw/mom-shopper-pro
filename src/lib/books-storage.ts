@@ -12,7 +12,9 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import {
+  assertValidSale,
   derive,
+  normalizeSale,
   purchaseStockDeltas,
   saleNumber,
   saleStockDeltas,
@@ -52,7 +54,8 @@ const byDateDesc = <T extends { date: string }>(xs: T[]) =>
   xs.sort((a, b) => b.date.localeCompare(a.date));
 
 export async function getSales() {
-  return byDateDesc(await list<Sale>("sales"));
+  // Re-derive so stale or pre-refund records never feed the UI or the reports.
+  return byDateDesc((await list<Sale>("sales")).map(normalizeSale));
 }
 export async function getPurchases() {
   return byDateDesc(await list<Purchase>("purchases"));
@@ -124,6 +127,8 @@ export async function saveSale(
   existing?: Sale,
   context: { sequence?: number; extra?: (batch: WriteBatch) => void } = {},
 ): Promise<Sale> {
+  // Refuse an invalid payment/refund ledger before anything is written.
+  assertValidSale(input);
   const id = existing?.id ?? doc(col("sales")).id;
   const sale: Sale = {
     ...derive(input),

@@ -9,7 +9,7 @@ A modern reseller management application built with React, TypeScript, Vite, and
 - 📄 **Professional Invoicing** - Invoices with shipping, discount, payments made and balance due
 - 💳 **Payment Integration** - Bank transfer details and QRIS code display
 - 📱 **WhatsApp Sharing** - Share invoices directly via WhatsApp
-- 📊 **Bookkeeping** - Sales with DP/partial payments, fulfillment and tracking numbers (physical and digital goods), customers, purchases, expenses, optional stock; see [bookkeeping model](docs/bookkeeping.md).
+- 📊 **Bookkeeping** - Sales with DP/partial payments, fulfillment and tracking numbers (physical and digital goods), customers, purchases, expenses, optional stock; see [bookkeeping model](docs/bookkeeping.md) and [accounting rules](docs/accounting.md).
 - 📈 **Monthly Reports** - View detailed sales analytics
 - 🛍️ **Shareable catalog and order inbox** - A branded shop link (`/shop/yourname`), per-option prices, WhatsApp order requests saved as pending orders you confirm or reject, and a status page for buyers; see [pilot setup, rules and security](docs/catalog-pilot.md).
 

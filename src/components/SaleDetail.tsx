@@ -41,6 +41,7 @@ import {
   fulfillmentLabels,
   isAllDigital,
   newPayment,
+  validatePayments,
   nextFulfillment,
   paymentLabels,
   whatsAppUpdateLink,
@@ -99,20 +100,18 @@ export function SaleDetail({
   const withSale = (patch: Partial<Sale>) => ({ ...sale, ...patch }) as Sale;
   const addPayment = () => {
     const value = Math.round(Number(amount));
-    if (!value || value <= 0) return setError("Isi jumlah pembayaran.");
-    if (value > sale.balance)
+    if (!Number.isInteger(value) || value <= 0)
+      return setError("Isi jumlah pembayaran.");
+    const payments = [...sale.payments, newPayment(value, method, new Date().toISOString())];
+    const [issue] = validatePayments(payments, { total: sale.total, cancelled: false });
+    if (issue)
       return setError(
-        `Jumlah melebihi sisa tagihan ${formatRupiah(sale.balance)}.`,
+        issue.code === "overpaid"
+          ? `Jumlah melebihi sisa tagihan ${formatRupiah(sale.balance)}.`
+          : issue.message,
       );
     void run(async () => {
-      await onChange(
-        withSale({
-          payments: [
-            ...sale.payments,
-            newPayment(value, method, new Date().toISOString()),
-          ],
-        }),
-      );
+      await onChange(withSale({ payments }));
       setAmount("");
     }, "Pembayaran belum tersimpan. Coba lagi.");
   };

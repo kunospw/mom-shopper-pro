@@ -13,7 +13,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
-import type { Expense, Sale } from "@/types/books";
+import type { Expense, Purchase, Sale } from "@/types/books";
+import { derive } from "@/lib/books";
+import { buildReport } from "@/lib/report";
+import { customRange, inRange, periodRange, type DateRange, type Preset as PeriodPreset } from "@/lib/period";
 
 type Preset = "this-month" | "last-3-months" | "last-6-months" | "this-year" | "all-time" | "custom";
 const presets: { id: Preset; label: string }[] = [
@@ -25,90 +28,63 @@ const presets: { id: Preset; label: string }[] = [
   { id: "custom", label: "Atur tanggal" },
 ];
 
-function rangeFor(preset: Preset, startDate: string, endDate: string) {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59);
-  switch (preset) {
-    case "last-3-months":
-      return { start: new Date(y, m - 2, 1), end: endOfMonth };
-    case "last-6-months":
-      return { start: new Date(y, m - 5, 1), end: endOfMonth };
-    case "this-year":
-      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31, 23, 59, 59) };
-    case "all-time":
-      return { start: new Date(2000, 0, 1), end: new Date(2100, 0, 1) };
-    case "custom":
-      return {
-        start: startDate ? new Date(startDate) : new Date(y, m, 1),
-        end: endDate ? new Date(`${endDate}T23:59:59`) : endOfMonth,
-      };
-    default:
-      return { start: new Date(y, m, 1), end: endOfMonth };
-  }
+const presetMap: Record<Exclude<Preset, "custom">, PeriodPreset> = {
+  "this-month": "this-month",
+  "last-3-months": "last-3-months",
+  "last-6-months": "last-6-months",
+  "this-year": "this-year",
+  "all-time": "all-time",
+};
+function rangeFor(preset: Preset, from: string, to: string): DateRange {
+  if (preset === "custom") return customRange(from, to) ?? periodRange("this-month");
+  return periodRange(presetMap[preset]);
 }
 
 const compact = (value: number) =>
   value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}jt` : value >= 1000 ? `${Math.round(value / 1000)}rb` : String(value);
 
-export const MonthlyRecap = ({ sales, expenses }: { sales: Sale[]; expenses: Expense[] }) => {
+export const MonthlyRecap = ({ sales, purchases, expenses }: { sales: Sale[]; purchases: Purchase[]; expenses: Expense[] }) => {
   const [preset, setPreset] = useState<Preset>("this-month");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
   const report = useMemo(() => {
-    const { start, end } = rangeFor(preset, startDate, endDate);
-    const within = (iso: string) => {
-      const d = new Date(iso);
-      return d >= start && d <= end;
-    };
-    // Cancelled sales never happened.
-    const live = sales.filter((s) => s.fulfillment.status !== "cancelled");
-    const inRange = live.filter((s) => within(s.date));
-    const total = inRange.reduce((n, s) => n + s.total, 0);
-    const cost = inRange.reduce((n, s) => n + s.cost, 0);
-    const gross = inRange.reduce((n, s) => n + s.profit, 0);
-    const spent = expenses.filter((e) => within(e.date)).reduce((n, e) => n + e.amount, 0);
-    const received = live.flatMap((s) => s.payments).filter((p) => within(p.date)).reduce((n, p) => n + p.amount, 0);
-    const owed = inRange.reduce((n, s) => n + s.balance, 0);
-
-    const longRange = (end.getTime() - start.getTime()) / 86_400_000 > 90;
-    const buckets = new Map<string, { key: string; label: string; sales: number; profit: number }>();
-    for (const s of inRange) {
-      const d = new Date(s.date);
-      const key = longRange
-        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
-        : s.date.slice(0, 10);
-      const label = longRange
-        ? d.toLocaleDateString("id-ID", { month: "short", year: "2-digit" })
-        : d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-      const bucket = buckets.get(key) ?? { key, label, sales: 0, profit: 0 };
-      bucket.sales += s.total;
-      bucket.profit += s.profit;
-      buckets.set(key, bucket);
-    }
-    const chart = [...buckets.values()].sort((a, b) => a.key.localeCompare(b.key));
-
+    const range = rangeFor(preset, startDate, endDate);
+    const r = buildReport({ sales, purchases, expenses }, range);
+    // Top products by net line value for sales dated in the period.
     const products = new Map<string, { name: string; quantity: number; revenue: number }>();
-    for (const s of inRange)
+    for (const raw of sales) {
+      const s = derive(raw);
+      if (s.fulfillment.status === "cancelled" || !inRange(s.date, range)) continue;
       for (const item of s.items) {
         const row = products.get(item.name) ?? { name: item.name, quantity: 0, revenue: 0 };
         row.quantity += item.quantity;
         row.revenue += item.unitPrice * item.quantity;
         products.set(item.name, row);
       }
+    }
     const top = [...products.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-
-    return { count: inRange.length, total, cost, spent, received, owed, net: gross - spent, chart, top };
-  }, [sales, expenses, preset, startDate, endDate]);
+    return {
+      count: r.salesCount,
+      total: r.revenue,
+      cost: r.cogs,
+      costs: r.operatingCosts,
+      received: r.cashNet,
+      owed: r.outstandingNow,
+      net: r.netProfit,
+      chart: r.buckets
+        .filter((b) => b.revenue !== 0 || b.netProfit !== 0)
+        .map((b) => ({ key: b.key, label: b.label, sales: b.revenue, profit: b.netProfit })),
+      top,
+    };
+  }, [sales, purchases, expenses, preset, startDate, endDate]);
 
   const margin = report.total > 0 ? (report.net / report.total) * 100 : 0;
   const secondary = [
-    { label: "Uang diterima", value: formatRupiah(report.received) },
-    { label: "Belum dibayar", value: formatRupiah(report.owed) },
-    { label: "Modal barang", value: formatRupiah(report.cost) },
-    { label: "Biaya usaha", value: formatRupiah(report.spent) },
+    { label: "Uang diterima (bersih)", value: formatRupiah(report.received) },
+    { label: "Belum dibayar (saat ini)", value: formatRupiah(report.owed) },
+    { label: "Modal barang terjual", value: formatRupiah(report.cost) },
+    { label: "Biaya usaha", value: formatRupiah(report.costs) },
   ];
 
   return (

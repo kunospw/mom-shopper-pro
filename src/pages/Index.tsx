@@ -19,17 +19,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRupiah } from "@/lib/currency";
-import { fulfillmentLabels, summarizeBooks } from "@/lib/books";
+import { fulfillmentLabels } from "@/lib/books";
+import { buildReport } from "@/lib/report";
+import { periodRange, previousRange } from "@/lib/period";
 import { shopUrl } from "@/lib/shop-link";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-const monthKey = (offset = 0) => {
-  const d = new Date();
-  d.setDate(1);
-  d.setMonth(d.getMonth() + offset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-};
 
 function Delta({ now, before }: { now: number; before: number }) {
   if (!before || before < 0) return null;
@@ -49,9 +44,10 @@ const Index = () => {
   const { user } = useAuth();
   const books = useBooks();
   const isOverview = pathname === "/";
-  const thisMonth = summarizeBooks(books.sales, books.purchases, books.expenses, monthKey());
-  const lastMonth = summarizeBooks(books.sales, books.purchases, books.expenses, monthKey(-1));
-  const all = summarizeBooks(books.sales, books.purchases, books.expenses);
+  const ledger = { sales: books.sales, purchases: books.purchases, expenses: books.expenses };
+  const monthRange = periodRange("this-month");
+  const thisMonth = buildReport(ledger, monthRange);
+  const lastMonth = buildReport(ledger, previousRange(monthRange)!);
   const live = books.sales.filter((s) => s.fulfillment.status !== "cancelled");
   const owed = live.filter((s) => s.balance > 0);
   const toShip = live.filter((s) => ["confirmed", "packed"].includes(s.fulfillment.status));
@@ -160,8 +156,8 @@ const Index = () => {
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
-                { label: "Penjualan", value: thisMonth.sales, before: lastMonth.sales, wide: true },
-                { label: "Uang diterima", value: thisMonth.received, before: lastMonth.received, wide: false },
+                { label: "Penjualan", value: thisMonth.revenue, before: lastMonth.revenue, wide: true },
+                { label: "Uang diterima", value: thisMonth.cashNet, before: lastMonth.cashNet, wide: false },
                 { label: "Laba bersih", value: thisMonth.netProfit, before: lastMonth.netProfit, wide: false },
               ].map((m) => (
                 <Card key={m.label} className={cn(m.wide && "col-span-2 sm:col-span-1")}>
@@ -173,9 +169,9 @@ const Index = () => {
                 </Card>
               ))}
             </div>
-            {all.receivable > 0 && (
+            {thisMonth.outstandingNow > 0 && (
               <p className="text-sm text-muted-foreground">
-                Total belum dibayar pelanggan: <strong className="num text-foreground">{formatRupiah(all.receivable)}</strong>
+                Total belum dibayar pelanggan: <strong className="num text-foreground">{formatRupiah(thisMonth.outstandingNow)}</strong>
               </p>
             )}
           </section>
@@ -240,7 +236,7 @@ const Index = () => {
           </Card>
         </>
       ) : (
-        <MonthlyRecap sales={books.sales} expenses={books.expenses} />
+        <MonthlyRecap sales={books.sales} purchases={books.purchases} expenses={books.expenses} />
       )}
     </>
   );

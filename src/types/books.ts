@@ -24,9 +24,20 @@ export interface SaleItem {
   unitPrice: number;
   unitCost: number;
 }
+export type PaymentKind = "payment" | "refund";
 export interface Payment {
   id: string;
+  /** Always a positive whole Rupiah amount; `kind` carries the direction. */
   amount: number;
+  /** Absent on records made before refunds existed: treated as "payment". */
+  kind?: PaymentKind;
+  /**
+   * Refunds only. "return" (default): goods/price returned on an active sale,
+   * a reduction of revenue that does not re-open the receivable. "cancellation":
+   * money handed back because the sale was cancelled; cash only, and if the
+   * sale is re-opened the buyer owes that amount again.
+   */
+  reason?: "return" | "cancellation";
   method: PaymentMethodV2;
   date: string;
   note: string;
@@ -65,8 +76,20 @@ export interface Sale extends SaleInput {
   total: number;
   cost: number;
   profit: number;
+  /** Sum of payments, before refunds. */
+  paidGross: number;
+  /** Sum of all refunds. */
+  refunded: number;
+  /** Refunds that were sales returns (reduce revenue in the refund month). */
+  returned: number;
+  /** Net money held for this sale: paidGross - refunded. */
   paid: number;
+  /** Still owed by the buyer (0 for cancelled sales). */
   balance: number;
+  /** Cancelled sales only: net money still held that should go back. */
+  refundDue: number;
+  /** Net paid above the total (defensive; validation normally prevents it). */
+  credit: number;
   paymentState: PaymentState;
 }
 export interface PurchaseItem {
