@@ -31,9 +31,16 @@ Expiry is computed from server time by the rules; the client only decides what t
 - A shop that is already open keeps `published: true` through ordinary edits even without an entitlement; only turning it on requires one. So the only shops that stay open with no entitlement are older ones, and only until `graceEnd()`.
 - During grace an older owner sees a notice on Beranda with **Mulai uji coba 7 hari**, which creates the entitlement for the shop that is already open.
 
+## Upgrading (paywall)
+
+- Owners see their plan in the sidebar pill, in **Pengaturan → Langganan**, and in the notice on Beranda/Katalog (trial with 3 days or fewer left, expired, or older shop in grace). **Lihat paket** opens the paywall.
+- The paywall shows the monthly price (`VITE_PLAN_PRICE_IDR`, default `49000`; `0` hides it), what the plan opens (catalog, WhatsApp orders, tracking page, promotion kit) and what stays free (all bookkeeping).
+- **Upgrade lewat WhatsApp** opens a chat with `VITE_UPGRADE_WHATSAPP` (default `6281298590798`; an invalid number hides the button) prefilled with the shop name, the account email, the **account code** (the first 8 characters of the user ID, as is) and the current plan state.
+- **Saya sudah bayar, periksa lagi** re-reads the entitlement, so the owner sees the plan turn active as soon as the operator sets `paidUntil`.
+
 ## Granting a paid plan
 
-There is no payment integration. After payment is confirmed off-platform, set `paidUntil` on `entitlements/{uid}` from the Firebase console or the Admin SDK to the end date (a Firestore timestamp). To end access early, set it to a past time. The owner's page reflects it on next load.
+There is no payment integration. After payment is confirmed off-platform, find the owner by the account code from the WhatsApp message (the `entitlements` document ID starts with it; IDs are case-sensitive) and set `paidUntil` on `entitlements/{uid}` from the Firebase console or the Admin SDK to the end date (a Firestore timestamp). To end access early, set it to a past time. The owner's page reflects it on next load.
 
 ## Order tracking
 

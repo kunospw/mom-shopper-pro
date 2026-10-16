@@ -104,3 +104,8 @@ export function useBooks() {
   if (!value) throw new Error("useBooks must be used inside BooksProvider");
   return value;
 }
+
+/** Like useBooks, but null outside the workspace (for shared dialogs). */
+export function useOptionalBooks() {
+  return useContext(BooksContext);
+}

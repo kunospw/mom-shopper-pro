@@ -1,6 +1,7 @@
 import { CalendarClock, Hourglass, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { usePlan } from "@/hooks/use-plan";
 import type { PlanState } from "@/lib/entitlement";
 
 const date = (value: Date | null) =>
@@ -25,6 +26,8 @@ export function SubscriptionNotice({
   starting?: boolean;
   className?: string;
 }) {
+  const { openUpgrade } = usePlan();
+  const showUpgrade = plan.phase === "expired" || plan.phase === "grace" || (plan.phase === "trial" && plan.daysLeft <= 3) || (plan.phase === "none" && published);
   let tone = "";
   let Icon = Sparkles;
   let title = "";
@@ -50,10 +53,19 @@ export function SubscriptionNotice({
       <div className="min-w-0">
         <p className="text-sm font-semibold">{title}</p>
         <p className="text-sm">{body}</p>
-        {plan.phase === "grace" && onStart && (
-          <Button type="button" size="sm" variant="outline" className="mt-2 bg-card text-foreground" disabled={starting} onClick={onStart}>
-            {starting ? "Memulai…" : "Mulai uji coba 7 hari"}
-          </Button>
+        {(showUpgrade || (plan.phase === "grace" && onStart)) && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {plan.phase === "grace" && onStart && (
+              <Button type="button" size="sm" variant="outline" className="bg-card text-foreground" disabled={starting} onClick={onStart}>
+                {starting ? "Memulai…" : "Mulai uji coba 7 hari"}
+              </Button>
+            )}
+            {showUpgrade && (
+              <Button type="button" size="sm" className="bg-foreground text-background hover:bg-foreground/90" onClick={openUpgrade}>
+                Lihat paket
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>

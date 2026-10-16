@@ -22,6 +22,7 @@ export function StorefrontEditor({
   wasPublished = false,
   trialLocked = false,
   trialStarts = false,
+  onUpgrade,
   checkSlug,
   onSave,
   onCancel,
@@ -35,6 +36,7 @@ export function StorefrontEditor({
   trialLocked?: boolean;
   /** No trial yet: opening the shop starts the 7-day free trial. */
   trialStarts?: boolean;
+  onUpgrade?: () => void;
   checkSlug: (slug: string) => Promise<boolean>;
   onSave: (value: StorefrontFields) => Promise<void>;
   onCancel: () => void;
@@ -236,7 +238,12 @@ export function StorefrontEditor({
             </p>
             {trialLocked && !wasPublished ? (
               <p id="store-published-note" className="mt-1 text-xs font-medium text-destructive">
-                Masa uji coba berakhir, katalog belum bisa dibuka lagi.
+                Masa uji coba berakhir, katalog belum bisa dibuka lagi.{" "}
+                {onUpgrade && (
+                  <button type="button" onClick={onUpgrade} className="font-semibold underline underline-offset-2">
+                    Lihat paket
+                  </button>
+                )}
               </p>
             ) : trialStarts && !wasPublished ? (
               <p id="store-published-note" className="mt-1 text-xs font-medium text-info">

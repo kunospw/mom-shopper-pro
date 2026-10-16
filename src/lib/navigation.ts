@@ -4,6 +4,7 @@ export const workspaceSections = [
   { id: "sales", path: "/sales", label: "Penjualan", group: "main" },
   { id: "customers", path: "/customers", label: "Pelanggan", group: "main" },
   { id: "catalog", path: "/catalog", label: "Katalog", group: "business" },
+  { id: "promote", path: "/promote", label: "Promosi", group: "business" },
   { id: "costs", path: "/costs", label: "Pembelian & biaya", group: "business" },
   { id: "reports", path: "/reports", label: "Laporan", group: "business" },
   { id: "settings", path: "/settings", label: "Pengaturan", group: "account" },
@@ -23,6 +24,11 @@ export const settingsSections = [
     id: "payments",
     label: "Pembayaran",
     description: "Rekening bank dan QRIS di invoice",
+  },
+  {
+    id: "plan",
+    label: "Langganan",
+    description: "Uji coba, paket toko, dan cara upgrade",
   },
   {
     id: "account",

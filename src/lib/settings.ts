@@ -25,6 +25,8 @@ export function profileFormDefaults(user: UserProfile): UserProfileForm {
       : [{ id: "1", bankName: "", accountNumber: "", accountHolder: "" }],
   };
 }
+/** Sections without a profile form (they manage their own state). */
+export type FormSection = Exclude<SettingsSection, "appearance" | "plan">;
 export function settingsChanged(
   section: SettingsSection,
   values: UserProfileForm,
@@ -32,13 +34,14 @@ export function settingsChanged(
 ) {
   return (
     section !== "appearance" &&
+    section !== "plan" &&
     settingsFields[section].some(
       (key) => JSON.stringify(values[key]) !== JSON.stringify(baseline[key]),
     )
   );
 }
 export function settingsPatch(
-  section: Exclude<SettingsSection, "appearance">,
+  section: FormSection,
   values: UserProfileForm,
 ): Partial<UserProfile> {
   if (section === "account") return { displayName: values.displayName.trim() };

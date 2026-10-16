@@ -64,7 +64,7 @@ import { effectiveAccentKey } from "@/lib/branding";
 export function Catalog() {
   const { user } = useAuth();
   const books = useBooks();
-  const { entitlement, plan, loaded: planLoaded, reload: reloadPlan } = usePlan();
+  const { entitlement, plan, loaded: planLoaded, reload: reloadPlan, openUpgrade } = usePlan();
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [store, setStore] = useState<Storefront | null>(null);
@@ -390,6 +390,7 @@ export function Catalog() {
               wasPublished={!!store?.published}
               trialLocked={planLoaded && !canPublish(plan, !!store?.published)}
               trialStarts={planLoaded && !entitlement}
+              onUpgrade={openUpgrade}
               checkSlug={isSlugAvailable}
               onDirtyChange={setDirty}
               onBusyChange={setBusy}
@@ -401,7 +402,7 @@ export function Catalog() {
                     reopening: fields.published && !store?.published,
                   }),
                 );
-                reloadPlan();
+                void reloadPlan();
                 void books.reload();
                 done();
                 toast.success("Pengaturan toko disimpan");

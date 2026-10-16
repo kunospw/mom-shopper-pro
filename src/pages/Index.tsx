@@ -23,7 +23,7 @@ const Index = () => {
     setStarting(true);
     try {
       await startTrial();
-      reload();
+      await reload();
     } catch {
       toast.error("Uji coba belum bisa dimulai. Coba lagi.");
     } finally {

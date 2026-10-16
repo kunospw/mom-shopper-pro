@@ -6,6 +6,7 @@ import {
   Home,
   Link2,
   Inbox,
+  Megaphone,
   Menu,
   PackagePlus,
   Plus,
@@ -20,6 +21,8 @@ import {
 } from "lucide-react";
 import { BusinessBrand } from "@/components/BusinessBrand";
 import { WorkspaceSearch } from "@/components/WorkspaceSearch";
+import { PlanProvider } from "@/contexts/PlanContext";
+import { PlanPill } from "@/components/PlanPill";
 import { isBusinessLogo } from "@/lib/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { BooksProvider, useBooks } from "@/contexts/BooksContext";
@@ -43,6 +46,7 @@ const icons: Record<SectionId, LucideIcon> = {
   sales: ReceiptText,
   customers: Users,
   catalog: ShoppingBag,
+  promote: Megaphone,
   costs: Wallet,
   reports: BarChart3,
   settings: Settings,
@@ -231,6 +235,7 @@ function Shell() {
             Lihat toko saya
           </a>
           {link("settings")}
+          <PlanPill className="mx-1 mt-2" />
           <div className="mt-2 flex items-center gap-2.5 px-2 pt-2">
             <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
               {initials}
@@ -304,7 +309,7 @@ function Shell() {
             aria-haspopup="dialog"
             className={cn(
               "flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
-              ["customers", "catalog", "costs", "reports", "settings"].includes(active.id)
+              ["customers", "catalog", "promote", "costs", "reports", "settings"].includes(active.id)
                 ? "text-primary"
                 : "text-muted-foreground",
             )}
@@ -364,10 +369,10 @@ function Shell() {
         >
           <SheetHeader className="text-left">
             <SheetTitle>Lainnya</SheetTitle>
-            <SheetDescription>Katalog, pelanggan, biaya, laporan, dan pengaturan.</SheetDescription>
+            <SheetDescription>Katalog, promosi, pelanggan, biaya, laporan, dan pengaturan.</SheetDescription>
           </SheetHeader>
           <div className="mt-3 space-y-1">
-            {(["customers", "catalog", "costs", "reports", "settings"] as const).map((id) =>
+            {(["customers", "catalog", "promote", "costs", "reports", "settings"] as const).map((id) =>
               link(id, () => {
                 menuNavigation.current = true;
                 setMenuOpen(false);
@@ -382,6 +387,7 @@ function Shell() {
               <Store className="h-[18px] w-[18px]" aria-hidden="true" />
               Lihat toko saya
             </a>
+            <PlanPill className="mt-2" onNavigate={() => { menuNavigation.current = true; setMenuOpen(false); }} />
           </div>
         </SheetContent>
       </Sheet>
@@ -392,7 +398,9 @@ function Shell() {
 export function AppShell() {
   return (
     <BooksProvider>
-      <Shell />
+      <PlanProvider>
+        <Shell />
+      </PlanProvider>
     </BooksProvider>
   );
 }

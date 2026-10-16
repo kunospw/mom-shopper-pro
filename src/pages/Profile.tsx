@@ -36,6 +36,7 @@ import {
   Plus,
   Trash2,
   Monitor,
+  Sparkles,
   Loader2,
 } from "lucide-react";
 import { AppearanceSettings } from "@/components/AppearanceSettings";
@@ -43,6 +44,7 @@ import { BrandingSettings } from "@/components/BrandingSettings";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { settingsSections } from "@/lib/navigation";
+import { PlanSettings } from "@/components/PlanSettings";
 import {
   profileFormDefaults,
   settingsFields,
@@ -55,6 +57,7 @@ const sectionIcons = {
   appearance: Monitor,
   business: Building,
   payments: CreditCard,
+  plan: Sparkles,
   account: User,
 };
 
@@ -99,6 +102,7 @@ export const Profile = () => {
     if (
       !section ||
       section.id === "appearance" ||
+      section.id === "plan" ||
       saving ||
       uploading ||
       logoReading
@@ -229,6 +233,8 @@ export const Profile = () => {
           </div>
           {section.id === "appearance" ? (
             <AppearanceSettings />
+          ) : section.id === "plan" ? (
+            <PlanSettings />
           ) : (
             <form onSubmit={saveSection} className="space-y-4">
               <fieldset
