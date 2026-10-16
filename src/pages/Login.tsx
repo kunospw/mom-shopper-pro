@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { PLATFORM_NAME, accents } from "@/lib/branding";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,17 @@ export const Login = () => {
   const destination = location.state?.from
     ? `${location.state.from.pathname}${location.state.from.search || ""}`
     : "/";
+
+  // Signed-out screens use the platform accent, not any owner's color.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--brand", accents.forest.color);
+    root.style.setProperty("--brand-dark", accents.forest.darkColor);
+    return () => {
+      root.style.removeProperty("--brand");
+      root.style.removeProperty("--brand-dark");
+    };
+  }, []);
 
   useEffect(() => {
     // Redirect if already logged in
@@ -70,7 +82,7 @@ export const Login = () => {
           <div className="mb-8 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <Building className="h-6 w-6" />
           </div>
-          <p className="mb-3 text-sm font-medium text-primary">Ruang Usaha</p>
+          <p className="mb-3 text-sm font-medium text-primary">{PLATFORM_NAME}</p>
           <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
             Kelola usaha Anda.
           </h1>

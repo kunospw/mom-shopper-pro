@@ -7,7 +7,7 @@ import { rejectOrder } from "@/lib/orders-owner-storage";
 import { optionPrice, orderCode, type CatalogProduct, type Order } from "@/lib/catalog";
 import { formatRupiah } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { RequestChip } from "@/components/status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,9 +109,7 @@ function OrderCard({
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={order.status === "confirmed" ? "success" : "danger"}>
-              {order.status === "confirmed" ? "Dikonfirmasi" : "Ditolak"}
-            </Badge>
+            <RequestChip status={order.status} />
             {order.sellerNote && <span className="text-xs text-muted-foreground">{order.sellerNote}</span>}
           </div>
         )}

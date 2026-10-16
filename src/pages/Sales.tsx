@@ -6,7 +6,7 @@ import { useBooks } from "@/contexts/BooksContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getOwnerCatalog } from "@/lib/catalog-owner-storage";
 import { saveCustomer, saveSale, deleteSale, newId } from "@/lib/books-storage";
-import { fulfillmentLabels, paymentLabels, toInput } from "@/lib/books";
+import { toInput } from "@/lib/books";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/lib/catalog";
 import type { Sale, SaleInput } from "@/types/books";
@@ -18,7 +18,7 @@ import { InvoiceModal } from "@/components/InvoiceModal";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { FulfillmentChip, PaymentChip } from "@/components/status";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -215,8 +215,8 @@ export default function Sales() {
                         {s.number} · {new Date(s.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} · {s.items.map((i) => i.name).join(", ")}
                       </span>
                       <span className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant={s.paymentState === "paid" ? "success" : "warning"}>{paymentLabels[s.paymentState]}</Badge>
-                        <Badge variant="neutral">{fulfillmentLabels[s.fulfillment.status]}</Badge>
+                        <PaymentChip state={s.fulfillment.status === "cancelled" && s.refundDue > 0 ? "refund-due" : s.paymentState} />
+                        <FulfillmentChip status={s.fulfillment.status} />
                       </span>
                     </span>
                     <span className="text-right">

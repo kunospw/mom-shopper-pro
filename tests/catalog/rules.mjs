@@ -172,6 +172,11 @@ try {
   await assertFails(setDoc(doc(owner, "unrelated/data"), { value: true }));
   await assertFails(getDoc(doc(buyer, "users/seller-a/transactions/private")));
   await assertFails(getDoc(doc(other, "users/seller-a/transactions/private")));
+  // accents: forest is allowed, unknown colors are not
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, accent: "forest" }));
+  for (const accent of ["pink", "Forest", ""])
+    await assertFails(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, accent }));
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
   // ---- orders, slugs (PR B) ----
   await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
   const item = {

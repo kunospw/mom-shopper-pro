@@ -267,6 +267,10 @@ assert.equal(orderCode("abcdef123456"), "ABCDEF");
 const stored = readOrder("o1", { status: "confirmed", progress: "shipped", buyerName: "Siti", note: "", items: snapshot, subtotal: 520000, trackingNo: "JNE1", sellerNote: "" });
 assert.equal(stored.progress, "shipped");
 assert.throws(() => readOrder("o1", { status: "hacked", progress: "x", buyerName: "Siti", note: "", items: snapshot }));
+for (const accent of ["forest", "teal", "blue", "violet"])
+  assert(storefrontSchema.safeParse({ ...shopFields, accent }).success, accent);
+for (const accent of ["pink", "", "Forest", undefined])
+  assert.equal(storefrontSchema.safeParse({ ...shopFields, accent }).success, false, String(accent));
 console.log(
   "PASS: listing/store validation, option prices, legacy options, slugs, order snapshots, public projections, cart tampering and reconciliation, WhatsApp encoding and unpublished-order rejection.",
 );

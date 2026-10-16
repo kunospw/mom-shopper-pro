@@ -1,3 +1,4 @@
+import { effectiveAccentKey } from "./branding";
 import type { UserProfile, UserProfileForm } from "@/types/user";
 import type { SettingsSection } from "./navigation";
 export const settingsFields = {
@@ -17,7 +18,7 @@ export function profileFormDefaults(user: UserProfile): UserProfileForm {
     businessName: user.businessName || "",
     businessAddress: user.businessAddress || "",
     businessPhone: user.businessPhone || "",
-    businessAccent: user.businessAccent || "teal",
+    businessAccent: effectiveAccentKey(user.businessAccent),
     businessLogo: user.businessLogo || "",
     bankAccounts: user.bankAccounts?.length
       ? user.bankAccounts

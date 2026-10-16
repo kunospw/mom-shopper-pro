@@ -9,6 +9,7 @@ import { auth, googleProvider } from '@/lib/firebase';
 import { AuthContextType, UserProfile } from '@/types/user';
 import { getUserProfile, createUserProfile, updateUserProfile as updateUserProfileInDB } from '@/lib/storage';
 import { toast } from 'sonner';
+import { NEW_ACCOUNT_ACCENT } from '@/lib/branding';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -42,6 +43,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || '',
               photoURL: firebaseUser.photoURL || undefined,
+              // Only brand-new accounts start on the platform accent; existing profiles are untouched.
+              businessAccent: NEW_ACCOUNT_ACCENT,
             };
             
             await createUserProfile(newProfile);

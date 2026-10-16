@@ -187,6 +187,7 @@ export function StorefrontEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="forest">Hutan</SelectItem>
               <SelectItem value="teal">Hijau laut</SelectItem>
               <SelectItem value="blue">Biru</SelectItem>
               <SelectItem value="violet">Ungu</SelectItem>

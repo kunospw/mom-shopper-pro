@@ -56,6 +56,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { formatRupiah } from "@/lib/currency";
 import { toast } from "sonner";
 import { formDialogClass } from "@/lib/utils";
+import { effectiveAccentKey } from "@/lib/branding";
 
 export function Catalog() {
   const { user } = useAuth();
@@ -122,7 +123,7 @@ export function Catalog() {
         name: user.businessName || "",
         description: "",
         whatsapp: "",
-        accent: user.businessAccent || "teal",
+        accent: effectiveAccentKey(user.businessAccent),
         logo: user.businessLogo || "",
         published: false,
         slug: "",

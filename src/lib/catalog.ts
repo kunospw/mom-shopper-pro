@@ -33,7 +33,7 @@ export const storefrontSchema = z
         /^$|^[1-9][0-9]{7,14}$/,
         "Gunakan kode negara, contoh 6281234567890.",
       ),
-    accent: z.enum(["teal", "blue", "violet"]),
+    accent: z.enum(["forest", "teal", "blue", "violet"]),
     logo: image(140000),
     published: z.boolean(),
     slug: z.union([z.literal(""), slugSchema]),

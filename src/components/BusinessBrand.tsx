@@ -2,21 +2,23 @@ import { useEffect } from "react";
 import { Building2 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { getAccent, isBusinessLogo } from "@/lib/branding";
+import { PLATFORM_NAME, getAccent, isBusinessLogo } from "@/lib/branding";
 
 export function BusinessTheme() {
   const { user } = useAuth();
   useEffect(() => {
     const root = document.documentElement;
-    const accent = getAccent(user?.businessAccent);
+    document.title = user?.businessName?.trim() ? `${user.businessName} · ${PLATFORM_NAME}` : PLATFORM_NAME;
+    // Signed out (login) screens set their own platform accent; do not override it.
+    if (!user) return;
+    const accent = getAccent(user.businessAccent);
     root.style.setProperty("--brand", accent.color);
     root.style.setProperty("--brand-dark", accent.darkColor);
-    document.title = user?.businessName?.trim() ? `${user.businessName} · Ruang Usaha` : "Ruang Usaha";
     return () => {
       root.style.removeProperty("--brand");
       root.style.removeProperty("--brand-dark");
     };
-  }, [user?.businessAccent, user?.businessName]);
+  }, [user, user?.businessAccent, user?.businessName]);
   return null;
 }
 
@@ -26,7 +28,7 @@ export function BusinessBrand({ name, logo, compact = false }: { name?: string; 
       {isBusinessLogo(logo) && <AvatarImage src={logo} alt="" className="object-contain p-1" />}
       <AvatarFallback className="rounded-xl bg-primary/10 text-primary"><Building2 className="h-5 w-5" /></AvatarFallback>
     </Avatar>
-    <div className="min-w-0"><p className="truncate text-sm font-semibold tracking-tight">{name?.trim() || "Ruang Usaha"}</p>
+    <div className="min-w-0"><p className="truncate text-sm font-semibold tracking-tight">{name?.trim() || PLATFORM_NAME}</p>
       {!compact && <p className="text-xs text-muted-foreground">Ruang kerja bisnis</p>}</div>
   </div>;
 }

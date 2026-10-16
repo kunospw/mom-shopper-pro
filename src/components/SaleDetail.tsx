@@ -8,7 +8,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { FulfillmentChip, PaymentChip } from "@/components/status";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,7 +43,6 @@ import {
   newPayment,
   validatePayments,
   nextFulfillment,
-  paymentLabels,
   whatsAppUpdateLink,
 } from "@/lib/books";
 import { useAuth } from "@/contexts/AuthContext";
@@ -168,12 +167,8 @@ export function SaleDetail({
           </SheetHeader>
           <div className="mt-4 space-y-6">
             <div className="flex flex-wrap gap-2">
-              <Badge variant={sale.paymentState === "paid" ? "success" : "warning"}>
-                {paymentLabels[sale.paymentState]}
-              </Badge>
-              <Badge variant="neutral">
-                {fulfillmentLabels[sale.fulfillment.status]}
-              </Badge>
+              <PaymentChip state={cancelled && sale.refundDue > 0 ? "refund-due" : sale.paymentState} />
+              <FulfillmentChip status={sale.fulfillment.status} />
             </div>
 
             <section aria-labelledby="sd-items" className="space-y-2 text-sm">

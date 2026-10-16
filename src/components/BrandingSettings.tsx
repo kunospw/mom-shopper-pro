@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { BusinessBrand } from "./BusinessBrand";
 import { useAppearance } from "@/hooks/use-appearance";
-import { accents, getAccent, isBusinessLogo } from "@/lib/branding";
+import { accents, effectiveAccentKey, getAccent, isBusinessLogo } from "@/lib/branding";
 import type { UserProfileForm } from "@/types/user";
 
 type Accent = NonNullable<UserProfileForm["businessAccent"]>;
@@ -51,7 +51,7 @@ export function BrandingSettings({ name, logo, accent, onLogoChange, onAccentCha
         {logo && <Button type="button" variant="outline" disabled={reading} onClick={() => onLogoChange("")}>Hapus logo</Button>}
       </div>
       <fieldset><legend className="mb-3 text-sm font-medium">Warna utama</legend>
-        <RadioGroup value={accent || "teal"} onValueChange={value => onAccentChange(value as Accent)} className="flex flex-wrap gap-3" aria-label="Warna utama">
+        <RadioGroup value={effectiveAccentKey(accent)} onValueChange={value => onAccentChange(value as Accent)} className="flex flex-wrap gap-3" aria-label="Warna utama">
           {Object.entries(accents).map(([key, choice]) => <Label key={key} htmlFor={`accent-${key}`} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
             <RadioGroupItem id={`accent-${key}`} value={key} />
             <span aria-hidden="true" className="h-4 w-4 rounded-full" style={{ backgroundColor: `hsl(${choice.color})` }} />{choice.label}

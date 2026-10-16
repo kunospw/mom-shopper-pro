@@ -25,7 +25,7 @@ service cloud.firestore {
             getAfter(/databases/$(database)/documents/slugs/$(d.slug)).data.storeId == storeId)) &&
           d.name is string && d.name.size() <= 80 && d.description is string && d.description.size() <= 600 &&
           d.whatsapp is string && (d.whatsapp == '' || d.whatsapp.matches('^[1-9][0-9]{7,14}$')) &&
-          d.accent in ['teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
+          d.accent in ['forest','teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
           (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) && d.updatedAt == request.time;
       }
       function reserved() {

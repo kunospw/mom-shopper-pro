@@ -10,7 +10,7 @@ export interface UserProfile {
   email: string;
   displayName: string;
   photoURL?: string;
-  businessAccent?: "teal" | "blue" | "violet";
+  businessAccent?: "forest" | "teal" | "blue" | "violet";
   businessLogo?: string;
   // Business information
   businessName?: string;
@@ -25,7 +25,7 @@ export interface UserProfile {
 }
 
 export interface UserProfileForm {
-  businessAccent?: "teal" | "blue" | "violet";
+  businessAccent?: "forest" | "teal" | "blue" | "violet";
   businessLogo?: string;
   displayName: string;
   businessName: string;
