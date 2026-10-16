@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   Settings2,
+  Store,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBooks } from "@/contexts/BooksContext";
@@ -54,6 +55,7 @@ import { SubscriptionNotice } from "@/components/SubscriptionNotice";
 import { usePlan } from "@/hooks/use-plan";
 import { canPublish, needsTrialStart } from "@/lib/entitlement";
 import { StorefrontEditor } from "@/components/StorefrontEditor";
+import { StoreSetup } from "@/components/StoreSetup";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { formatRupiah } from "@/lib/currency";
@@ -80,6 +82,9 @@ export function Catalog() {
   const editor = params.get("new") === "product" || !!edit;
   const storeEditor = params.get("store") === "edit";
   const open = editor || storeEditor;
+  const [setupFlow, setSetupFlow] = useState(false);
+  // A shop without a storefront gets the guided setup; it stays on it after saving to show the next step.
+  const setup = storeEditor && (setupFlow || (!loading && !failed && !store));
   const selected = products.find((product) => product.id === edit);
   const blocker = useUnsavedChanges(open && (dirty || busy));
   useEffect(() => {
@@ -106,6 +111,10 @@ export function Catalog() {
   useEffect(() => {
     if (!open) setDirty(false);
   }, [open]);
+  useEffect(() => {
+    if (!storeEditor) setSetupFlow(false);
+    else if (!loading && !failed && !store) setSetupFlow(true);
+  }, [storeEditor, loading, failed, store]);
   function navigateEditor(key?: string, value?: string) {
     const next = new URLSearchParams(params);
     for (const name of ["new", "edit", "store"]) next.delete(name);
@@ -205,13 +214,17 @@ export function Catalog() {
                 </Badge>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => navigateEditor("store", "edit")}
-                >
-                  <Settings2 />
-                  Atur toko
-                </Button>
+                {store ? (
+                  <Button variant="outline" onClick={() => navigateEditor("store", "edit")}>
+                    <Settings2 />
+                    Atur toko
+                  </Button>
+                ) : (
+                  <Button onClick={() => navigateEditor("store", "edit")}>
+                    <Store />
+                    Buat toko
+                  </Button>
+                )}
                 {store?.published && (
                   <>
                     <Button asChild variant="outline">
@@ -369,7 +382,7 @@ export function Catalog() {
             if (busy) event.preventDefault();
           }}
         >
-          <DialogHeader>
+          {!setup && <DialogHeader>
             <DialogTitle>
               {storeEditor
                 ? "Toko publik"
@@ -382,8 +395,37 @@ export function Catalog() {
                 ? "Pilih informasi yang akan Anda bagikan kepada pembeli."
                 : "Isi informasi produk dan tentukan apakah produk ditampilkan kepada pembeli."}
             </DialogDescription>
-          </DialogHeader>
-          {storeEditor ? (
+          </DialogHeader>}
+          {setup ? (
+            <StoreSetup
+              key="setup"
+              initial={initialStore}
+              trialLocked={planLoaded && !canPublish(plan, false)}
+              trialStarts={planLoaded && !entitlement}
+              onUpgrade={openUpgrade}
+              checkSlug={isSlugAvailable}
+              onDirtyChange={setDirty}
+              onBusyChange={setBusy}
+              onSave={async (fields) => {
+                const saved = await saveStorefront(fields, store?.slug ?? "", {
+                  startTrial: needsTrialStart(entitlement, fields.published),
+                  reopening: fields.published && !store?.published,
+                });
+                setStore(saved);
+                void reloadPlan();
+                void books.reload();
+                return saved;
+              }}
+              onFinish={(next) => {
+                flushSync(() => {
+                  setDirty(false);
+                  setBusy(false);
+                });
+                if (next === "product") navigateEditor("new", "product");
+                else done();
+              }}
+            />
+          ) : storeEditor ? (
             <StorefrontEditor
               key="store"
               initial={initialStore}
