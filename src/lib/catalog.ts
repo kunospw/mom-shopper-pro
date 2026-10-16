@@ -399,3 +399,37 @@ export function whatsAppOrder(
   const message = `${header}\n\n${items.join("\n\n")}\n\nSubtotal produk: ${rupiah(cartTotal(cart, products))} (belum termasuk ongkir).\nMohon konfirmasi stok, harga akhir, waktu kirim, dan cara pembayaran. Ini permintaan pesanan, belum pembayaran.${footer}`;
   return `https://wa.me/${validStore.whatsapp}?text=${encodeURIComponent(message)}`;
 }
+
+/** Short Rupiah for option tiles: 179000 -> "179rb", 1250000 -> "1,25jt". */
+export function shortRupiah(value: number) {
+  if (value >= 1_000_000)
+    return `${(value / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 2 })}jt`;
+  if (value >= 1_000) return `${Math.round(value / 1_000).toLocaleString("id-ID")}rb`;
+  return String(value);
+}
+
+/**
+ * The WhatsApp message for a saved order, built from what was actually stored
+ * (frozen names, options and prices), so the chat always matches the record.
+ */
+export function orderMessage(
+  order: Pick<Order, "id" | "buyerName" | "items" | "subtotal" | "note"> & { shop: OrderShop | null },
+  statusUrl: string,
+) {
+  const shop = order.shop?.name || "Kak";
+  const lines = order.items.map(
+    (item) =>
+      `• ${item.quantity}× ${item.name}${item.option ? ` (${item.option})` : ""} ${rupiah(item.unitPrice * item.quantity)}`,
+  );
+  return [
+    `Halo ${shop}, saya ${order.buyerName} ingin memesan (Pesanan #${orderCode(order.id)}):`,
+    ...lines,
+    `Subtotal ${rupiah(order.subtotal)} (belum ongkir)`,
+    ...(order.note ? [`Catatan: ${order.note}`] : []),
+    "Mohon konfirmasi stok, ongkir, dan cara pembayaran.",
+    statusUrl,
+  ].join("\n");
+}
+export function whatsAppLink(phone: string, text: string) {
+  return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}

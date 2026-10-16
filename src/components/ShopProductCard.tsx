@@ -1,86 +1,93 @@
-import { Plus, ShoppingBag } from "lucide-react";
+import { Clock, Download, ShoppingBag } from "lucide-react";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/lib/catalog";
+import { focusRing } from "@/components/shop/shop-ui";
 
-export function priceFrom(product: CatalogProduct) {
-  const prices = [
-    product.price,
-    ...product.options.map((o) => (o.price > 0 ? o.price : product.price)),
-  ];
-  const min = Math.min(...prices);
-  return { min, varies: prices.some((p) => p !== min) };
+export function priceRange(product: CatalogProduct) {
+  const prices = product.options.length
+    ? product.options.map((o) => (o.price > 0 ? o.price : product.price))
+    : [product.price];
+  return { min: Math.min(...prices), max: Math.max(...prices) };
 }
-export function availabilityTag(product: CatalogProduct) {
-  if (product.availability === "unavailable") return { label: "Habis", tone: "danger" as const };
-  if (product.availability === "preorder") return { label: "Preorder", tone: "warning" as const };
-  if (product.kind === "digital") return { label: "Digital", tone: "info" as const };
-  return { label: "Ready", tone: "success" as const };
+/** "Rp 179.000 – 199.000" when options differ in price, else one price. */
+export function priceLabel(product: CatalogProduct) {
+  const { min, max } = priceRange(product);
+  return min === max ? formatRupiah(min) : `${formatRupiah(min)} – ${max.toLocaleString("id-ID")}`;
 }
-const tones = {
-  danger: "bg-destructive text-destructive-foreground",
-  warning: "bg-pending text-pending-foreground",
-  info: "bg-foreground text-background",
-  success: "bg-card/95 text-foreground",
-} as const;
+/** Second line under the name: option count, digital delivery, or nothing. */
+export function productMeta(product: CatalogProduct) {
+  if (product.kind === "digital") return "Produk digital · dikirim via WA";
+  if (product.options.length > 1) return `${product.options.length} ${product.optionLabel.toLocaleLowerCase("id-ID")}`;
+  if (product.options.length === 1) return product.options[0].label;
+  return "";
+}
 
+/** Small corner badge on the photo. Each carries text, not only a color. */
+export function AvailabilityBadge({ product, className }: { product: CatalogProduct; className?: string }) {
+  const base = "inline-flex items-center gap-1 rounded-md px-[7px] py-0.5 text-[10.5px] font-semibold";
+  if (product.availability === "unavailable")
+    return <span className={cn(base, "bg-muted text-[#3D4A42]", className)}>Belum tersedia</span>;
+  if (product.availability === "preorder")
+    return (
+      <span className={cn(base, "bg-warning-soft text-warning", className)}>
+        <Clock className="h-2.5 w-2.5" aria-hidden="true" />
+        {product.leadTime ? `PO ${product.leadTime}` : "Preorder"}
+      </span>
+    );
+  if (product.kind === "digital")
+    return (
+      <span className={cn(base, "bg-info-soft text-info", className)}>
+        <Download className="h-2.5 w-2.5" aria-hidden="true" />
+        Digital
+      </span>
+    );
+  return (
+    <span className={cn(base, "bg-white text-foreground", className)}>
+      <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+      Ready
+    </span>
+  );
+}
+
+/** B1 grid tile: square photo with status badge, name, meta, price; a bubble shows how many are in the order. */
 export function ShopProductCard({
   product,
+  inCart,
   onOpen,
-  onQuickAdd,
 }: {
   product: CatalogProduct;
+  inCart: number;
   onOpen: () => void;
-  onQuickAdd?: () => void;
 }) {
-  const tag = availabilityTag(product);
-  const { min, varies } = priceFrom(product);
   const soldOut = product.availability === "unavailable";
+  const meta = productMeta(product);
   return (
-    <div className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border bg-card shadow-card transition-shadow hover:shadow-pop">
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Lihat ${product.name}`}
-        className="flex min-w-0 flex-1 flex-col text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
-      >
-        <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden bg-muted/60">
-          {product.image ? (
-            <img
-              src={product.image}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className={cn("h-full w-full object-cover", soldOut && "opacity-50 grayscale")}
-            />
-          ) : (
-            <ShoppingBag className="h-10 w-10 text-muted-foreground/40" aria-hidden="true" />
-          )}
-          <span className={cn("absolute left-2 top-2 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm", tones[tag.tone])}>
-            {tag.label}
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Lihat ${product.name}${inCart ? `, ${inCart} di pesanan` : ""}`}
+      className={cn("flex min-w-0 flex-col gap-1.5 rounded-[14px] text-left", soldOut && "opacity-60", focusRing)}
+    >
+      <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[14px] bg-[#F1EDE6]">
+        {product.image ? (
+          <img src={product.image} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+        ) : (
+          <ShoppingBag className="h-10 w-10 text-[#8C7A68]/40" aria-hidden="true" />
+        )}
+        <AvailabilityBadge product={product} className="absolute left-2 top-2" />
+        {inCart > 0 && (
+          <span
+            aria-hidden="true"
+            className="absolute bottom-2 right-2 flex h-[30px] min-w-[30px] items-center justify-center rounded-full bg-shop px-1.5 text-xs font-bold text-white"
+          >
+            {inCart}
           </span>
-        </span>
-        <span className="flex flex-1 flex-col gap-1 p-3 pr-14">
-          <span className="line-clamp-2 break-words text-sm font-medium leading-snug">{product.name}</span>
-          <span className="num flex flex-wrap items-baseline gap-x-1 text-sm font-semibold">
-            {varies && <span className="text-xs font-normal text-muted-foreground">mulai</span>}
-            <span>{formatRupiah(min)}</span>
-          </span>
-          {product.availability === "preorder" && product.leadTime && (
-            <span className="line-clamp-1 text-xs text-muted-foreground">{product.leadTime}</span>
-          )}
-        </span>
-      </button>
-      {onQuickAdd && !soldOut && (
-        <button
-          type="button"
-          onClick={onQuickAdd}
-          aria-label={`Tambah ${product.name} ke pesanan`}
-          className="absolute bottom-2 right-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-pop transition-transform active:scale-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          <Plus className="h-5 w-5" aria-hidden="true" />
-        </button>
-      )}
-    </div>
+        )}
+      </span>
+      <span className="line-clamp-2 break-words text-[13.5px] font-semibold leading-tight">{product.name}</span>
+      {meta && <span className="line-clamp-1 text-xs text-muted-foreground">{meta}</span>}
+      <span className={cn("num text-[14.5px] font-bold", soldOut ? "text-foreground" : "text-shop-ink")}>{priceLabel(product)}</span>
+    </button>
   );
 }

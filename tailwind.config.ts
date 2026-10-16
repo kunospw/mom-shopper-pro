@@ -56,6 +56,12 @@ export default {
           soft: "hsl(var(--request-soft))",
         },
         clay: "hsl(var(--clay))",
+        // Buyer pages: the shop's own accent, with its tinted background and dark text.
+        shop: {
+          DEFAULT: "hsl(var(--brand, var(--primary)))",
+          soft: "hsl(var(--shop-soft, var(--accent)))",
+          ink: "hsl(var(--shop-ink, var(--primary)))",
+        },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

@@ -41,9 +41,18 @@ export async function resolveStore(param: string): Promise<string | null> {
 }
 
 
+/** A fresh order ID, created once per draft so a retry after a lost response cannot duplicate it. */
+export function newOrderId(storeId: string) {
+  return doc(collection(db, "storefronts", storeIdSchema.parse(storeId), "orders")).id;
+}
+
 /**
- * Re-reads the live catalog, then saves the buyer's request as a pending order.
- * Throws OrderChangedError (with the fresh catalog) if anything the buyer saw changed.
+ * Re-reads the live catalog, then saves the buyer's request as a pending order
+ * under `orderId`. Returns `{ changed }` (with the fresh catalog) if anything the
+ * buyer saw changed, `{ closed }` if the shop no longer takes orders.
+ *
+ * Retry-safe: if an order with this ID already exists (the previous attempt was
+ * saved but its response never arrived), it is returned instead of written again.
  */
 export async function createOrderRequest(
   storeId: string,
@@ -51,7 +60,13 @@ export async function createOrderRequest(
   buyerName: string,
   note: string,
   seenSignature: string,
+  orderId: string,
 ) {
+  storeIdSchema.parse(orderId);
+  const reference = doc(db, "storefronts", storeId, "orders", orderId);
+  const previous = await getDocFromServer(reference).catch(() => null);
+  if (previous?.exists())
+    return { id: orderId, order: readOrder(orderId, previous.data()), existing: true as const };
   const latest = await getPublicCatalog(storeId);
   if (!latest) return { closed: true as const };
   const cart = reconcileCart(lines, latest.products);
@@ -65,20 +80,23 @@ export async function createOrderRequest(
     note,
     items: orderItems(latest.products, cart),
   });
-  const reference = doc(collection(db, "storefronts", storeId, "orders"));
-  await setDoc(reference, {
-    status: "pending",
-    progress: "pending",
+  const saved = {
+    status: "pending" as const,
+    progress: "pending" as const,
     ...request,
     subtotal: orderSubtotal(request.items),
     trackingNo: "",
     sellerNote: "",
     shop: orderShopSnapshot(latest.store),
+  };
+  await setDoc(reference, {
+    ...saved,
     steps: {},
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  return { id: reference.id, latest, cart };
+  const order: Order = { id: orderId, ...saved, steps: {}, createdAt: new Date().toISOString() };
+  return { id: orderId, order, latest, cart };
 }
 
 /**
@@ -89,23 +107,22 @@ export async function createOrderRequest(
 export async function getOrderStatus(
   storeId: string,
   orderId: string,
-): Promise<{ order: Order; shopName: string; whatsapp: string; slug: string } | null> {
+): Promise<{ order: Order; shopName: string; whatsapp: string; slug: string; accent?: string } | null> {
   storeIdSchema.parse(storeId);
   storeIdSchema.parse(orderId);
   try {
-    const orderSnapshot = await getDocFromServer(doc(db, "storefronts", storeId, "orders", orderId));
+    // The storefront is read only for decoration (accent) and for orders made before
+    // the snapshot existed; it is unreadable once a shop closes, which is fine.
+    const [orderSnapshot, store] = await Promise.all([
+      getDocFromServer(doc(db, "storefronts", storeId, "orders", orderId)),
+      getDocFromServer(doc(db, "storefronts", storeId))
+        .then((snapshot) => (snapshot.exists() ? readStorefront(storeId, snapshot.data()) : null))
+        .catch(() => null),
+    ]);
     if (!orderSnapshot.exists()) return null;
     const order = readOrder(orderSnapshot.id, orderSnapshot.data());
-    if (order.shop)
-      return { order, shopName: order.shop.name || "Toko", whatsapp: order.shop.whatsapp, slug: order.shop.slug };
-    let store = null;
-    try {
-      const storeSnapshot = await getDocFromServer(doc(db, "storefronts", storeId));
-      store = storeSnapshot.exists() ? readStorefront(storeId, storeSnapshot.data()) : null;
-    } catch {
-      /* An unpublished shop is unreadable; the order itself is still shown. */
-    }
-    return { order, shopName: store?.name ?? "Toko", whatsapp: store?.whatsapp ?? "", slug: store?.slug ?? "" };
+    const shop = order.shop ?? { name: store?.name ?? "Toko", whatsapp: store?.whatsapp ?? "", slug: store?.slug ?? "" };
+    return { order, shopName: shop.name || "Toko", whatsapp: shop.whatsapp, slug: shop.slug, accent: store?.accent };
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && error.code === "permission-denied") return null;
     throw error;

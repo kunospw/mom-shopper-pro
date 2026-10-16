@@ -296,3 +296,29 @@ console.log(
   assert.equal(readOrder("o4", { status: "pending", progress: "pending", buyerName: "X", note: "", items: snapshot, shop: { name: 5 } }).shop, null);
   console.log("order snapshot and steps parsing: PASS");
 }
+
+// ---- WhatsApp message comes from the saved order, short option prices ----
+{
+  const { orderMessage, whatsAppLink, shortRupiah } = model;
+  const message = orderMessage(
+    {
+      id: "k7q2mdabc", buyerName: "Ayu Lestari", note: "Kirim Minggu", subtotal: 279000,
+      shop: { name: "Toko Bu Sari", whatsapp: "6281234567890", slug: "bu-sari" },
+      items: [
+        { productId: "a", name: "Hijab Voal Paris", option: "Mocca", kind: "physical", unitPrice: 45000, quantity: 2, availability: "ready", leadTime: "" },
+        { productId: "b", name: "Gamis Katun Rayon", option: "", kind: "physical", unitPrice: 189000, quantity: 1, availability: "ready", leadTime: "" },
+      ],
+    },
+    "https://x.test/shop/bu-sari/order/k7q2mdabc",
+  );
+  const lines = message.split("\n");
+  assert.equal(lines[0], "Halo Toko Bu Sari, saya Ayu Lestari ingin memesan (Pesanan #K7Q2MD):");
+  assert(/^• 2× Hijab Voal Paris \(Mocca\) Rp\s?90\.000$/.test(lines[1]), lines[1]);
+  assert(/^• 1× Gamis Katun Rayon Rp\s?189\.000$/.test(lines[2]), lines[2]);
+  assert(message.includes("Catatan: Kirim Minggu") && message.endsWith("https://x.test/shop/bu-sari/order/k7q2mdabc"));
+  const url = new URL(whatsAppLink("6281234567890", message));
+  assert.equal(url.origin + url.pathname, "https://wa.me/6281234567890");
+  assert.equal(url.searchParams.get("text"), message);
+  assert.deepEqual([179000, 1000, 999, 1250000].map(shortRupiah), ["179rb", "1rb", "999", "1,25jt"]);
+  console.log("order message and short prices: PASS");
+}
