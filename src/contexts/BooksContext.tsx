@@ -8,6 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { getOwnerOrders } from "@/lib/orders-owner-storage";
+import type { Order, Storefront } from "@/lib/catalog";
+import { getOwnerStore } from "@/lib/catalog-owner-storage";
 import {
   getCustomers,
   getExpenses,
@@ -30,6 +33,9 @@ interface BooksState {
   expenses: Expense[];
   customers: Customer[];
   inventory: Record<string, Inventory>;
+  orders: Order[];
+  store: Storefront | null;
+  pendingOrders: number;
   loading: boolean;
   error: boolean;
   reload: () => Promise<void>;
@@ -44,6 +50,8 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     expenses: [] as Expense[],
     customers: [] as Customer[],
     inventory: {} as Record<string, Inventory>,
+    orders: [] as Order[],
+    store: null as Storefront | null,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -52,15 +60,18 @@ export function BooksProvider({ children }: { children: ReactNode }) {
     try {
       // Migration is best-effort and idempotent; never block the books on it.
       if (migrate) await migrateLegacyTransactions().catch(() => 0);
-      const [sales, purchases, expenses, customers, inventory] =
+      const [sales, purchases, expenses, customers, inventory, orders, store] =
         await Promise.all([
           getSales(),
           getPurchases(),
           getExpenses(),
           getCustomers(),
           getInventory(),
+          // A shop that was never set up has no orders; that must not break the books.
+          getOwnerOrders().catch(() => [] as Order[]),
+          getOwnerStore().catch(() => null),
         ]);
-      setData({ sales, purchases, expenses, customers, inventory });
+      setData({ sales, purchases, expenses, customers, inventory, orders, store });
       setError(false);
     } catch {
       setError(true);
@@ -76,7 +87,13 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   }, [user?.uid, load]);
 
   const value = useMemo<BooksState>(
-    () => ({ ...data, loading, error, reload: () => load(false) }),
+    () => ({
+      ...data,
+      pendingOrders: data.orders.filter((o) => o.status === "pending").length,
+      loading,
+      error,
+      reload: () => load(false),
+    }),
     [data, loading, error, load],
   );
   return <BooksContext.Provider value={value}>{children}</BooksContext.Provider>;

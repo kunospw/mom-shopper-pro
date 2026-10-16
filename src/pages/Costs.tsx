@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getOwnerCatalog } from "@/lib/catalog-owner-storage";
 import type { CatalogProduct } from "@/lib/catalog";
 import { Plus, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useBooks } from "@/contexts/BooksContext";
 import {
   deleteExpense,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { smallDialogClass } from "@/lib/utils";
 
 const categories: Record<ExpenseCategory, string> = {
   ongkir: "Ongkir",
@@ -159,7 +161,11 @@ function ExpenseDialog({ onClose }: { onClose: () => void }) {
 
 export default function Costs() {
   const books = useBooks();
-  const [dialog, setDialog] = useState<"purchase" | "expense" | null>(null);
+  const [params] = useSearchParams();
+  const initial = params.get("new");
+  const [dialog, setDialog] = useState<"purchase" | "expense" | null>(
+    initial === "purchase" || initial === "expense" ? initial : null,
+  );
   async function remove(action: () => Promise<void>, label: string) {
     try {
       await action();
@@ -181,7 +187,7 @@ export default function Costs() {
       {books.loading ? <Skeleton className="h-40" role="status" aria-label="Memuat" /> : books.error ? (
         <Card><CardContent className="space-y-3 p-6"><p role="alert">Data belum dapat dimuat.</p><Button variant="outline" onClick={() => void books.reload()}>Coba lagi</Button></CardContent></Card>
       ) : (
-        <Tabs defaultValue="purchases">
+        <Tabs defaultValue={initial === "expense" ? "expenses" : "purchases"}>
           <TabsList>
             <TabsTrigger value="purchases">Pembelian stok</TabsTrigger>
             <TabsTrigger value="expenses">Biaya usaha</TabsTrigger>
@@ -213,7 +219,7 @@ export default function Costs() {
         </Tabs>
       )}
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent className={smallDialogClass}>
           <DialogHeader>
             <DialogTitle>{dialog === "purchase" ? "Catat pembelian stok" : "Catat biaya usaha"}</DialogTitle>
             <DialogDescription>{dialog === "purchase" ? "Barang yang Anda beli untuk dijual lagi." : "Biaya di luar modal barang."}</DialogDescription>

@@ -19,6 +19,8 @@ const {
   query,
   where,
   deleteDoc,
+  updateDoc,
+  writeBatch,
   serverTimestamp,
 } = requireTool("firebase/firestore");
 const rules = await readFile(
@@ -39,6 +41,7 @@ const shop = {
   accent: "teal",
   logo: "",
   published: true,
+  slug: "",
   updatedAt: serverTimestamp(),
 };
 const product = {
@@ -50,7 +53,11 @@ const product = {
   availability: "ready",
   leadTime: "",
   optionLabel: "Warna",
-  options: ["Hitam", "Putih"],
+  options: [
+    { label: "Hitam", price: 0 },
+    { label: "Putih", price: 160000 },
+  ],
+  kind: "physical",
   published: true,
   updatedAt: serverTimestamp(),
 };
@@ -111,8 +118,12 @@ try {
     { price: 1.5 },
     { availability: "preorder", leadTime: "" },
     { options: [{ secret: true }] },
-    { options: ["A", "A"] },
-    { options: ["A", "B", "C", "D", "E", "F", "G", 5] },
+    { options: ["A"] },
+    { options: [{ label: "A", price: -1 }] },
+    { options: [{ label: "A", price: 1.5 }] },
+    { options: [{ label: "", price: 0 }] },
+    { options: Array(9).fill({ label: "A", price: 0 }) },
+    { kind: "service" },
     { image: "data:image/svg+xml;base64,PHN2Zz4=" },
   ])
     await assertFails(
@@ -161,6 +172,135 @@ try {
   await assertFails(setDoc(doc(owner, "unrelated/data"), { value: true }));
   await assertFails(getDoc(doc(buyer, "users/seller-a/transactions/private")));
   await assertFails(getDoc(doc(other, "users/seller-a/transactions/private")));
+  // ---- orders, slugs (PR B) ----
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
+  const item = {
+    productId: "public",
+    name: "Kemeja",
+    option: "Hitam",
+    kind: "physical",
+    unitPrice: 150000,
+    quantity: 2,
+    availability: "ready",
+    leadTime: "",
+  };
+  const order = {
+    status: "pending",
+    progress: "pending",
+    buyerName: "Siti",
+    note: "",
+    items: [item],
+    subtotal: 300000,
+    trackingNo: "",
+    sellerNote: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  const orderPath = "storefronts/seller-a/orders";
+  await assertSucceeds(setDoc(doc(buyer, `${orderPath}/o1`), order));
+  await assertSucceeds(getDoc(doc(buyer, `${orderPath}/o1`)));
+  await assertFails(getDocs(collection(buyer, orderPath)));
+  await assertFails(getDocs(collection(other, orderPath)));
+  await assertSucceeds(getDocs(collection(owner, orderPath)));
+  for (const invalid of [
+    { status: "confirmed" },
+    { progress: "shipped" },
+    { trackingNo: "X" },
+    { sellerNote: "hi" },
+    { buyerName: "" },
+    { buyerName: "x".repeat(61) },
+    { note: "x".repeat(301) },
+    { subtotal: 0 },
+    { items: [] },
+    { items: Array(7).fill(item) },
+    { items: [{ ...item, unitPrice: -1 }] },
+    { items: [{ ...item, quantity: 100 }] },
+    { items: [{ ...item, availability: "unavailable" }] },
+    { items: [{ ...item, extra: true }] },
+    { extra: true },
+    { createdAt: new Date("2020-01-01") },
+  ])
+    await assertFails(
+      setDoc(doc(buyer, `${orderPath}/bad`), { ...order, ...invalid }),
+    );
+  await assertSucceeds(
+    setDoc(doc(buyer, `${orderPath}/ten`), {
+      ...order,
+      items: Array(6).fill(item),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(buyer, `${orderPath}/o1`), {
+      status: "confirmed",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(other, `${orderPath}/o1`), {
+      status: "confirmed",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(owner, `${orderPath}/o1`), {
+      subtotal: 1,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(owner, `${orderPath}/o1`), {
+      status: "confirmed",
+      progress: "confirmed",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(
+    updateDoc(doc(owner, `${orderPath}/o1`), {
+      status: "rejected",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(doc(owner, `${orderPath}/o1`), {
+      progress: "shipped",
+      trackingNo: "JNE123",
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertFails(deleteDoc(doc(owner, `${orderPath}/o1`)));
+  await assertSucceeds(
+    setDoc(doc(owner, "storefronts/seller-a"), { ...shop, published: false }),
+  );
+  await assertFails(setDoc(doc(buyer, `${orderPath}/closed`), order));
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
+  // slugs
+  const claim = writeBatch(owner);
+  claim.set(doc(owner, "storefronts/seller-a"), { ...shop, slug: "toko-a" });
+  claim.set(doc(owner, "slugs/toko-a"), { storeId: "seller-a" });
+  await assertSucceeds(claim.commit());
+  await assertSucceeds(getDoc(doc(buyer, "slugs/toko-a")));
+  await assertFails(getDocs(collection(buyer, "slugs")));
+  await assertFails(setDoc(doc(other, "slugs/toko-a"), { storeId: "seller-b" }));
+  await assertFails(setDoc(doc(other, "slugs/free-name"), { storeId: "seller-a" }));
+  await assertFails(setDoc(doc(owner, "slugs/not-mine"), { storeId: "seller-a" }));
+  await assertFails(setDoc(doc(owner, "slugs/toko-a"), { storeId: "seller-b" }));
+  await assertFails(deleteDoc(doc(other, "slugs/toko-a")));
+  // a storefront cannot point at a slug it does not own
+  const rival = writeBatch(other);
+  rival.set(doc(other, "storefronts/seller-b"), { ...shop, slug: "rival-shop" });
+  rival.set(doc(other, "slugs/rival-shop"), { storeId: "seller-b" });
+  await assertSucceeds(rival.commit());
+  await assertFails(
+    setDoc(doc(owner, "storefronts/seller-a"), { ...shop, slug: "rival-shop" }),
+  );
+  await assertFails(
+    setDoc(doc(owner, "storefronts/seller-a"), { ...shop, slug: "never-claimed" }),
+  );
+  for (const slug of ["admin", "Ab_c", "ab", "-abc", "x".repeat(31)])
+    await assertFails(
+      setDoc(doc(owner, "storefronts/seller-a"), { ...shop, slug }),
+    );
+  await assertSucceeds(deleteDoc(doc(owner, "slugs/toko-a")));
   await assertSucceeds(
     setDoc(doc(owner, "storefronts/seller-a"), { ...shop, published: false }),
   );

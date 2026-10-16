@@ -20,13 +20,13 @@ export function BusinessTheme() {
   return null;
 }
 
-export function BusinessBrand({ name, logo }: { name?: string; logo?: string }) {
+export function BusinessBrand({ name, logo, compact = false }: { name?: string; logo?: string; compact?: boolean }) {
   return <div className="flex min-w-0 items-center gap-3">
-    <Avatar className="h-11 w-11 shrink-0 rounded-xl border bg-card">
+    <Avatar className={compact ? "h-9 w-9 shrink-0 rounded-lg border bg-card" : "h-10 w-10 shrink-0 rounded-xl border bg-card"}>
       {isBusinessLogo(logo) && <AvatarImage src={logo} alt="" className="object-contain p-1" />}
       <AvatarFallback className="rounded-xl bg-primary/10 text-primary"><Building2 className="h-5 w-5" /></AvatarFallback>
     </Avatar>
-    <div className="min-w-0"><p className="truncate font-semibold tracking-tight">{name?.trim() || "Ruang Usaha"}</p>
-      <p className="text-xs text-muted-foreground">Ruang kerja bisnis</p></div>
+    <div className="min-w-0"><p className="truncate text-sm font-semibold tracking-tight">{name?.trim() || "Ruang Usaha"}</p>
+      {!compact && <p className="text-xs text-muted-foreground">Ruang kerja bisnis</p>}</div>
   </div>;
 }

@@ -23,6 +23,13 @@ const {
   whatsAppOrder,
   orderSignature,
   normalizeWhatsApp,
+  optionPrice,
+  orderItems,
+  orderRequestSchema,
+  orderCode,
+  readOrder,
+  slugSchema,
+  MAX_ORDER_LINES,
 } = model;
 const store = {
   id: "seller-a",
@@ -32,6 +39,7 @@ const store = {
   accent: "teal",
   logo: "",
   published: true,
+  slug: "",
 };
 const product = {
   id: "ready",
@@ -43,7 +51,11 @@ const product = {
   availability: "ready",
   leadTime: "",
   optionLabel: "Warna",
-  options: ["Hitam", "Putih"],
+  options: [
+    { label: "Hitam", price: 0 },
+    { label: "Putih", price: 160000 },
+  ],
+  kind: "physical",
   published: true,
 };
 const { id: productId, ...fields } = product;
@@ -55,8 +67,12 @@ for (const change of [
   { image: "data:image/svg+xml;base64,AAA=" },
   { availability: "maybe" },
   { availability: "preorder", leadTime: "" },
-  { options: ["A", "A"] },
-  { options: Array(9).fill("A") },
+  { options: [{ label: "A", price: 0 }, { label: "A", price: 5 }] },
+  { options: Array(9).fill({ label: "A", price: 0 }) },
+  { options: ["A"] },
+  { options: [{ label: "A", price: -1 }] },
+  { options: [{ label: "A", price: 1.5 }] },
+  { kind: "service" },
   { basePrice: 50000 },
 ])
   assert.equal(
@@ -188,6 +204,69 @@ assert.equal(
   ),
 );
 assert.deepEqual(reconcileCart(JSON.parse('{"private":true}'), products), []);
+
+// option prices: an option with price 0 uses the base price
+assert.equal(optionPrice(product, "Hitam"), 150000);
+assert.equal(optionPrice(product, "Putih"), 160000);
+assert.equal(
+  cartTotal([{ productId: "ready", option: "Putih", quantity: 2 }], products),
+  320000,
+);
+assert.notEqual(
+  orderSignature(store, products, [{ productId: "ready", option: "Putih", quantity: 1 }]),
+  orderSignature(
+    store,
+    products.map((item) =>
+      item.id === "ready"
+        ? { ...item, options: item.options.map((o) => (o.label === "Putih" ? { ...o, price: 170000 } : o)) }
+        : item,
+    ),
+    [{ productId: "ready", option: "Putih", quantity: 1 }],
+  ),
+);
+// legacy listings stored options as plain strings and had no kind
+const legacy = readProduct("old", { ...fields, options: ["Hitam", "Putih"], kind: undefined });
+assert.deepEqual(legacy.options, [
+  { label: "Hitam", price: 0 },
+  { label: "Putih", price: 0 },
+]);
+assert.equal(legacy.kind, "physical");
+// slugs
+for (const ok of ["tokobunda", "toko-bunda-2", "abc"]) assert(slugSchema.safeParse(ok).success, ok);
+for (const bad of ["ab", "-abc", "abc-", "Abc", "a_b", "admin", "x".repeat(31), "toko bunda"])
+  assert.equal(slugSchema.safeParse(bad).success, false, bad);
+assert.equal(readStorefront(storeId, { ...shopFields, slug: undefined }).slug, "");
+// order snapshot freezes what the buyer saw
+const snapshot = orderItems(products, [{ productId: "ready", option: "Putih", quantity: 2 }, { productId: "preorder", option: "", quantity: 1 }]);
+assert.deepEqual(snapshot[0], { productId: "ready", name: "Kemeja & linen", option: "Putih", kind: "physical", unitPrice: 160000, quantity: 2, availability: "ready", leadTime: "" });
+assert.equal(snapshot[1].leadTime, "7–10 hari");
+assert(orderRequestSchema.safeParse({ buyerName: "Siti", note: "", items: snapshot }).success);
+for (const bad of [
+  { buyerName: " ", note: "", items: snapshot },
+  { buyerName: "Siti", note: "x".repeat(301), items: snapshot },
+  { buyerName: "Siti", note: "", items: [] },
+  { buyerName: "Siti", note: "", items: Array(MAX_ORDER_LINES + 1).fill(snapshot[0]) },
+  { buyerName: "Siti", note: "", items: [{ ...snapshot[0], unitPrice: 0 }] },
+  { buyerName: "Siti", note: "", items: [{ ...snapshot[0], extra: 1 }] },
+  { buyerName: "Siti", note: "", items: snapshot, status: "confirmed" },
+])
+  assert.equal(orderRequestSchema.safeParse(bad).success, false);
+// the cart cannot hold more distinct lines than the order rules accept
+const many = Array.from({ length: 12 }, (_, i) => ({ ...product, id: `p${i}`, options: [] }));
+assert.equal(
+  reconcileCart(many.map((p) => ({ productId: p.id, option: "", quantity: 1 })), many).length,
+  MAX_ORDER_LINES,
+);
+// order message carries the code and status link
+const placed = new URL(
+  whatsAppOrder(store, products, lines, { id: "abcdef123456", buyerName: "Siti", statusUrl: "https://x.test/shop/toko/order/abcdef123456" }),
+).searchParams.get("text");
+assert(placed.includes("#ABCDEF") && placed.includes("Siti") && placed.includes("https://x.test/shop/toko/order/abcdef123456"));
+assert.equal(orderCode("abcdef123456"), "ABCDEF");
+// a stored order round-trips and rejects malformed progress
+const stored = readOrder("o1", { status: "confirmed", progress: "shipped", buyerName: "Siti", note: "", items: snapshot, subtotal: 520000, trackingNo: "JNE1", sellerNote: "" });
+assert.equal(stored.progress, "shipped");
+assert.throws(() => readOrder("o1", { status: "hacked", progress: "x", buyerName: "Siti", note: "", items: snapshot }));
 console.log(
-  "PASS: listing/store validation, public projections, cart tampering and reconciliation, current pricing, WhatsApp encoding and unpublished-order rejection.",
+  "PASS: listing/store validation, option prices, legacy options, slugs, order snapshots, public projections, cart tampering and reconciliation, WhatsApp encoding and unpublished-order rejection.",
 );

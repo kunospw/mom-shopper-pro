@@ -18,6 +18,7 @@ import {
   saveCatalogProduct,
   deleteCatalogProduct,
   saveStorefront,
+  isSlugAvailable,
 } from "@/lib/catalog-owner-storage";
 import {
   availabilityLabels,
@@ -28,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -53,6 +55,7 @@ import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { formatRupiah } from "@/lib/currency";
 import { toast } from "sonner";
+import { formDialogClass } from "@/lib/utils";
 
 export function Catalog() {
   const { user } = useAuth();
@@ -122,9 +125,20 @@ export function Catalog() {
         accent: user.businessAccent || "teal",
         logo: user.businessLogo || "",
         published: false,
+        slug: "",
       };
-  const publicPath = `/shop/${encodeURIComponent(store?.id || user.uid)}`;
+  const publicPath = `/shop/${encodeURIComponent(store?.slug || store?.id || user.uid)}`;
   const publicUrl = `${window.location.origin}${publicPath}`;
+  async function togglePublished(product: CatalogProduct) {
+    const { id, ...fields } = product;
+    try {
+      const saved = await saveCatalogProduct({ ...fields, published: !product.published }, id);
+      setProducts((previous) => previous.map((p) => (p.id === id ? saved : p)));
+      toast.success(saved.published ? `${product.name} ditampilkan` : `${product.name} disembunyikan`);
+    } catch {
+      toast.error("Status produk belum berubah. Coba lagi.");
+    }
+  }
   const visible = products.filter((product) =>
     `${product.name} ${product.category}`
       .toLocaleLowerCase("id-ID")
@@ -180,7 +194,7 @@ export function Catalog() {
                       : "Katalog masih ditutup. Lengkapi informasi toko, tambahkan produk, lalu buka untuk pembeli."}
                   </p>
                 </div>
-                <Badge variant={store?.published ? "default" : "secondary"}>
+                <Badge variant={store?.published ? "success" : "neutral"}>
                   {store?.published ? "Terbuka" : "Ditutup"}
                 </Badge>
               </div>
@@ -287,12 +301,18 @@ export function Catalog() {
                         {formatRupiah(product.price)}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant="secondary">
+                        <Badge variant={product.published ? "success" : "neutral"}>
                           {product.published ? "Ditampilkan" : "Tersembunyi"}
                         </Badge>
                         <Badge variant="outline">
                           {availabilityLabels[product.availability]}
                         </Badge>
+                        {product.kind === "digital" && <Badge variant="outline">Digital</Badge>}
+                        {typeof books.inventory[product.id]?.stock === "number" && (
+                          <Badge variant={books.inventory[product.id].stock! <= 0 ? "danger" : "neutral"}>
+                            Stok {books.inventory[product.id].stock}
+                          </Badge>
+                        )}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button
@@ -303,6 +323,14 @@ export function Catalog() {
                           <Pencil />
                           Edit
                         </Button>
+                        <label className="flex min-h-11 items-center gap-2 text-sm">
+                          <Switch
+                            checked={product.published}
+                            onCheckedChange={() => void togglePublished(product)}
+                            aria-label={`Tampilkan ${product.name} di katalog`}
+                          />
+                          Tampil
+                        </label>
                         <Button
                           variant="ghost"
                           onClick={() => setDeleteId(product.id)}
@@ -327,7 +355,7 @@ export function Catalog() {
         }}
       >
         <DialogContent
-          className="max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-2xl min-w-0 grid-cols-[minmax(0,1fr)] overflow-y-auto p-4 sm:p-6"
+          className={formDialogClass}
           onEscapeKeyDown={(event) => {
             if (busy) event.preventDefault();
           }}
@@ -353,11 +381,13 @@ export function Catalog() {
             <StorefrontEditor
               key="store"
               initial={initialStore}
+              checkSlug={isSlugAvailable}
               onDirtyChange={setDirty}
               onBusyChange={setBusy}
               onCancel={() => navigateEditor()}
               onSave={async (fields) => {
-                setStore(await saveStorefront(fields));
+                setStore(await saveStorefront(fields, store?.slug ?? ""));
+                void books.reload();
                 done();
                 toast.success("Pengaturan toko disimpan");
               }}

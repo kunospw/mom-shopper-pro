@@ -98,6 +98,18 @@ function mergeDeltas(
   return out;
 }
 
+/** Public mirror of a catalog sale's progress (no private delivery notes). */
+function mirrorOrder(batch: WriteBatch, sale: Sale, status = sale.fulfillment.status) {
+  if (!sale.orderRequestId) return;
+  const { courier, trackingNo } = sale.fulfillment;
+  batch.update(doc(db, "storefronts", uid(), "orders", sale.orderRequestId), {
+    status: "confirmed",
+    progress: status,
+    trackingNo: [courier, trackingNo].filter(Boolean).join(" · ").slice(0, 60),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 const isLive = (s: Pick<Sale, "fulfillment">) =>
   s.fulfillment.status !== "cancelled";
 
@@ -132,6 +144,7 @@ export async function saveSale(
     ? saleStockDeltas(sale.items, -1)
     : new Map<string, number>();
   await applyStock(batch, mergeDeltas(released, taken));
+  mirrorOrder(batch, sale);
   context.extra?.(batch);
   await batch.commit();
   return sale;
@@ -140,6 +153,7 @@ export async function saveSale(
 export async function deleteSale(sale: Sale) {
   const batch = writeBatch(db);
   batch.delete(ref("sales", sale.id));
+  mirrorOrder(batch, sale, "cancelled");
   if (isLive(sale)) await applyStock(batch, saleStockDeltas(sale.items, 1));
   await batch.commit();
 }

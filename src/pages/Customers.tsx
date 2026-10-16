@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { smallDialogClass } from "@/lib/utils";
 
 export default function Customers() {
   const books = useBooks();
@@ -81,7 +82,7 @@ export default function Customers() {
         </ul>
       )}
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
-        <DialogContent>
+        <DialogContent className={smallDialogClass}>
           <DialogHeader>
             <DialogTitle>{editing === "new" ? "Tambah pelanggan" : "Ubah pelanggan"}</DialogTitle>
             <DialogDescription>Data ini hanya terlihat oleh Anda.</DialogDescription>

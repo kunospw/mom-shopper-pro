@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ImagePlus, Loader2, X } from "lucide-react";
+import { ImagePlus, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,8 +40,12 @@ export function ProductEditor({
     const { id: _id, ...fields } = product;
     return fields;
   });
-  const [optionText, setOptionText] = useState(
-    product?.options.join(", ") || "",
+  const [optionRows, setOptionRows] = useState(
+    () =>
+      product?.options.map((o) => ({
+        label: o.label,
+        price: o.price ? String(o.price) : "",
+      })) ?? [],
   );
   const [cost, setCost] = useState(String(inventory?.cost || ""));
   const [trackStock, setTrackStock] = useState(
@@ -79,10 +83,12 @@ export function ProductEditor({
     if (saving || uploading) return;
     const result = productSchema.safeParse({
       ...draft,
-      options: optionText
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      options: optionRows
+        .map((row) => ({
+          label: row.label.trim(),
+          price: Math.max(0, Math.round(Number(row.price)) || 0),
+        }))
+        .filter((row) => row.label),
       leadTime: draft.availability === "preorder" ? draft.leadTime : "",
     });
     if (!result.success) {
@@ -200,6 +206,19 @@ export function ProductEditor({
           />
         </div>
         <div className="space-y-2">
+          <Label htmlFor="product-kind">Jenis produk</Label>
+          <Select
+            value={draft.kind}
+            onValueChange={(value) => change("kind", value as CatalogProductFields["kind"])}
+          >
+            <SelectTrigger id="product-kind"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="physical">Barang fisik (dikirim)</SelectItem>
+              <SelectItem value="digital">Produk digital (dikirim lewat WhatsApp)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="product-availability">Ketersediaan</Label>
           <Select
             value={draft.availability}
@@ -245,21 +264,68 @@ export function ProductEditor({
               placeholder="Contoh: Warna"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="product-options">Pilihan produk</Label>
-            <Input
-              id="product-options"
-              value={optionText}
-              onChange={(event) => {
-                setOptionText(event.target.value);
+          <div className="space-y-2 sm:col-span-2">
+            <p className="text-sm font-medium leading-none">Pilihan produk (opsional)</p>
+            <p className="text-xs text-muted-foreground">
+              Isi harga hanya jika pilihan itu harganya berbeda. Kosongkan untuk memakai harga produk. Maksimal 8 pilihan.
+            </p>
+            <ul className="space-y-2">
+              {optionRows.map((row, index) => (
+                <li key={index} className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <Label htmlFor={`opt-label-${index}`} className="text-xs">Pilihan {index + 1}</Label>
+                    <Input
+                      id={`opt-label-${index}`}
+                      maxLength={50}
+                      value={row.label}
+                      placeholder="Contoh: Hitam"
+                      onChange={(event) => {
+                        setOptionRows((rows) => rows.map((r, i) => (i === index ? { ...r, label: event.target.value } : r)));
+                        onDirtyChange(true);
+                      }}
+                    />
+                  </div>
+                  <div className="w-32 space-y-1">
+                    <Label htmlFor={`opt-price-${index}`} className="text-xs">Harga (Rp)</Label>
+                    <Input
+                      id={`opt-price-${index}`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      value={row.price}
+                      placeholder="Sama"
+                      onChange={(event) => {
+                        setOptionRows((rows) => rows.map((r, i) => (i === index ? { ...r, price: event.target.value } : r)));
+                        onDirtyChange(true);
+                      }}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Hapus pilihan ${index + 1}`}
+                    onClick={() => {
+                      setOptionRows((rows) => rows.filter((_, i) => i !== index));
+                      onDirtyChange(true);
+                    }}
+                  >
+                    <X />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={optionRows.length >= 8}
+              onClick={() => {
+                setOptionRows((rows) => [...rows, { label: "", price: "" }]);
                 onDirtyChange(true);
               }}
-              placeholder="Hitam, Putih, Krem"
-            />
-            <p className="text-xs text-muted-foreground">
-              Opsional, pisahkan dengan koma. Maksimal 8 pilihan dengan harga
-              yang sama.
-            </p>
+            >
+              <Plus /> Tambah pilihan
+            </Button>
           </div>
         </div>
         <div className="flex items-start justify-between gap-4 rounded-lg border p-4">

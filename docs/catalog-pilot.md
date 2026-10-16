@@ -23,7 +23,7 @@ Buyers search/filter products, inspect photos and descriptions, select a require
 
 Before preparing a WhatsApp link, the app fetches current store/products from Firestore again. Changes to prices, options, availability, store contact, or selected products require the buyer to review and check again. Reopening the selection requires a fresh check. The buyer then explicitly opens WhatsApp with a structured request containing product codes, choices, quantities, current prices, preorder estimates, and subtotal excluding shipping. The seller confirms stock, final price, payment, and fulfillment manually.
 
-The message remains an editable request. A seller must verify it before confirming. No stock is reserved, order record created, payment collected, or sale automatically recorded. Server revalidation cannot reserve a price or prevent a change after checking.
+The request is saved as a **pending order** (see below) and the buyer is handed to WhatsApp with the order code. A seller must verify it before confirming. No stock is reserved, payment collected, or sale recorded until the seller confirms. Server revalidation cannot reserve a price or prevent a change after checking.
 
 Catalog reads/writes fail visibly on network errors. They do not use the legacy transaction localStorage fallback or report an unsaved change as saved. Existing transaction persistence is unchanged.
 
@@ -75,9 +75,26 @@ Desktop/mobile browser checks with isolated sample data cover owner product crea
 
 ## Pilot limits
 
-- One store per owner, one photo and one option group per product, up to eight choices, IDR pricing, ten distinct selections per request, and 1–99 units per selection.
+- One store per owner, one photo and one option group per product, up to eight choices, IDR pricing, six distinct selections per request (the most Firestore rules can validate in one write), and 1–99 units per selection.
 - Photos are locally resized to bounded raster data URLs (product: 180,000 characters; logo: 140,000). No external image service or Firebase Storage setup is added. This suits a very small pilot; all published product documents are fetched on catalog load. Reconsider image storage, pagination, and query costs if the catalog grows.
-- No custom domains/slugs, buyer accounts, stock synchronization, subscription billing/trials, AI, automatic order tracking, payment gateways, or new tenant roles.
+- No custom domains, buyer accounts, stock reservation, subscription billing/trials, AI, payment gateways, or new tenant roles. Shop links may use a readable slug under `/shop/`.
 - This pilot does not add bot/abuse protection or an SLA. Validate seller usefulness and buyer conversion before broad rollout.
 
 Ask the pilot seller which few products to publish, whether choices affect price (this version uses one price), what ready/preorder promises they can reliably fulfill, which number should receive requests, and whether incoming WhatsApp messages save them time. Observe one unfamiliar buyer completing the flow before expanding the product.
+
+## Orders, shop links and option prices
+
+| Path | Contents | Access |
+| --- | --- | --- |
+| `slugs/{slug}` | `{ storeId }`, 3-30 lowercase letters, digits or hyphens; reserved words refused | Anyone can read one; nobody can list; only the owning UID can create or delete, and only if the storefront's own `slug` field matches (checked atomically with `getAfter`) |
+| `storefronts/{uid}/orders/{orderId}` | Buyer name (<=60), note (<=300), up to six frozen item snapshots, subtotal, status, progress, tracking number, seller note | Anyone can create on a **published** store with `status: pending` and exact field/size validation; anyone holding the unguessable ID can read it (buyer status page); only the owner can list; the owner may change only `status`, `progress`, `trackingNo`, `sellerNote` |
+
+- **Buyer flow**: pick products (option chips show per-option prices; a price of 0 means "use the product price") -> enter name -> **Kirim pesanan via WhatsApp**. The app re-reads the live catalog, refuses to send if prices or availability changed, saves the pending order, then opens WhatsApp with `Pesanan #CODE` and a link to `/shop/<slug>/order/<id>`. If saving fails, WhatsApp is not opened.
+- **Owner flow**: **Pesanan** lists pending requests with warnings when a listing changed. **Konfirmasi** opens the sale form prefilled from the request; saving creates the sale, adjusts stock and marks the order confirmed in one atomic batch. **Tolak** rejects it with an optional reason and creates no sale. Later fulfillment steps and tracking numbers on a catalog sale are mirrored to the public order (never delivery notes or private data).
+- **Old links keep working**: `/shop/<uid>` resolves as before; `/shop/<slug>` is preferred when set.
+- **Legacy listings**: products saved before this change stored options as plain strings and had no `kind`; they still display (normalised on read) and are rewritten in the new shape the next time they are saved.
+- **Limits**: six distinct lines per order, rules cannot verify prices against the catalog (the owner inbox flags mismatches), and there is no anti-spam beyond field limits. Firebase App Check is a sensible follow-up.
+
+### Publishing the updated rules
+
+The new rules require `slug` on storefronts and `kind` plus object options on products. Publish `firebase/firestore.rules` together with the app deployment: reads keep working at any time, but an older app version cannot save storefronts or products under the new rules. Run the emulator suite first; it now covers orders, slugs, option validation and the six-line cap.

@@ -6,6 +6,7 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import {
@@ -35,13 +36,35 @@ export async function getOwnerCatalog() {
       .sort((a, b) => a.name.localeCompare(b.name, "id")),
   };
 }
-export async function saveStorefront(fields: StorefrontFields) {
+export async function getOwnerStore() {
+  const id = ownerId();
+  const snapshot = await getDocFromServer(doc(db, "storefronts", id));
+  return snapshot.exists() ? readStorefront(id, snapshot.data()) : null;
+}
+export async function isSlugAvailable(slug: string) {
+  const snapshot = await getDocFromServer(doc(db, "slugs", slug));
+  return !snapshot.exists() || snapshot.data().storeId === ownerId();
+}
+export class SlugTakenError extends Error {}
+export async function saveStorefront(
+  fields: StorefrontFields,
+  previousSlug = "",
+) {
   const id = ownerId();
   const safe = storefrontSchema.parse(fields);
-  await setDoc(doc(db, "storefronts", id), {
+  // The storefront and its slug claim change together or not at all.
+  const batch = writeBatch(db);
+  batch.set(doc(db, "storefronts", id), {
     ...safe,
     updatedAt: serverTimestamp(),
   });
+  if (previousSlug && previousSlug !== safe.slug)
+    batch.delete(doc(db, "slugs", previousSlug));
+  if (safe.slug && safe.slug !== previousSlug) {
+    if (!(await isSlugAvailable(safe.slug))) throw new SlugTakenError();
+    batch.set(doc(db, "slugs", safe.slug), { storeId: id });
+  }
+  await batch.commit();
   return { id, ...safe };
 }
 export async function saveCatalogProduct(

@@ -169,10 +169,10 @@ export function SaleDetail({
           </SheetHeader>
           <div className="mt-4 space-y-6">
             <div className="flex flex-wrap gap-2">
-              <Badge variant={sale.paymentState === "paid" ? "default" : "secondary"}>
+              <Badge variant={sale.paymentState === "paid" ? "success" : "warning"}>
                 {paymentLabels[sale.paymentState]}
               </Badge>
-              <Badge variant="outline">
+              <Badge variant="neutral">
                 {fulfillmentLabels[sale.fulfillment.status]}
               </Badge>
             </div>

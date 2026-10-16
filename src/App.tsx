@@ -12,9 +12,15 @@ const workspacePage = async () => ({
 });
 const router = createBrowserRouter([
   {
-    path: "/shop/:storeId",
+    path: "/shop/:store",
     lazy: async () => ({
       Component: (await import("./pages/BuyerCatalog")).BuyerCatalog,
+    }),
+  },
+  {
+    path: "/shop/:store/order/:orderId",
+    lazy: async () => ({
+      Component: (await import("./pages/OrderStatus")).OrderStatus,
     }),
   },
   {
@@ -43,6 +49,12 @@ const router = createBrowserRouter([
             path: "/sales",
             lazy: async () => ({
               Component: (await import("./pages/Sales")).default,
+            }),
+          },
+          {
+            path: "/orders",
+            lazy: async () => ({
+              Component: (await import("./pages/Orders")).default,
             }),
           },
           {

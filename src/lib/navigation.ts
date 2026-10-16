@@ -1,11 +1,12 @@
 export const workspaceSections = [
-  { id: "overview", path: "/", label: "Ringkasan" },
-  { id: "sales", path: "/sales", label: "Penjualan" },
-  { id: "costs", path: "/costs", label: "Pembelian & biaya" },
-  { id: "customers", path: "/customers", label: "Pelanggan" },
-  { id: "catalog", path: "/catalog", label: "Katalog" },
-  { id: "reports", path: "/reports", label: "Laporan" },
-  { id: "settings", path: "/settings", label: "Pengaturan" },
+  { id: "overview", path: "/", label: "Beranda", group: "main" },
+  { id: "orders", path: "/orders", label: "Pesanan", group: "main" },
+  { id: "sales", path: "/sales", label: "Penjualan", group: "main" },
+  { id: "customers", path: "/customers", label: "Pelanggan", group: "main" },
+  { id: "catalog", path: "/catalog", label: "Katalog", group: "business" },
+  { id: "costs", path: "/costs", label: "Pembelian & biaya", group: "business" },
+  { id: "reports", path: "/reports", label: "Laporan", group: "business" },
+  { id: "settings", path: "/settings", label: "Pengaturan", group: "account" },
 ] as const;
 export const settingsSections = [
   {

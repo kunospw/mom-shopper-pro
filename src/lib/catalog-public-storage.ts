@@ -5,9 +5,111 @@ import {
   where,
   getDocFromServer,
   getDocsFromServer,
+  setDoc,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase-app";
-import { storeIdSchema, readStorefront, readProduct } from "./catalog";
+import {
+  storeIdSchema,
+  slugPattern,
+  readStorefront,
+  readProduct,
+  readOrder,
+  reconcileCart,
+  orderItems,
+  orderSubtotal,
+  orderRequestSchema,
+  orderSignature,
+  type CartLine,
+  type Order,
+} from "./catalog";
+
+/** A shop link is either a readable slug or (older links) the owner's ID. */
+export async function resolveStore(param: string): Promise<string | null> {
+  if (slugPattern.test(param)) {
+    try {
+      const snapshot = await getDocFromServer(doc(db, "slugs", param));
+      const target = snapshot.exists() ? snapshot.data().storeId : null;
+      if (typeof target === "string" && storeIdSchema.safeParse(target).success)
+        return target;
+    } catch {
+      /* Fall through: the link may be an owner ID. */
+    }
+  }
+  return storeIdSchema.safeParse(param).success ? param : null;
+}
+
+
+/**
+ * Re-reads the live catalog, then saves the buyer's request as a pending order.
+ * Throws OrderChangedError (with the fresh catalog) if anything the buyer saw changed.
+ */
+export async function createOrderRequest(
+  storeId: string,
+  lines: CartLine[],
+  buyerName: string,
+  note: string,
+  seenSignature: string,
+) {
+  const latest = await getPublicCatalog(storeId);
+  if (!latest) return { closed: true as const };
+  const cart = reconcileCart(lines, latest.products);
+  if (
+    cart.length !== lines.length ||
+    orderSignature(latest.store, latest.products, cart) !== seenSignature
+  )
+    return { changed: latest, cart };
+  const request = orderRequestSchema.parse({
+    buyerName,
+    note,
+    items: orderItems(latest.products, cart),
+  });
+  const reference = doc(collection(db, "storefronts", storeId, "orders"));
+  await setDoc(reference, {
+    status: "pending",
+    progress: "pending",
+    ...request,
+    subtotal: orderSubtotal(request.items),
+    trackingNo: "",
+    sellerNote: "",
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return { id: reference.id, latest, cart };
+}
+
+export async function getOrderStatus(
+  storeId: string,
+  orderId: string,
+): Promise<{ order: Order; shopName: string; whatsapp: string; slug: string } | null> {
+  storeIdSchema.parse(storeId);
+  storeIdSchema.parse(orderId);
+  try {
+    const [orderSnapshot, storeSnapshot] = await Promise.all([
+      getDocFromServer(doc(db, "storefronts", storeId, "orders", orderId)),
+      getDocFromServer(doc(db, "storefronts", storeId)),
+    ]);
+    if (!orderSnapshot.exists()) return null;
+    const store = storeSnapshot.exists()
+      ? readStorefront(storeId, storeSnapshot.data())
+      : null;
+    return {
+      order: readOrder(orderSnapshot.id, orderSnapshot.data()),
+      shopName: store?.name ?? "Toko",
+      whatsapp: store?.whatsapp ?? "",
+      slug: store?.slug ?? "",
+    };
+  } catch (error) {
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "permission-denied"
+    )
+      return null;
+    throw error;
+  }
+}
 export async function getPublicCatalog(storeId: string) {
   storeIdSchema.parse(storeId);
   try {

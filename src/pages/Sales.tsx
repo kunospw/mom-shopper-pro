@@ -7,8 +7,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getOwnerCatalog } from "@/lib/catalog-owner-storage";
 import { saveCustomer, saveSale, deleteSale, newId } from "@/lib/books-storage";
 import { fulfillmentLabels, paymentLabels } from "@/lib/books";
+import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/lib/catalog";
 import type { Sale, SaleInput } from "@/types/books";
+import { orderCode } from "@/lib/catalog";
 import { formatRupiah } from "@/lib/currency";
 import { SaleForm } from "@/components/SaleForm";
 import { SaleDetail } from "@/components/SaleDetail";
@@ -36,6 +38,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formDialogClass } from "@/lib/utils";
+
+const open = (s: Sale) => s.fulfillment.status !== "cancelled";
+const filters: { id: string; label: string; test: (s: Sale) => boolean }[] = [
+  { id: "all", label: "Semua", test: () => true },
+  { id: "due", label: "Belum lunas", test: (s) => open(s) && s.balance > 0 },
+  { id: "ship", label: "Perlu dikirim", test: (s) => ["confirmed", "packed"].includes(s.fulfillment.status) },
+  { id: "sent", label: "Dalam pengiriman", test: (s) => s.fulfillment.status === "shipped" },
+  { id: "done", label: "Selesai", test: (s) => ["done", "delivered"].includes(s.fulfillment.status) && s.balance === 0 },
+  { id: "cancelled", label: "Dibatalkan", test: (s) => s.fulfillment.status === "cancelled" },
+];
 
 export default function Sales() {
   const { user } = useAuth();
@@ -47,12 +60,15 @@ export default function Sales() {
   const editId = params.get("edit");
   const viewId = params.get("view");
   const creating = params.get("new") === "1";
-  const editorOpen = creating || !!editId;
+  const confirmId = params.get("confirm");
+  const confirming = confirmId
+    ? books.orders.find((o) => o.id === confirmId && o.status === "pending")
+    : undefined;
+  const editorOpen = creating || !!editId || !!confirmId;
   const editing = editId ? books.sales.find((s) => s.id === editId) : undefined;
   const blocker = useUnsavedChanges(editorOpen && dirty);
   const q = params.get("q") ?? "";
-  const pay = params.get("pay") ?? "all";
-  const ful = params.get("ful") ?? "all";
+  const filter = params.get("f") ?? "all";
 
   useEffect(() => {
     // Catalog is optional here: sales still work with free-text items.
@@ -68,14 +84,13 @@ export default function Sales() {
     () =>
       books.sales.filter(
         (s) =>
-          (pay === "all" || s.paymentState === pay) &&
-          (ful === "all" || s.fulfillment.status === ful) &&
+          (filters.find((f) => f.id === filter)?.test(s) ?? true) &&
           (!q ||
             `${s.number} ${s.customer.name} ${s.items.map((i) => i.name).join(" ")}`
               .toLowerCase()
               .includes(q.toLowerCase())),
       ),
-    [books.sales, q, pay, ful],
+    [books.sales, q, filter],
   );
   const viewing = viewId ? books.sales.find((s) => s.id === viewId) ?? null : null;
 
@@ -118,8 +133,14 @@ export default function Sales() {
     await books.reload();
     // Leaving the form is only safe once the write has succeeded.
     flushSync(() => setDirty(false));
-    toast.success(editing ? "Perubahan tersimpan" : `Penjualan ${saved.number} tersimpan`);
-    go({ new: null, edit: null, view: saved.id });
+    toast.success(
+      editing
+        ? "Perubahan tersimpan"
+        : confirming
+          ? `Pesanan #${orderCode(confirming.id)} dikonfirmasi sebagai ${saved.number}`
+          : `Penjualan ${saved.number} tersimpan`,
+    );
+    go({ new: null, edit: null, confirm: null, view: saved.id });
   }
 
   return (
@@ -136,37 +157,30 @@ export default function Sales() {
         </Button>
       </header>
 
-      <section aria-label="Cari dan saring penjualan" className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
-        <div className="space-y-2">
-          <Label htmlFor="sales-q">Cari</Label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-            <Input id="sales-q" className="pl-9" placeholder="Nomor, pelanggan, atau produk" value={q} onChange={(e) => update("q", e.target.value)} />
-          </div>
+      <section aria-label="Cari dan saring penjualan" className="space-y-3">
+        <div className="relative">
+          <Label htmlFor="sales-q" className="sr-only">Cari penjualan</Label>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input id="sales-q" className="rounded-full pl-9" placeholder="Cari nomor, pelanggan, atau produk" value={q} onChange={(e) => update("q", e.target.value)} />
         </div>
-        <div className="space-y-2 sm:w-44">
-          <Label htmlFor="sales-pay">Pembayaran</Label>
-          <Select value={pay} onValueChange={(v) => update("pay", v)}>
-            <SelectTrigger id="sales-pay"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua</SelectItem>
-              {Object.entries(paymentLabels).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2 sm:w-44">
-          <Label htmlFor="sales-ful">Pengiriman</Label>
-          <Select value={ful} onValueChange={(v) => update("ful", v)}>
-            <SelectTrigger id="sales-ful"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua</SelectItem>
-              {Object.entries(fulfillmentLabels).map(([k, v]) => (
-                <SelectItem key={k} value={k}>{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div role="group" aria-label="Saring penjualan" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide sm:mx-0 sm:px-0">
+          {filters.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              aria-pressed={filter === f.id}
+              onClick={() => update("f", f.id)}
+              className={cn(
+                "min-h-11 shrink-0 rounded-full border px-4 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring md:min-h-10",
+                filter === f.id ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-accent",
+              )}
+            >
+              {f.label}
+              {f.id !== "all" && f.id !== "cancelled" && (
+                <span className="num ml-1.5 opacity-80">{books.sales.filter(f.test).length}</span>
+              )}
+            </button>
+          ))}
         </div>
       </section>
 
@@ -202,8 +216,8 @@ export default function Sales() {
                         {s.number} · {new Date(s.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} · {s.items.map((i) => i.name).join(", ")}
                       </span>
                       <span className="mt-2 flex flex-wrap gap-2">
-                        <Badge variant={s.paymentState === "paid" ? "default" : "secondary"}>{paymentLabels[s.paymentState]}</Badge>
-                        <Badge variant="outline">{fulfillmentLabels[s.fulfillment.status]}</Badge>
+                        <Badge variant={s.paymentState === "paid" ? "success" : "warning"}>{paymentLabels[s.paymentState]}</Badge>
+                        <Badge variant="neutral">{fulfillmentLabels[s.fulfillment.status]}</Badge>
                       </span>
                     </span>
                     <span className="text-right">
@@ -220,25 +234,55 @@ export default function Sales() {
         </ul>
       )}
 
-      <Dialog open={editorOpen} onOpenChange={(open) => !open && go({ new: null, edit: null })}>
-        <DialogContent className="max-h-[90dvh] w-[calc(100%_-_2rem)] max-w-2xl overflow-y-auto p-4 sm:p-6">
+      <Dialog open={editorOpen} onOpenChange={(open) => !open && go({ new: null, edit: null, confirm: null })}>
+        <DialogContent className={formDialogClass}>
           <DialogHeader>
-            <DialogTitle>{editing ? `Ubah ${editing.number}` : "Catat penjualan"}</DialogTitle>
+            <DialogTitle>
+              {editing
+                ? `Ubah ${editing.number}`
+                : confirmId
+                  ? `Konfirmasi pesanan${confirming ? ` #${orderCode(confirming.id)}` : ""}`
+                  : "Catat penjualan"}
+            </DialogTitle>
             <DialogDescription>
-              Isi pelanggan, produk, dan pembayaran. DP atau pelunasan bisa dicatat sekarang atau nanti.
+              {confirmId
+                ? "Periksa harga dan ongkir, lalu simpan. Pembeli melihat statusnya di halaman pesanan."
+                : "Isi pelanggan, produk, dan pembayaran. DP atau pelunasan bisa dicatat sekarang atau nanti."}
             </DialogDescription>
           </DialogHeader>
-          {editId && !editing ? (
-            <p>Penjualan tidak ditemukan.</p>
+          {(editId && !editing) || (confirmId && !confirming && !books.loading) ? (
+            <p>{confirmId ? "Pesanan ini sudah diproses atau tidak ditemukan." : "Penjualan tidak ditemukan."}</p>
+          ) : confirmId && !confirming ? (
+            <p role="status">Memuat pesanan…</p>
           ) : (
             <SaleForm
-              key={editId ?? "new"}
+              key={editId ?? confirmId ?? "new"}
               sale={editing}
+              prefill={
+                confirming
+                  ? {
+                      channel: "catalog",
+                      orderRequestId: confirming.id,
+                      customer: { name: confirming.buyerName, whatsapp: "", address: "" },
+                      notes: confirming.note,
+                      items: confirming.items.map((item) => ({
+                        productId: item.productId,
+                        name: item.name,
+                        option: item.option,
+                        kind: item.kind,
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        unitCost: books.inventory[item.productId]?.cost ?? 0,
+                      })),
+                    }
+                  : undefined
+              }
+              submitLabel={confirming ? "Konfirmasi pesanan" : undefined}
               products={products}
               customers={books.customers}
               inventory={books.inventory}
               onSubmit={submit}
-              onCancel={() => go({ new: null, edit: null })}
+              onCancel={() => go({ new: null, edit: null, confirm: null })}
               onDirtyChange={setDirty}
             />
           )}
