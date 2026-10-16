@@ -140,6 +140,16 @@ export function OrderStatus() {
                   </div>
                   <div className="pb-4">
                     <p className={cn("text-sm", (done || current) ? "font-medium" : "text-muted-foreground")}>{step.label}</p>
+                    {(done || current) && order.steps[step.id as keyof typeof order.steps] && (
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {new Date(order.steps[step.id as keyof typeof order.steps]!).toLocaleString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    )}
                     {step.id === "shipped" && order.trackingNo && i <= index && (
                       <p className="mt-0.5 text-sm text-muted-foreground">Resi: <strong className="text-foreground">{order.trackingNo}</strong></p>
                     )}

@@ -18,6 +18,7 @@ import {
   reconcileCart,
   orderItems,
   orderSubtotal,
+  orderShopSnapshot,
   orderRequestSchema,
   orderSignature,
   type CartLine,
@@ -72,12 +73,19 @@ export async function createOrderRequest(
     subtotal: orderSubtotal(request.items),
     trackingNo: "",
     sellerNote: "",
+    shop: orderShopSnapshot(latest.store),
+    steps: {},
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
   return { id: reference.id, latest, cart };
 }
 
+/**
+ * Tracking reads the order alone: the shop name, WhatsApp and slug are frozen
+ * into it, so the page still works after the seller unpublishes or the plan ends.
+ * Orders created before the snapshot fall back to the storefront (best effort).
+ */
 export async function getOrderStatus(
   storeId: string,
   orderId: string,
@@ -85,28 +93,21 @@ export async function getOrderStatus(
   storeIdSchema.parse(storeId);
   storeIdSchema.parse(orderId);
   try {
-    const [orderSnapshot, storeSnapshot] = await Promise.all([
-      getDocFromServer(doc(db, "storefronts", storeId, "orders", orderId)),
-      getDocFromServer(doc(db, "storefronts", storeId)),
-    ]);
+    const orderSnapshot = await getDocFromServer(doc(db, "storefronts", storeId, "orders", orderId));
     if (!orderSnapshot.exists()) return null;
-    const store = storeSnapshot.exists()
-      ? readStorefront(storeId, storeSnapshot.data())
-      : null;
-    return {
-      order: readOrder(orderSnapshot.id, orderSnapshot.data()),
-      shopName: store?.name ?? "Toko",
-      whatsapp: store?.whatsapp ?? "",
-      slug: store?.slug ?? "",
-    };
+    const order = readOrder(orderSnapshot.id, orderSnapshot.data());
+    if (order.shop)
+      return { order, shopName: order.shop.name || "Toko", whatsapp: order.shop.whatsapp, slug: order.shop.slug };
+    let store = null;
+    try {
+      const storeSnapshot = await getDocFromServer(doc(db, "storefronts", storeId));
+      store = storeSnapshot.exists() ? readStorefront(storeId, storeSnapshot.data()) : null;
+    } catch {
+      /* An unpublished shop is unreadable; the order itself is still shown. */
+    }
+    return { order, shopName: store?.name ?? "Toko", whatsapp: store?.whatsapp ?? "", slug: store?.slug ?? "" };
   } catch (error) {
-    if (
-      error &&
-      typeof error === "object" &&
-      "code" in error &&
-      error.code === "permission-denied"
-    )
-      return null;
+    if (error && typeof error === "object" && "code" in error && error.code === "permission-denied") return null;
     throw error;
   }
 }

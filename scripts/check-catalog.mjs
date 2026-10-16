@@ -28,6 +28,7 @@ const {
   orderRequestSchema,
   orderCode,
   readOrder,
+  orderShopSnapshot,
   slugSchema,
   MAX_ORDER_LINES,
 } = model;
@@ -274,3 +275,24 @@ for (const accent of ["pink", "", "Forest", undefined])
 console.log(
   "PASS: listing/store validation, option prices, legacy options, slugs, order snapshots, public projections, cart tampering and reconciliation, WhatsApp encoding and unpublished-order rejection.",
 );
+
+// ---- order snapshot and progress timestamps (tracking must not need the storefront) ----
+{
+  const stamp = (iso) => ({ toDate: () => new Date(iso) });
+  const withSnapshot = readOrder("o2", {
+    status: "confirmed", progress: "packed", buyerName: "Siti", note: "", items: snapshot, subtotal: 520000,
+    trackingNo: "", sellerNote: "",
+    shop: { name: "Toko A", whatsapp: "6281234567890", slug: "toko-a" },
+    steps: { confirmed: stamp("2026-10-01T03:00:00Z"), packed: stamp("2026-10-02T04:00:00Z"), bogus: stamp("2026-10-03T00:00:00Z") },
+  });
+  assert.deepEqual(withSnapshot.shop, { name: "Toko A", whatsapp: "6281234567890", slug: "toko-a" });
+  assert.deepEqual(withSnapshot.steps, { confirmed: "2026-10-01T03:00:00.000Z", packed: "2026-10-02T04:00:00.000Z" });
+  assert.equal(orderShopSnapshot({ name: "T", whatsapp: "62812345678", slug: "" , extra: 1 }).extra, undefined);
+  // orders created before the snapshot existed still read
+  const legacy = readOrder("o3", { status: "pending", progress: "pending", buyerName: "Lama", note: "", items: snapshot, subtotal: 1 });
+  assert.equal(legacy.shop, null);
+  assert.deepEqual(legacy.steps, {});
+  // a malformed snapshot is ignored rather than trusted
+  assert.equal(readOrder("o4", { status: "pending", progress: "pending", buyerName: "X", note: "", items: snapshot, shop: { name: 5 } }).shop, null);
+  console.log("order snapshot and steps parsing: PASS");
+}

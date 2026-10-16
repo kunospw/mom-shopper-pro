@@ -35,6 +35,7 @@ export async function rejectOrder(orderId: string, sellerNote: string) {
     {
       status: "rejected",
       progress: "cancelled",
+      "steps.cancelled": serverTimestamp(),
       sellerNote: sellerNote.trim().slice(0, 300),
       updatedAt: serverTimestamp(),
     },

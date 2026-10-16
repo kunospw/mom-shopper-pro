@@ -283,10 +283,21 @@ export const orderRequestSchema = z
   })
   .strict();
 export type OrderItem = z.infer<typeof orderItemSchema>;
+export type OrderProgress = z.infer<typeof orderProgressSchema>;
+/** Shop details frozen into each order so tracking outlives unpublish and expiry. */
+export interface OrderShop {
+  name: string;
+  whatsapp: string;
+  slug: string;
+}
 export interface Order extends z.infer<typeof orderRequestSchema> {
   id: string;
   status: z.infer<typeof orderStatusSchema>;
-  progress: z.infer<typeof orderProgressSchema>;
+  progress: OrderProgress;
+  /** Null for orders created before the snapshot existed. */
+  shop: OrderShop | null;
+  /** When each progress stage was reached (ISO); empty for older orders. */
+  steps: Partial<Record<OrderProgress, string>>;
   trackingNo: string;
   sellerNote: string;
   subtotal: number;
@@ -311,6 +322,25 @@ export function orderItems(
     };
   });
 }
+export function orderShopSnapshot(store: Pick<Storefront, "name" | "whatsapp" | "slug">): OrderShop {
+  return { name: store.name, whatsapp: store.whatsapp, slug: store.slug };
+}
+function readShop(value: unknown): OrderShop | null {
+  if (!value || typeof value !== "object") return null;
+  const { name, whatsapp, slug } = value as Record<string, unknown>;
+  return typeof name === "string" && typeof whatsapp === "string" && typeof slug === "string"
+    ? { name, whatsapp, slug }
+    : null;
+}
+function readSteps(value: unknown): Order["steps"] {
+  const steps: Order["steps"] = {};
+  if (!value || typeof value !== "object") return steps;
+  for (const key of orderProgressSchema.options) {
+    const stamp = (value as Record<string, { toDate?: () => Date } | undefined>)[key];
+    if (stamp?.toDate) steps[key] = stamp.toDate().toISOString();
+  }
+  return steps;
+}
 export function readOrder(id: string, value: Record<string, unknown>): Order {
   const request = orderRequestSchema.parse({
     buyerName: value.buyerName,
@@ -325,6 +355,8 @@ export function readOrder(id: string, value: Record<string, unknown>): Order {
     progress: orderProgressSchema.parse(value.progress),
     trackingNo: typeof value.trackingNo === "string" ? value.trackingNo : "",
     sellerNote: typeof value.sellerNote === "string" ? value.sellerNote : "",
+    shop: readShop(value.shop),
+    steps: readSteps(value.steps),
     subtotal: Number(value.subtotal) || 0,
     createdAt: created?.toDate ? created.toDate().toISOString() : "",
   };

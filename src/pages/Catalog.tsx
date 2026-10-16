@@ -50,6 +50,9 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { ProductEditor } from "@/components/ProductEditor";
+import { SubscriptionNotice } from "@/components/SubscriptionNotice";
+import { usePlan } from "@/hooks/use-plan";
+import { canPublish, needsTrialStart } from "@/lib/entitlement";
 import { StorefrontEditor } from "@/components/StorefrontEditor";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -61,6 +64,7 @@ import { effectiveAccentKey } from "@/lib/branding";
 export function Catalog() {
   const { user } = useAuth();
   const books = useBooks();
+  const { entitlement, plan, loaded: planLoaded, reload: reloadPlan } = usePlan();
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [store, setStore] = useState<Storefront | null>(null);
@@ -163,6 +167,7 @@ export function Catalog() {
           Tambah produk
         </Button>
       </header>
+      {planLoaded && <SubscriptionNotice plan={plan} published={!!store?.published} />}
       {loading ? (
         <p role="status">Memuat katalog…</p>
       ) : failed ? (
@@ -382,12 +387,21 @@ export function Catalog() {
             <StorefrontEditor
               key="store"
               initial={initialStore}
+              wasPublished={!!store?.published}
+              trialLocked={planLoaded && !canPublish(plan, !!store?.published)}
+              trialStarts={planLoaded && !entitlement}
               checkSlug={isSlugAvailable}
               onDirtyChange={setDirty}
               onBusyChange={setBusy}
               onCancel={() => navigateEditor()}
               onSave={async (fields) => {
-                setStore(await saveStorefront(fields, store?.slug ?? ""));
+                setStore(
+                  await saveStorefront(fields, store?.slug ?? "", {
+                    startTrial: needsTrialStart(entitlement, fields.published),
+                    reopening: fields.published && !store?.published,
+                  }),
+                );
+                reloadPlan();
                 void books.reload();
                 done();
                 toast.success("Pengaturan toko disimpan");

@@ -66,7 +66,7 @@ XDG_CONFIG_HOME="$catalog_tools/config" \
 XDG_CACHE_HOME="$catalog_tools/cache" \
 "$catalog_tools/node_modules/.bin/firebase" emulators:exec \
   --config firebase/emulators.json --project demo-catalog-tests --only firestore \
-  'node tests/catalog/rules.mjs'
+  'node tests/catalog/rules.mjs && node tests/catalog/rules-subscription.mjs'
 ```
 
 This command does not deploy rules. The official emulator download requires access to `storage.googleapis.com`. In this cloud session the download was blocked by the environment domain allowlist, so emulator execution is pending. Do not interpret the isolated browser checks with sample persistence as proof of Firestore enforcement.

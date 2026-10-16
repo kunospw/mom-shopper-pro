@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   ArrowDownRight,
@@ -14,6 +15,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBooks } from "@/contexts/BooksContext";
+import { SubscriptionNotice } from "@/components/SubscriptionNotice";
+import { startTrial } from "@/lib/entitlement-storage";
+import { usePlan } from "@/hooks/use-plan";
 import { MonthlyRecap } from "@/components/MonthlyRecap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,6 +47,19 @@ const Index = () => {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const books = useBooks();
+  const { plan, reload } = usePlan();
+  const [starting, setStarting] = useState(false);
+  async function beginTrial() {
+    setStarting(true);
+    try {
+      await startTrial();
+      reload();
+    } catch {
+      toast.error("Uji coba belum bisa dimulai. Coba lagi.");
+    } finally {
+      setStarting(false);
+    }
+  }
   const isOverview = pathname === "/";
   const ledger = { sales: books.sales, purchases: books.purchases, expenses: books.expenses };
   const monthRange = periodRange("this-month");
@@ -98,6 +115,9 @@ const Index = () => {
             : "Tinjau penjualan, modal, biaya, dan laba bersih menurut periode."}
         </p>
       </header>
+      {isOverview && (
+        <SubscriptionNotice plan={plan} published={!!books.store?.published} onStart={() => void beginTrial()} starting={starting} />
+      )}
       {books.loading ? (
         <div role="status" aria-label="Memuat catatan usaha" className="space-y-4">
           <Skeleton className="h-28" />

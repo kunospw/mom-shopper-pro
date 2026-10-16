@@ -3,6 +3,26 @@ rules_version = '2';
 // Review and test before publishing. This file is not deployed automatically.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ---- Subscription (see docs/subscription.md) ----
+    // PLACEHOLDER: set this to the end of the legacy grace period before deploying.
+    // Shops that were already published before entitlements existed keep working
+    // without an entitlement until this instant; new accounts never benefit from it.
+    function graceEnd() { return timestamp.date(2026, 12, 31); }
+    // Trial and paid access are evaluated here from server time, never by the client.
+    function entActive(e) {
+      return (e.paidUntil != null && request.time < e.paidUntil) ||
+        request.time < e.trialStartedAt + duration.value(7, 'd');
+    }
+    function hasAccess(id) {
+      let path = /databases/$(database)/documents/entitlements/$(id);
+      return exists(path) ? entActive(get(path).data) : request.time < graceEnd();
+    }
+    // Access that will exist after this write (no grace: new accounts must start the trial).
+    function activeAfter(id) {
+      let path = /databases/$(database)/documents/entitlements/$(id);
+      return existsAfter(path) && entActive(getAfter(path).data);
+    }
+
     // Preserve profile and transaction access for each signed-in owner.
     // The former global authenticated catch-all is intentionally removed.
     match /users/{userId} {
@@ -26,7 +46,10 @@ service cloud.firestore {
           d.name is string && d.name.size() <= 80 && d.description is string && d.description.size() <= 600 &&
           d.whatsapp is string && (d.whatsapp == '' || d.whatsapp.matches('^[1-9][0-9]{7,14}$')) &&
           d.accent in ['forest','teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
-          (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) && d.updatedAt == request.time;
+          (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) &&
+          // Publishing needs a running trial/plan, unless the shop was already published.
+          (!d.published || (resource != null && resource.data.published == true) || activeAfter(storeId)) &&
+          d.updatedAt == request.time;
       }
       function reserved() {
         return ['admin','api','app','catalog','customers','costs','login','logout','orders','reports','sales','settings','shop','signup','static','www'];
@@ -54,7 +77,8 @@ service cloud.firestore {
       allow create, update: if owner() && validStore(request.resource.data);
       allow delete: if owner();
       match /products/{productId} {
-        allow read: if owner() || (resource.data.published == true && get(/databases/$(database)/documents/storefronts/$(storeId)).data.published == true);
+        allow read: if owner() || (resource.data.published == true && get(/databases/$(database)/documents/storefronts/$(storeId)).data.published == true &&
+          hasAccess(storeId));
         allow create, update: if owner() && validProduct(request.resource.data);
         allow delete: if owner();
       }
@@ -62,7 +86,8 @@ service cloud.firestore {
         // Rules cap evaluation at 1000 expressions; with these checks 6 items is the most that fits.
         // Reading each required field also fails when a key is missing.
         function orderItem(it) {
-          return it.keys().hasOnly(['productId','name','option','kind','unitPrice','quantity','availability','leadTime']) &&
+          // Eight fields, each read and typed below, so a size check rules out extras.
+          return it.size() == 8 &&
             it.productId is string && it.name is string && it.name.size() > 0 && it.name.size() <= 80 &&
             it.option is string && it.option.size() <= 50 && it.kind in ['physical','digital'] &&
             it.unitPrice is int && it.unitPrice > 0 && it.unitPrice <= 1000000000 &&
@@ -72,9 +97,24 @@ service cloud.firestore {
         function orderItemAt(items, i) {
           return items.size() <= i || orderItem(items[i]);
         }
-        function validOrder(d) {
-          return d.keys().hasOnly(['status','progress','buyerName','note','items','subtotal','trackingNo','sellerNote','createdAt','updatedAt']) &&
-            d.keys().hasAll(['status','progress','buyerName','note','items','subtotal','trackingNo','sellerNote','createdAt','updatedAt']) &&
+        // The shop details shown on the status page are frozen into the order, so
+        // tracking keeps working after the seller unpublishes or the plan expires.
+        function validShop(d, s) {
+          return d is map && d.size() == 3 &&
+            d.name == s.name && d.whatsapp == s.whatsapp && d.slug == s.slug;
+        }
+        // `steps` records when each progress stage was reached; only the stage being
+        // set now may change, and it must carry the server time.
+        function validSteps(next, prev) {
+          return !('steps' in next.diff(prev).affectedKeys()) ||
+            (next.steps is map &&
+              next.steps.diff(prev.get('steps', {})).affectedKeys().hasOnly([next.progress]) &&
+              next.steps[next.progress] == request.time);
+        }
+        function validOrder(d, s) {
+          return d.keys().hasOnly(['status','progress','buyerName','note','items','subtotal','trackingNo','sellerNote','shop','steps','createdAt','updatedAt']) &&
+            d.keys().hasAll(['status','progress','buyerName','note','items','subtotal','trackingNo','sellerNote','shop','steps','createdAt','updatedAt']) &&
+            s.published == true && validShop(d.shop, s) && d.steps == {} &&
             d.status == 'pending' && d.progress == 'pending' && d.trackingNo == '' && d.sellerNote == '' &&
             d.buyerName is string && d.buyerName.size() > 0 && d.buyerName.size() <= 60 &&
             d.note is string && d.note.size() <= 300 &&
@@ -86,10 +126,13 @@ service cloud.firestore {
         // Anyone holding the unguessable order ID may read it (buyer status page).
         allow get: if true;
         allow list: if owner();
-        allow create: if get(/databases/$(database)/documents/storefronts/$(storeId)).data.published == true &&
-          validOrder(request.resource.data);
+        // New requests need an open shop with an active plan. Reading and updating
+        // existing orders is never gated by publish state or the plan.
+        allow create: if validOrder(request.resource.data, get(/databases/$(database)/documents/storefronts/$(storeId)).data) &&
+          hasAccess(storeId);
         allow update: if owner() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','progress','trackingNo','sellerNote','updatedAt']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','progress','trackingNo','sellerNote','steps','updatedAt']) &&
+          validSteps(request.resource.data, resource.data) &&
           request.resource.data.status in ['pending','confirmed','rejected'] &&
           (resource.data.status == 'pending' || request.resource.data.status == resource.data.status) &&
           request.resource.data.progress in ['pending','confirmed','packed','shipped','delivered','done','cancelled'] &&
@@ -98,6 +141,20 @@ service cloud.firestore {
           request.resource.data.updatedAt == request.time;
         allow delete: if false;
       }
+    }
+
+    // Plan state: the client may only start the trial, and only for a published shop.
+    // `paidUntil` is set by the operator (console / Admin SDK), never by a client.
+    match /entitlements/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['trialStartedAt','paidUntil']) &&
+        request.resource.data.keys().hasAll(['trialStartedAt','paidUntil']) &&
+        request.resource.data.trialStartedAt == request.time &&
+        request.resource.data.paidUntil == null &&
+        getAfter(/databases/$(database)/documents/storefronts/$(userId)).data.published == true;
+      allow update, delete: if false;
     }
 
     // Readable shop links: slugs/{slug} -> { storeId }. Tied to the storefront's own slug field.

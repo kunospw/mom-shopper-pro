@@ -102,12 +102,19 @@ function mergeDeltas(
 }
 
 /** Public mirror of a catalog sale's progress (no private delivery notes). */
-function mirrorOrder(batch: WriteBatch, sale: Sale, status = sale.fulfillment.status) {
+function mirrorOrder(
+  batch: WriteBatch,
+  sale: Sale,
+  status = sale.fulfillment.status,
+  previous?: Sale["fulfillment"]["status"],
+) {
   if (!sale.orderRequestId) return;
   const { courier, trackingNo } = sale.fulfillment;
   batch.update(doc(db, "storefronts", uid(), "orders", sale.orderRequestId), {
     status: "confirmed",
     progress: status,
+    // Stamp the stage only when it changes, so saving a sale twice keeps the first time.
+    ...(status !== previous ? { [`steps.${status}`]: serverTimestamp() } : {}),
     trackingNo: [courier, trackingNo].filter(Boolean).join(" · ").slice(0, 60),
     updatedAt: serverTimestamp(),
   });
@@ -149,7 +156,7 @@ export async function saveSale(
     ? saleStockDeltas(sale.items, -1)
     : new Map<string, number>();
   await applyStock(batch, mergeDeltas(released, taken));
-  mirrorOrder(batch, sale);
+  mirrorOrder(batch, sale, sale.fulfillment.status, existing?.fulfillment.status);
   context.extra?.(batch);
   await batch.commit();
   return sale;
@@ -158,7 +165,7 @@ export async function saveSale(
 export async function deleteSale(sale: Sale) {
   const batch = writeBatch(db);
   batch.delete(ref("sales", sale.id));
-  mirrorOrder(batch, sale, "cancelled");
+  mirrorOrder(batch, sale, "cancelled", sale.fulfillment.status);
   if (isLive(sale)) await applyStock(batch, saleStockDeltas(sale.items, 1));
   await batch.commit();
 }

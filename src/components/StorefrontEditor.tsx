@@ -19,6 +19,9 @@ import {
 } from "@/lib/catalog";
 export function StorefrontEditor({
   initial,
+  wasPublished = false,
+  trialLocked = false,
+  trialStarts = false,
   checkSlug,
   onSave,
   onCancel,
@@ -26,6 +29,12 @@ export function StorefrontEditor({
   onBusyChange,
 }: {
   initial: StorefrontFields;
+  /** The shop is open right now (it can stay open even after the trial ends). */
+  wasPublished?: boolean;
+  /** The trial/plan ended: a closed shop cannot be reopened. */
+  trialLocked?: boolean;
+  /** No trial yet: opening the shop starts the 7-day free trial. */
+  trialStarts?: boolean;
   checkSlug: (slug: string) => Promise<boolean>;
   onSave: (value: StorefrontFields) => Promise<void>;
   onCancel: () => void;
@@ -101,7 +110,9 @@ export function StorefrontEditor({
       setError(
         failure instanceof Error && failure.name === "SlugTakenError"
           ? "Tautan toko sudah dipakai. Pilih nama lain."
-          : "Pengaturan toko belum tersimpan. Silakan coba lagi.",
+          : failure instanceof Error && failure.name === "TrialEndedError"
+            ? "Masa uji coba berakhir, jadi katalog belum bisa dibuka lagi."
+            : "Pengaturan toko belum tersimpan. Silakan coba lagi.",
       );
     } finally {
       setSaving(false);
@@ -223,10 +234,21 @@ export function StorefrontEditor({
               Saat ditutup, tautan publik tidak menampilkan toko maupun
               produknya. Produk tidak dihapus.
             </p>
+            {trialLocked && !wasPublished ? (
+              <p id="store-published-note" className="mt-1 text-xs font-medium text-destructive">
+                Masa uji coba berakhir, katalog belum bisa dibuka lagi.
+              </p>
+            ) : trialStarts && !wasPublished ? (
+              <p id="store-published-note" className="mt-1 text-xs font-medium text-info">
+                Membuka katalog memulai uji coba gratis 7 hari.
+              </p>
+            ) : null}
           </div>
           <Switch
             id="store-published"
             checked={draft.published}
+            disabled={trialLocked && !wasPublished}
+            aria-describedby="store-published-note"
             onCheckedChange={(value) => change("published", value)}
           />
         </div>

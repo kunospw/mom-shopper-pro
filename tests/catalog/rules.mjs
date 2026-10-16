@@ -44,6 +44,14 @@ const shop = {
   slug: "",
   updatedAt: serverTimestamp(),
 };
+const trial = () => ({ trialStartedAt: serverTimestamp(), paidUntil: null });
+// A new shop opens together with its trial; the rules refuse any other first publish.
+const openShop = (db, id, data = shop) => {
+  const batch = writeBatch(db);
+  batch.set(doc(db, `storefronts/${id}`), data);
+  batch.set(doc(db, `entitlements/${id}`), trial());
+  return batch.commit();
+};
 const product = {
   name: "Kemeja",
   description: "",
@@ -63,7 +71,8 @@ const product = {
 };
 try {
   await env.clearFirestore();
-  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
+  await assertFails(setDoc(doc(owner, "storefronts/seller-a"), shop)); // no trial, no publishing
+  await assertSucceeds(openShop(owner, "seller-a"));
   await assertSucceeds(
     setDoc(doc(owner, "storefronts/seller-a/products/public"), product),
   );
@@ -198,6 +207,8 @@ try {
     subtotal: 300000,
     trackingNo: "",
     sellerNote: "",
+    shop: { name: "Toko A", whatsapp: "6281234567890", slug: "" },
+    steps: {},
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
@@ -223,11 +234,20 @@ try {
     { items: [{ ...item, availability: "unavailable" }] },
     { items: [{ ...item, extra: true }] },
     { extra: true },
+    { shop: { name: "Toko Palsu", whatsapp: "6281234567890", slug: "" } },
+    { shop: { name: "Toko A", whatsapp: "6280000000000", slug: "" } },
+    { shop: { name: "Toko A", whatsapp: "6281234567890", slug: "other" } },
+    { shop: { name: "Toko A", whatsapp: "6281234567890", slug: "", extra: 1 } },
+    { shop: undefined },
+    { steps: { confirmed: new Date() } },
+    { steps: undefined },
     { createdAt: new Date("2020-01-01") },
   ])
-    await assertFails(
-      setDoc(doc(buyer, `${orderPath}/bad`), { ...order, ...invalid }),
-    );
+  {
+    const body = { ...order, ...invalid };
+    for (const key of Object.keys(body)) if (body[key] === undefined) delete body[key];
+    await assertFails(setDoc(doc(buyer, `${orderPath}/bad`), body));
+  }
   await assertSucceeds(
     setDoc(doc(buyer, `${orderPath}/ten`), {
       ...order,
@@ -294,6 +314,7 @@ try {
   const rival = writeBatch(other);
   rival.set(doc(other, "storefronts/seller-b"), { ...shop, slug: "rival-shop" });
   rival.set(doc(other, "slugs/rival-shop"), { storeId: "seller-b" });
+  rival.set(doc(other, "entitlements/seller-b"), trial());
   await assertSucceeds(rival.commit());
   await assertFails(
     setDoc(doc(owner, "storefronts/seller-a"), { ...shop, slug: "rival-shop" }),

@@ -18,6 +18,7 @@ import {
   type CatalogProductFields,
   type StorefrontFields,
 } from "./catalog";
+import { trialStartFields } from "./entitlement-storage";
 function ownerId() {
   const id = auth.currentUser?.uid;
   if (!id) throw new Error("Masuk sebagai pemilik toko untuk melanjutkan.");
@@ -46,9 +47,14 @@ export async function isSlugAvailable(slug: string) {
   return !snapshot.exists() || snapshot.data().storeId === ownerId();
 }
 export class SlugTakenError extends Error {}
+/** Raised when opening the shop is refused because the trial or plan has ended. */
+export class TrialEndedError extends Error {
+  name = "TrialEndedError";
+}
 export async function saveStorefront(
   fields: StorefrontFields,
   previousSlug = "",
+  options: { startTrial?: boolean; reopening?: boolean } = {},
 ) {
   const id = ownerId();
   const safe = storefrontSchema.parse(fields);
@@ -64,7 +70,23 @@ export async function saveStorefront(
     if (!(await isSlugAvailable(safe.slug))) throw new SlugTakenError();
     batch.set(doc(db, "slugs", safe.slug), { storeId: id });
   }
-  await batch.commit();
+  // First publish: the trial starts in the same atomic write (rules require both together).
+  if (options.startTrial && safe.published)
+    batch.set(doc(db, "entitlements", id), trialStartFields());
+  try {
+    await batch.commit();
+  } catch (error) {
+    if (
+      options.reopening &&
+      safe.published &&
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "permission-denied"
+    )
+      throw new TrialEndedError();
+    throw error;
+  }
   return { id, ...safe };
 }
 export async function saveCatalogProduct(
