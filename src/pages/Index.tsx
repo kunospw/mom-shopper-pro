@@ -76,9 +76,9 @@ const Index = () => {
 
   return (
     <>
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold sm:text-3xl">Laporan</h1>
-        <p className="text-sm text-muted-foreground">Tinjau penjualan, modal, biaya, dan laba bersih menurut periode.</p>
+      <header>
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight">Laporan</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Penjualan, modal, biaya, dan keuntungan bersih menurut periode.</p>
       </header>
       {body ?? <MonthlyRecap sales={books.sales} purchases={books.purchases} expenses={books.expenses} />}
     </>
