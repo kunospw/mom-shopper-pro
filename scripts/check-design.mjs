@@ -27,35 +27,8 @@ assert.equal(
   isBusinessLogo("data:image/png;base64," + "A".repeat(140000)),
   false,
 );
-const { summarizeTransactions } = await load("src/lib/transaction-summary.ts");
-assert.deepEqual(summarizeTransactions([]), {
-  sales: 0,
-  paid: 0,
-  pending: 0,
-  purchases: 0,
-});
-assert.deepEqual(
-  summarizeTransactions([
-    { type: "sale", totalSellingPrice: 100, paymentStatus: "Paid" },
-    { type: "sale", sellingPrice: 50, paymentStatus: "Pending" },
-    {
-      type: "sale",
-      totalSellingPrice: 0,
-      sellingPrice: 999,
-      paymentStatus: "Paid",
-    },
-    {
-      type: "stock",
-      basePrice: 20,
-      quantity: 3,
-      sellingPrice: 999,
-      paymentStatus: "Paid",
-    },
-  ]),
-  { sales: 150, paid: 100, pending: 50, purchases: 60 },
-);
 console.log(
-  "Branding defaults, logo boundaries, and current/legacy transaction summaries passed.",
+  "Branding defaults and logo boundaries passed.",
 );
 
 const { normalizeAppearance, readAppearance, appearanceKey, fontScales } =
@@ -94,22 +67,13 @@ console.log(
   "Appearance defaults, account isolation, malformed settings, and denied storage passed.",
 );
 
-const { workspaceSection, transactionFilters } = await load(
+const { workspaceSection } = await load(
   "src/lib/navigation.ts",
 );
 assert.equal(workspaceSection("/settings/payments").id, "settings");
-assert.equal(workspaceSection("/transactions").id, "transactions");
+assert.equal(workspaceSection("/sales").id, "sales");
+assert.equal(workspaceSection("/customers/abc").id, "customers");
 assert.equal(workspaceSection("/").id, "overview");
-assert.deepEqual(
-  transactionFilters(new URLSearchParams("status=bad&type=bad&month=2026-99")),
-  { status: "all", type: "all", month: "all", q: "" },
-);
-assert.deepEqual(
-  transactionFilters(
-    new URLSearchParams("status=Pending&type=sale&month=2026-10&q=Siti"),
-  ),
-  { status: "Pending", type: "sale", month: "2026-10", q: "Siti" },
-);
 const { settingsPatch, settingsChanged, profileFormDefaults } = await load(
   "src/lib/settings.ts",
 );

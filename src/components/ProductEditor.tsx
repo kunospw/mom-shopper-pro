@@ -19,15 +19,18 @@ import {
   type CatalogProductFields,
 } from "@/lib/catalog";
 import { catalogPhoto } from "@/lib/catalog-image";
+import type { Inventory } from "@/types/books";
 export function ProductEditor({
   product,
+  inventory,
   onSave,
   onCancel,
   onDirtyChange,
   onBusyChange,
 }: {
   product?: CatalogProduct;
-  onSave: (value: CatalogProductFields) => Promise<void>;
+  inventory?: Inventory;
+  onSave: (value: CatalogProductFields, inventory: Inventory) => Promise<void>;
   onCancel: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
@@ -40,6 +43,11 @@ export function ProductEditor({
   const [optionText, setOptionText] = useState(
     product?.options.join(", ") || "",
   );
+  const [cost, setCost] = useState(String(inventory?.cost || ""));
+  const [trackStock, setTrackStock] = useState(
+    typeof inventory?.stock === "number",
+  );
+  const [stock, setStock] = useState(String(inventory?.stock ?? ""));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -85,7 +93,10 @@ export function ProductEditor({
     onBusyChange(true);
     setError("");
     try {
-      await onSave(result.data);
+      await onSave(result.data, {
+        cost: Math.max(0, Math.round(Number(cost)) || 0),
+        stock: trackStock ? Math.round(Number(stock)) || 0 : null,
+      });
     } catch {
       setError(
         "Produk belum tersimpan. Isian tetap tersedia; silakan coba lagi.",
@@ -264,6 +275,60 @@ export function ProductEditor({
             checked={draft.published}
             onCheckedChange={(value) => change("published", value)}
           />
+        </div>
+        <div className="space-y-4 rounded-lg border bg-muted/30 p-4">
+          <div>
+            <h3 className="text-sm font-semibold">Modal & stok (privat)</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Hanya terlihat oleh Anda. Tidak pernah tampil di katalog pembeli.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="product-cost">Modal per unit (Rp)</Label>
+            <Input
+              id="product-cost"
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={cost}
+              onChange={(event) => {
+                setCost(event.target.value);
+                onDirtyChange(true);
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="product-track">Hitung stok otomatis</Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Stok berkurang saat penjualan dicatat dan bertambah saat
+                pembelian dicatat.
+              </p>
+            </div>
+            <Switch
+              id="product-track"
+              checked={trackStock}
+              onCheckedChange={(value) => {
+                setTrackStock(value);
+                onDirtyChange(true);
+              }}
+            />
+          </div>
+          {trackStock && (
+            <div className="space-y-2">
+              <Label htmlFor="product-stock">Stok saat ini</Label>
+              <Input
+                id="product-stock"
+                type="number"
+                inputMode="numeric"
+                value={stock}
+                onChange={(event) => {
+                  setStock(event.target.value);
+                  onDirtyChange(true);
+                }}
+              />
+            </div>
+          )}
         </div>
       </fieldset>
       {error && (

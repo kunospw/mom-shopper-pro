@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Transaction } from "@/types/transaction";
+import type { Transaction } from "@/types/transaction";
+import type { Expense, Sale } from "@/types/books";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,12 +11,31 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, DollarSign, ShoppingBag, Calendar, ArrowUpDown } from "lucide-react";
 
 interface MonthlyRecapProps {
-  transactions: Transaction[];
+  sales: Sale[];
+  expenses: Expense[];
 }
 
 type DateRangePreset = 'this-month' | 'last-3-months' | 'last-6-months' | 'this-year' | 'all-time' | 'custom';
 
-export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
+export const MonthlyRecap = ({ sales, expenses }: MonthlyRecapProps) => {
+  // Cancelled sales never happened; fees are folded into profit already.
+  const transactions = useMemo(
+    () =>
+      sales
+        .filter((s) => s.fulfillment.status !== "cancelled")
+        .map(
+          (s): Transaction => ({
+            id: s.id,
+            type: "sale",
+            date: s.date,
+            notes: "",
+            totalSellingPrice: s.total,
+            totalBasePrice: s.cost,
+            totalProfit: s.profit,
+          }),
+        ),
+    [sales],
+  );
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('this-month');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -75,14 +95,23 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
     const totalCapital = filteredTransactions.reduce((sum, t) => sum + (t.totalBasePrice || 0), 0);
     const totalProfit = filteredTransactions.reduce((sum, t) => sum + (t.totalProfit || 0), 0);
 
+    const totalExpenses = expenses
+      .filter((e) => {
+        const date = new Date(e.date);
+        return date >= start && date <= end;
+      })
+      .reduce((sum, e) => sum + e.amount, 0);
+
     return {
       totalSales,
       totalCapital,
       totalProfit,
+      totalExpenses,
+      netProfit: totalProfit - totalExpenses,
       transactionCount: filteredTransactions.length,
       dateRange: { start, end }
     };
-  }, [transactions, dateRangePreset, startDate, endDate]);
+  }, [transactions, expenses, dateRangePreset, startDate, endDate]);
 
   const chartData = useMemo(() => {
     const { start, end } = getDateRange();
@@ -249,7 +278,7 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
               <div className="min-w-0 flex-1">
                 <p className="text-base text-muted-foreground font-semibold mb-1">Total Penjualan</p>
                 <p className="break-words text-2xl font-semibold text-primary">{formatRupiah(stats.totalSales)}</p>
-                <p className="text-sm text-muted-foreground mt-2 font-medium">{stats.transactionCount} transaksi</p>
+                <p className="text-sm text-muted-foreground mt-2 font-medium">{stats.transactionCount} penjualan</p>
               </div>
             </div>
           </CardContent>
@@ -276,13 +305,43 @@ export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
                 <TrendingUp className="h-8 w-8 text-success" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-base text-muted-foreground font-semibold mb-1">Total Keuntungan</p>
+                <p className="text-base text-muted-foreground font-semibold mb-1">Keuntungan dari penjualan</p>
                 <p className="break-words text-2xl font-semibold text-success">{formatRupiah(stats.totalProfit)}</p>
                 {stats.totalCapital > 0 && (
                   <p className="text-sm text-success font-medium mt-2">
                     ROI: {((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%
                   </p>
                 )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-border shadow-md">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <div className="p-4 bg-primary/10 rounded-full">
+                <DollarSign className="h-8 w-8 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base text-muted-foreground font-semibold mb-1">Biaya operasional</p>
+                <p className="break-words text-2xl font-semibold text-primary">{formatRupiah(stats.totalExpenses)}</p>
+                <p className="text-sm text-muted-foreground mt-2 font-medium">Ongkir, kemasan, iklan, dan biaya lain</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-border shadow-md">
+          <CardContent className="p-6">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+              <div className="p-4 bg-success/10 rounded-full">
+                <TrendingUp className="h-8 w-8 text-success" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-base text-muted-foreground font-semibold mb-1">Laba bersih</p>
+                <p className="break-words text-2xl font-semibold text-success">{formatRupiah(stats.netProfit)}</p>
+                <p className="text-sm text-muted-foreground mt-2 font-medium">Keuntungan penjualan dikurangi biaya operasional</p>
               </div>
             </div>
           </CardContent>

@@ -6,10 +6,10 @@ A modern reseller management application built with React, TypeScript, Vite, and
 
 - 🔐 **Google Authentication** - Secure login with Firebase Auth
 - 👤 **User Profile Management** - Customize business info, bank details, and QRIS
-- 📄 **Professional Invoicing** - Generate invoices with business branding
+- 📄 **Professional Invoicing** - Invoices with shipping, discount, payments made and balance due
 - 💳 **Payment Integration** - Bank transfer details and QRIS code display
 - 📱 **WhatsApp Sharing** - Share invoices directly via WhatsApp
-- 📊 **Transaction Management** - Track sales, purchases, and payments
+- 📊 **Bookkeeping** - Sales with DP/partial payments, fulfillment and tracking numbers (physical and digital goods), customers, purchases, expenses, optional stock; see [bookkeeping model](docs/bookkeeping.md).
 - 📈 **Monthly Reports** - View detailed sales analytics
 - 🛍️ **Buyer Catalog Pilot** - Separate public listings and WhatsApp order requests; see [pilot setup and security prerequisites](docs/catalog-pilot.md).
 
@@ -76,7 +76,7 @@ npm run build
    - Business name, address, and phone
    - Bank account details for transfers
    - Upload QRIS image for digital payments
-3. **Create Transactions**: Add sales and purchase transactions
+3. **Record Sales**: Add sales with customer, items, DP and shipping; update payment and delivery as they happen
 4. **Generate Invoices**: View and share professional invoices with your branding
 5. **Track Performance**: Monitor your sales through monthly reports
 

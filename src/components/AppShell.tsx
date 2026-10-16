@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  List,
+  ReceiptText,
+  Wallet,
+  Users,
   BarChart3,
   Settings,
   UserRound,
@@ -22,9 +24,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { workspaceSections, workspaceSection } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
+import { BooksProvider } from "@/contexts/BooksContext";
 const icons = {
   overview: LayoutDashboard,
-  transactions: List,
+  sales: ReceiptText,
+  costs: Wallet,
+  customers: Users,
   reports: BarChart3,
   catalog: ShoppingBag,
   settings: Settings,
@@ -194,7 +199,9 @@ export function AppShell() {
           tabIndex={-1}
           className="mx-auto max-w-6xl space-y-6 px-4 py-6 pb-[max(2rem,env(safe-area-inset-bottom))] outline-none sm:px-6 sm:py-8"
         >
-          <Outlet />
+          <BooksProvider>
+            <Outlet />
+          </BooksProvider>
         </main>
       </div>
     </div>

@@ -11,6 +11,8 @@ import {
   Settings2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBooks } from "@/contexts/BooksContext";
+import { saveInventory } from "@/lib/books-storage";
 import {
   getOwnerCatalog,
   saveCatalogProduct,
@@ -54,6 +56,7 @@ import { toast } from "sonner";
 
 export function Catalog() {
   const { user } = useAuth();
+  const books = useBooks();
   const [params, setParams] = useSearchParams();
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [store, setStore] = useState<Storefront | null>(null);
@@ -365,14 +368,23 @@ export function Catalog() {
             <ProductEditor
               key={edit || "new"}
               product={selected}
+              inventory={selected ? books.inventory[selected.id] : undefined}
               onDirtyChange={setDirty}
               onBusyChange={setBusy}
               onCancel={() => navigateEditor()}
-              onSave={async (fields) => {
+              onSave={async (fields, inventory) => {
                 const saved = await saveCatalogProduct(
                   fields,
                   edit || undefined,
                 );
+                try {
+                  await saveInventory(saved.id, inventory);
+                  void books.reload();
+                } catch {
+                  toast.error(
+                    "Produk tersimpan, tetapi modal dan stok belum. Buka produk lagi untuk menyimpannya.",
+                  );
+                }
                 setProducts((previous) =>
                   [
                     ...previous.filter((product) => product.id !== saved.id),

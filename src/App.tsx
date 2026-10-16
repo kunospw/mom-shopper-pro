@@ -34,8 +34,29 @@ const router = createBrowserRouter([
         }),
         children: [
           { path: "/", lazy: workspacePage },
-          { path: "/transactions", lazy: workspacePage },
           { path: "/reports", lazy: workspacePage },
+          {
+            path: "/transactions",
+            element: <Navigate to="/sales" replace />,
+          },
+          {
+            path: "/sales",
+            lazy: async () => ({
+              Component: (await import("./pages/Sales")).default,
+            }),
+          },
+          {
+            path: "/costs",
+            lazy: async () => ({
+              Component: (await import("./pages/Costs")).default,
+            }),
+          },
+          {
+            path: "/customers",
+            lazy: async () => ({
+              Component: (await import("./pages/Customers")).default,
+            }),
+          },
           {
             path: "/catalog",
             lazy: async () => ({
