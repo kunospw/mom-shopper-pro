@@ -411,7 +411,7 @@ export function StoreSetup({
         </p>
       )}
 
-      <div className="sticky bottom-0 -mx-4 -mb-4 mt-auto flex flex-col gap-2 border-t bg-card px-4 pb-4 pt-3 sm:-mx-6 sm:-mb-6 sm:px-6 sm:pb-6">
+      <div className="sticky -bottom-4 -mx-4 -mb-4 mt-auto flex flex-col gap-2 border-t bg-card px-4 pb-4 pt-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6 sm:pb-6">
         {index < 3 ? (
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={back}>
