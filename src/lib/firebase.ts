@@ -1,38 +1,18 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
-
-// Firebase config from environment variables
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-
-// Initialize Firebase services
+import { connectAuthEmulator, getAuth, GoogleAuthProvider, signInWithCredential } from "firebase/auth";
+import { app, useEmulator } from "./firebase-app";
+export { db } from "./firebase-app";
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-
-// Configure Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({
-  prompt: 'select_account',
-});
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
-// Emulators disabled - using production Firebase
-// if (import.meta.env.DEV && !auth.emulatorConfig) {
-//   try {
-//     connectAuthEmulator(auth, 'http://localhost:9099');
-//     connectFirestoreEmulator(db, 'localhost', 8080);
-//   } catch (error) {
-//     console.log('Firebase emulators not available:', error);
-//   }
-// }
-
+if (useEmulator) {
+  connectAuthEmulator(auth, `http://127.0.0.1:${import.meta.env.VITE_AUTH_EMULATOR_PORT || 9099}`, { disableWarnings: true });
+  // Test hook (emulator only): a Google sign-in without Google's popup page.
+  // The Auth emulator accepts this unsigned token; real projects never would.
+  Object.assign(globalThis, {
+    __emulatorSignIn: (email: string, name: string) =>
+      signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: email, email, name, email_verified: true }))),
+    __emulatorIdToken: () => auth.currentUser?.getIdToken() ?? null,
+  });
+}
 export default app;

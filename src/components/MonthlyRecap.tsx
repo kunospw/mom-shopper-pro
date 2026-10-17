@@ -1,409 +1,316 @@
 import { useMemo, useState } from "react";
-import { Transaction } from "@/types/transaction";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Link } from "react-router-dom";
+import { ArrowDownRight, ArrowUpRight, BarChart3, Info } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { field } from "@/components/form-parts";
+import { compactRupiah } from "@/components/Beranda";
 import { formatRupiah } from "@/lib/currency";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { TrendingUp, DollarSign, ShoppingBag, Calendar, ArrowUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { Expense, Purchase, Sale } from "@/types/books";
+import { derive } from "@/lib/books";
+import { buildReport } from "@/lib/report";
+import { customRange, inRange, periodRange, previousRange, type DateRange, type Preset as PeriodPreset } from "@/lib/period";
 
-interface MonthlyRecapProps {
-  transactions: Transaction[];
+type Preset = "this-month" | "last-month" | "last-3-months" | "last-6-months" | "this-year" | "all-time" | "custom";
+const presets: { id: Preset; label: string }[] = [
+  { id: "this-month", label: "Bulan ini" },
+  { id: "last-month", label: "Bulan lalu" },
+  { id: "last-3-months", label: "3 bulan" },
+  { id: "last-6-months", label: "6 bulan" },
+  { id: "this-year", label: "Tahun ini" },
+  { id: "all-time", label: "Semua" },
+  { id: "custom", label: "Atur tanggal" },
+];
+function rangeFor(preset: Preset, from: string, to: string): DateRange {
+  if (preset === "custom") return customRange(from, to) ?? periodRange("this-month");
+  return periodRange(preset as PeriodPreset);
+}
+const axisRupiah = (value: number) => (value === 0 ? "0" : compactRupiah(value).replace("Rp ", ""));
+const SALES = "#A3B8A0";
+const SALES_NOW = "#819579";
+
+function Delta({ now, before, running }: { now: number; before?: number; running?: boolean }) {
+  if (before === undefined || before <= 0) return null;
+  const change = Math.round(((now - before) / before) * 100);
+  const up = change >= 0;
+  const Icon = up ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span className="inline-flex items-center gap-1 text-[13px]">
+      <span className={cn("inline-flex items-center font-semibold", up ? "text-success" : "text-destructive")}>
+        <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+        {Math.abs(change)}%
+      </span>
+      <span className="text-muted-foreground">{running ? "dari periode lalu, hari yang sama" : "dari periode sebelumnya"}</span>
+    </span>
+  );
 }
 
-type DateRangePreset = 'this-month' | 'last-3-months' | 'last-6-months' | 'this-year' | 'all-time' | 'custom';
+function Kpi({ label, value, children, tone, highlight }: { label: string; value: string; children?: React.ReactNode; tone?: string; highlight?: boolean }) {
+  return (
+    <div className={cn("rounded-2xl border bg-card px-4 py-4 shadow-card sm:px-5", highlight && "border-primary/30 bg-primary-soft/60 dark:bg-primary/10")}>
+      <p className="text-[13px] text-muted-foreground">{label}</p>
+      <p className={cn("num mt-1 break-words text-xl font-bold tracking-tight sm:text-2xl", tone)}>{value}</p>
+      {children && <div className="mt-1 text-xs text-muted-foreground">{children}</div>}
+    </div>
+  );
+}
 
-export const MonthlyRecap = ({ transactions }: MonthlyRecapProps) => {
-  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('this-month');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const getDateRange = () => {
+/** Laporan: period picker, KPIs, chart, profit breakdown, top products and customers. All numbers from buildReport. */
+export const MonthlyRecap = ({ sales, purchases, expenses }: { sales: Sale[]; purchases: Purchase[]; expenses: Expense[] }) => {
+  const [preset, setPreset] = useState<Preset>("this-month");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const data = useMemo(() => {
+    const ledger = { sales, purchases, expenses };
+    const range = rangeFor(preset, startDate, endDate);
+    const r = buildReport(ledger, range);
+    // A period still running is compared with the same number of days of the previous one.
     const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    
-    switch (dateRangePreset) {
-      case 'this-month':
-        return {
-          start: new Date(currentYear, currentMonth, 1),
-          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
-        };
-      case 'last-3-months':
-        return {
-          start: new Date(currentYear, currentMonth - 2, 1),
-          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
-        };
-      case 'last-6-months':
-        return {
-          start: new Date(currentYear, currentMonth - 5, 1),
-          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
-        };
-      case 'this-year':
-        return {
-          start: new Date(currentYear, 0, 1),
-          end: new Date(currentYear, 11, 31, 23, 59, 59)
-        };
-      case 'all-time':
-        return {
-          start: new Date(2020, 0, 1), // Arbitrary early date
-          end: new Date(2030, 11, 31, 23, 59, 59) // Arbitrary future date
-        };
-      case 'custom':
-        return {
-          start: startDate ? new Date(startDate) : new Date(currentYear, currentMonth, 1),
-          end: endDate ? new Date(endDate + 'T23:59:59') : new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
-        };
-      default:
-        return {
-          start: new Date(currentYear, currentMonth, 1),
-          end: new Date(currentYear, currentMonth + 1, 0, 23, 59, 59)
-        };
-    }
-  };
-
-  const stats = useMemo(() => {
-    const { start, end } = getDateRange();
-
-    const filteredTransactions = transactions.filter((t) => {
-      const date = new Date(t.date);
-      return t.type === "sale" && date >= start && date <= end;
-    });
-
-    const totalSales = filteredTransactions.reduce((sum, t) => sum + (t.totalSellingPrice || 0), 0);
-    const totalCapital = filteredTransactions.reduce((sum, t) => sum + (t.totalBasePrice || 0), 0);
-    const totalProfit = filteredTransactions.reduce((sum, t) => sum + (t.totalProfit || 0), 0);
-
-    return {
-      totalSales,
-      totalCapital,
-      totalProfit,
-      transactionCount: filteredTransactions.length,
-      dateRange: { start, end }
-    };
-  }, [transactions, dateRangePreset, startDate, endDate]);
-
-  const chartData = useMemo(() => {
-    const { start, end } = getDateRange();
-    const filteredTransactions = transactions.filter((t) => {
-      const date = new Date(t.date);
-      return t.type === "sale" && date >= start && date <= end;
-    });
-
-    const data: { [key: string]: { sales: number; profit: number; capital: number } } = {};
-
-    // Determine grouping based on date range
-    const daysDifference = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-    const groupByMonth = daysDifference > 90; // Group by month if more than 3 months
-
-    filteredTransactions.forEach((t) => {
-      const date = new Date(t.date);
-      const key = groupByMonth 
-        ? `${date.toLocaleDateString("id-ID", { month: "short" })} ${date.getFullYear()}`
-        : date.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-
-      if (!data[key]) {
-        data[key] = { sales: 0, profit: 0, capital: 0 };
+    const prevFull = previousRange(range);
+    const running = !range.all && range.end > now && range.start < now;
+    const prevRange =
+      prevFull && running
+        ? { start: prevFull.start, end: new Date(Math.min(prevFull.end.getTime(), prevFull.start.getTime() + (now.getTime() - range.start.getTime()))) }
+        : prevFull;
+    const prev = prevRange ? buildReport(ledger, prevRange) : undefined;
+    const products = new Map<string, { name: string; quantity: number; revenue: number }>();
+    const customers = new Map<string, { name: string; orders: number; revenue: number }>();
+    for (const raw of sales) {
+      const s = derive(raw);
+      if (s.fulfillment.status === "cancelled" || !inRange(s.date, range)) continue;
+      for (const item of s.items) {
+        const row = products.get(item.name) ?? { name: item.name, quantity: 0, revenue: 0 };
+        row.quantity += item.quantity;
+        row.revenue += item.unitPrice * item.quantity;
+        products.set(item.name, row);
       }
-
-      data[key].sales += t.totalSellingPrice || 0;
-      data[key].profit += t.totalProfit || 0;
-      data[key].capital += t.totalBasePrice || 0;
-    });
-
-    const sortedData = Object.entries(data)
-      .map(([period, values]) => ({
-        period,
-        ...values,
-      }))
-      .sort((a, b) => {
-        // Sort chronologically
-        if (groupByMonth) {
-          const [monthA, yearA] = a.period.split(' ');
-          const [monthB, yearB] = b.period.split(' ');
-          const monthsId = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-          return (parseInt(yearA) - parseInt(yearB)) || (monthsId.indexOf(monthA) - monthsId.indexOf(monthB));
-        }
-        return a.period.localeCompare(b.period);
-      });
-
-    return sortedData;
-  }, [transactions, dateRangePreset, startDate, endDate]);
-
-  const getPeriodTitle = () => {
-    const { start, end } = stats.dateRange;
-    switch (dateRangePreset) {
-      case 'this-month':
-        return start.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-      case 'last-3-months':
-        return "3 Bulan Terakhir";
-      case 'last-6-months':
-        return "6 Bulan Terakhir";
-      case 'this-year':
-        return `Tahun ${start.getFullYear()}`;
-      case 'all-time':
-        return "Semua Waktu";
-      case 'custom':
-        return `${start.toLocaleDateString("id-ID")} - ${end.toLocaleDateString("id-ID")}`;
-      default:
-        return "Laporan Penjualan";
+      const name = s.customer.name.trim() || "Pelanggan";
+      const key = s.customerId || name.toLowerCase();
+      const c = customers.get(key) ?? { name, orders: 0, revenue: 0 };
+      c.orders += 1;
+      c.revenue += s.total;
+      customers.set(key, c);
     }
-  };
+    const daily = r.buckets.length > 0 && r.buckets[0].end.getTime() - r.buckets[0].start.getTime() <= 2 * 86_400_000;
+    const chart = r.buckets.map((b, i, all) => ({
+      label: daily ? b.start.toLocaleDateString("id-ID", { day: "numeric" }) : b.start.toLocaleDateString("id-ID", { month: "short", ...(all.length > 12 ? { year: "2-digit" } : {}) }),
+      full: b.label,
+      revenue: b.revenue,
+      profit: b.netProfit,
+      current: i === all.length - 1,
+    }));
+    return {
+      r,
+      prev,
+      running,
+      chart,
+      top: [...products.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5),
+      buyers: [...customers.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5),
+    };
+  }, [sales, purchases, expenses, preset, startDate, endDate]);
+  const { r, prev } = data;
+  const margin = r.revenue > 0 ? (r.netProfit / r.revenue) * 100 : 0;
+  const empty = r.salesCount === 0 && r.operatingCosts === 0 && r.purchaseSpend === 0;
+  const breakdown: { label: string; value: number; sign?: "-" | "="; hint?: string; strong?: boolean }[] = [
+    { label: "Penjualan", value: r.revenueGross, hint: `${r.salesCount} penjualan` },
+    ...(r.returns ? [{ label: "Pengembalian dana", value: r.returns, sign: "-" as const }] : []),
+    { label: "Modal barang terjual", value: r.cogs, sign: "-", hint: "Dari modal per produk saat dijual" },
+    { label: "Laba kotor", value: r.grossProfit, sign: "=", strong: true },
+    { label: "Biaya transaksi", value: r.fees, sign: "-", hint: "Biaya lain di penjualan" },
+    { label: "Biaya usaha", value: r.expenses, sign: "-", hint: "Ongkir, kemasan, iklan, admin" },
+    { label: "Ongkir pembelian", value: r.purchaseShipping, sign: "-" },
+    { label: "Keuntungan bersih", value: r.netProfit, sign: "=", strong: true },
+  ];
+  const topMax = Math.max(1, ...data.top.map((t) => t.revenue));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-3xl font-bold mb-2 text-gray-800">📊 Laporan Penjualan</h2>
-        <p className="text-lg text-gray-600 font-semibold">{getPeriodTitle()}</p>
+        <div role="group" aria-label="Periode laporan" className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 scrollbar-hide sm:mx-0 sm:inline-flex sm:rounded-xl sm:bg-muted sm:p-1">
+          {presets.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={preset === p.id}
+              onClick={() => setPreset(p.id)}
+              className={cn(
+                "min-h-10 shrink-0 rounded-full px-3.5 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring sm:rounded-[9px]",
+                preset === p.id ? "bg-foreground font-semibold text-background sm:bg-card sm:text-foreground sm:shadow-sm" : "border border-input text-muted-foreground hover:text-foreground sm:border-0",
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {preset === "custom" && (
+          <div className="mt-3 grid max-w-md gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="startDate">Dari tanggal</Label>
+              <input id="startDate" type="date" className={field} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="endDate">Sampai tanggal</Label>
+              <input id="endDate" type="date" className={field} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
+        )}
+        <p className="mt-2 text-[13px] text-muted-foreground" role="status">
+          {r.range.all ? "Semua catatan" : `${r.range.start.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} – ${new Date(r.range.end.getTime() - 1).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`}
+        </p>
       </div>
 
-      {/* Date Range Selection */}
-      <Card className="border-2 border-gray-200 shadow-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <Calendar className="h-5 w-5" />
-            Pilih Periode Laporan
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-            <Button
-              variant={dateRangePreset === 'this-month' ? 'default' : 'outline'}
-              onClick={() => setDateRangePreset('this-month')}
-              className="text-sm"
-            >
-              Bulan Ini
-            </Button>
-            <Button
-              variant={dateRangePreset === 'last-3-months' ? 'default' : 'outline'}
-              onClick={() => setDateRangePreset('last-3-months')}
-              className="text-sm"
-            >
-              3 Bulan
-            </Button>
-            <Button
-              variant={dateRangePreset === 'last-6-months' ? 'default' : 'outline'}
-              onClick={() => setDateRangePreset('last-6-months')}
-              className="text-sm"
-            >
-              6 Bulan
-            </Button>
-            <Button
-              variant={dateRangePreset === 'this-year' ? 'default' : 'outline'}
-              onClick={() => setDateRangePreset('this-year')}
-              className="text-sm"
-            >
-              Tahun Ini
-            </Button>
-            <Button
-              variant={dateRangePreset === 'all-time' ? 'default' : 'outline'}
-              onClick={() => setDateRangePreset('all-time')}
-              className="text-sm"
-            >
-              Semua Waktu
-            </Button>
-            <Button
-              variant={dateRangePreset === 'custom' ? 'default' : 'outline'}
-              onClick={() => setDateRangePreset('custom')}
-              className="text-sm"
-            >
-              Custom
-            </Button>
+      <section aria-label="Ringkasan periode" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Kpi label="Penjualan" value={formatRupiah(r.revenue)}>
+          <Delta now={r.revenue} before={prev?.revenue} running={data.running} />
+          {!prev?.revenue && `${r.salesCount} penjualan`}
+        </Kpi>
+        <Kpi label="Keuntungan bersih" value={formatRupiah(r.netProfit)} tone={r.netProfit < 0 ? "text-destructive" : "text-primary-ink dark:text-primary"} highlight>
+          Margin {margin.toFixed(1)}%
+        </Kpi>
+        <Kpi label="Uang diterima" value={formatRupiah(r.cashNet)}>Pembayaran masuk dikurangi pengembalian</Kpi>
+        <Kpi label="Belum dibayar" value={formatRupiah(r.outstandingNow)} tone={r.outstandingNow ? "text-request" : undefined}>
+          {r.customersOwing ? `${r.customersOwing} pelanggan · saat ini` : "Semua lunas"}
+        </Kpi>
+      </section>
+
+      {empty ? (
+        <Card className="flex flex-col items-center gap-2 p-10 text-center text-sm text-muted-foreground">
+          <BarChart3 className="h-8 w-8 text-muted-foreground/60" aria-hidden="true" />
+          Belum ada catatan pada periode ini. Pilih periode lain atau <Link to="/sales?new=1" className="font-semibold text-primary hover:underline">catat penjualan</Link>.
+        </Card>
+      ) : (
+        <>
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+            <Card className="flex min-w-0 flex-col p-5">
+              <figure className="flex flex-1 flex-col gap-2">
+                <figcaption className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[15px] font-semibold">Penjualan &amp; keuntungan bersih</span>
+                  <span className="flex items-center gap-4 text-[13px] text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: SALES }} aria-hidden="true" />Penjualan</span>
+                    <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-primary" aria-hidden="true" />Keuntungan bersih</span>
+                  </span>
+                </figcaption>
+                <div className="min-h-[260px] flex-1" aria-hidden="true">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart accessibilityLayer={false} data={data.chart} barGap={3} barCategoryGap="24%" margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                      <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={8} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
+                      <YAxis tickFormatter={axisRupiah} tickLine={false} axisLine={false} width={64} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                      <Tooltip
+                        cursor={{ fill: "hsl(var(--muted))" }}
+                        content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const row = payload[0].payload as (typeof data.chart)[number];
+                          return (
+                            <div className="rounded-lg bg-foreground px-2.5 py-1.5 text-xs text-background shadow-pop">
+                              <p className="font-semibold">{row.full}</p>
+                              <p>Penjualan <strong className="num">{compactRupiah(row.revenue)}</strong></p>
+                              <p>Untung <strong className="num">{compactRupiah(row.profit)}</strong></p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar dataKey="revenue" radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false}>
+                        {data.chart.map((row) => <Cell key={row.full} fill={row.current ? SALES_NOW : SALES} />)}
+                      </Bar>
+                      <Bar dataKey="profit" radius={[4, 4, 0, 0]} maxBarSize={32} isAnimationActive={false}>
+                        {data.chart.map((row) => <Cell key={row.full} className={row.current ? "fill-primary-ink dark:fill-primary" : "fill-primary dark:fill-primary/70"} />)}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="sr-only">
+                  <table>
+                    <caption>Penjualan dan keuntungan bersih per periode</caption>
+                    <thead><tr><th>Periode</th><th>Penjualan</th><th>Keuntungan bersih</th></tr></thead>
+                    <tbody>
+                      {data.chart.map((row) => (
+                        <tr key={row.full}><td>{row.full}</td><td>{formatRupiah(row.revenue)}</td><td>{formatRupiah(row.profit)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </figure>
+            </Card>
+
+            <Card className="p-5">
+              <h2 className="text-[15px] font-semibold">Rincian keuntungan</h2>
+              <dl className="mt-3 text-sm">
+                {breakdown.map((row) => (
+                  <div key={row.label} className={cn("flex items-start justify-between gap-3 py-2", row.sign === "=" && "border-t", row.strong && "font-semibold")}>
+                    <dt className="min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        <span aria-hidden="true" className="w-3 text-muted-foreground">{row.sign === "-" ? "−" : row.sign === "=" ? "=" : ""}</span>
+                        {row.label}
+                      </span>
+                      {row.hint && <span className="ml-[18px] block text-xs font-normal text-muted-foreground">{row.hint}</span>}
+                    </dt>
+                    <dd className={cn("num shrink-0", row.label === "Keuntungan bersih" && (row.value < 0 ? "text-destructive" : "text-primary-ink dark:text-primary"))}>
+                      {row.sign === "-" && row.value ? "−" : ""}
+                      {formatRupiah(row.value)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-3 flex gap-2 rounded-xl bg-muted/70 p-3 text-xs text-muted-foreground">
+                <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span>
+                  Belanja stok periode ini {formatRupiah(r.purchaseGoods)} tidak langsung dikurangkan; modalnya dihitung saat barang terjual.
+                </span>
+              </p>
+            </Card>
           </div>
 
-          {dateRangePreset === 'custom' && (
-            <div className="grid grid-cols-2 gap-4 mt-4 p-4 bg-gray-50 rounded-lg">
-              <div>
-                <Label htmlFor="startDate" className="text-sm font-medium">Tanggal Mulai</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate" className="text-sm font-medium">Tanggal Akhir</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6">
-        <Card className="border-2 border-blue-200 shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-blue-100 rounded-full">
-                <ShoppingBag className="h-8 w-8 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-base text-gray-600 font-semibold mb-1">Total Penjualan</p>
-                <p className="text-3xl font-bold text-blue-700">{formatRupiah(stats.totalSales)}</p>
-                <p className="text-sm text-gray-500 mt-2 font-medium">{stats.transactionCount} transaksi</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-purple-200 shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-purple-100 rounded-full">
-                <DollarSign className="h-8 w-8 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-base text-gray-600 font-semibold mb-1">Total Modal</p>
-                <p className="text-3xl font-bold text-purple-700">{formatRupiah(stats.totalCapital)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2 border-green-300 shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-green-100 rounded-full">
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-base text-gray-600 font-semibold mb-1">Total Keuntungan</p>
-                <p className="text-3xl font-bold text-green-700">{formatRupiah(stats.totalProfit)}</p>
-                {stats.totalCapital > 0 && (
-                  <p className="text-sm text-green-600 font-medium mt-2">
-                    ROI: {((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%
-                  </p>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Summary Insights */}
-      {stats.transactionCount > 0 && (
-        <Card className="border-2 border-indigo-200 shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <ArrowUpDown className="h-5 w-5" />
-              Ringkasan Analisis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
-                {formatRupiah(Math.round(stats.totalSales / stats.transactionCount))}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Rata-rata per Transaksi</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
-                {formatRupiah(Math.round(stats.totalProfit / stats.transactionCount))}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Rata-rata Keuntungan</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
-                {stats.totalCapital > 0 ? `${((stats.totalProfit / stats.totalCapital) * 100).toFixed(1)}%` : '0%'}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Return on Investment</p>
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">
-                {stats.totalSales > 0 ? `${((stats.totalProfit / stats.totalSales) * 100).toFixed(1)}%` : '0%'}
-              </p>
-              <p className="text-sm text-gray-600 font-medium">Margin Keuntungan</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {chartData.length > 0 && (
-        <Card className="border-2 border-gray-300 shadow-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              📈 Grafik Penjualan
-              <span className="text-sm text-gray-600 font-normal">
-                ({chartData.length} periode)
-              </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="period" 
-                  tick={{ fontSize: 12, fontWeight: "bold" }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12, fontWeight: "bold" }}
-                  tickFormatter={(value) => {
-                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-                    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-                    return value.toString();
-                  }}
-                />
-                <Tooltip
-                  formatter={(value: number, name: string) => [
-                    formatRupiah(value),
-                    name === 'profit' ? 'Keuntungan' : 
-                    name === 'sales' ? 'Penjualan' : 'Modal'
-                  ]}
-                  contentStyle={{
-                    backgroundColor: "white",
-                    border: "2px solid #ddd",
-                    borderRadius: "12px",
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                  }}
-                />
-                <Bar dataKey="sales" fill="#3b82f6" radius={[4, 4, 0, 0]} name="sales" />
-                <Bar dataKey="profit" fill="#10b981" radius={[4, 4, 0, 0]} name="profit" />
-                <Bar dataKey="capital" fill="#8b5cf6" radius={[4, 4, 0, 0]} name="capital" />
-              </BarChart>
-            </ResponsiveContainer>
-            
-            <div className="flex justify-center gap-6 mt-4 text-sm font-semibold">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                <span>Penjualan</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-500 rounded"></div>
-                <span>Keuntungan</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-purple-500 rounded"></div>
-                <span>Modal</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
-      {chartData.length === 0 && (
-        <Card className="border-2 border-gray-200 shadow-md">
-          <CardContent className="p-8 text-center">
-            <div className="text-gray-500">
-              <ShoppingBag className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">Tidak ada data penjualan</p>
-              <p className="text-sm mt-2">Belum ada transaksi pada periode yang dipilih</p>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card className="p-5">
+              <h2 className="text-[15px] font-semibold">Produk terlaris</h2>
+              {data.top.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">Belum ada produk terjual pada periode ini.</p>
+              ) : (
+                <ol className="mt-3 space-y-3">
+                  {data.top.map((row, i) => (
+                    <li key={row.name} className="text-sm">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{i + 1}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-medium">{row.name}</span>
+                          <span className="block text-xs text-muted-foreground">{row.quantity} terjual</span>
+                        </span>
+                        <span className="num font-semibold">{formatRupiah(row.revenue)}</span>
+                      </div>
+                      <div className="ml-10 mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                        <div className="h-full rounded-full bg-primary/70" style={{ width: `${(row.revenue / topMax) * 100}%` }} />
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </Card>
+            <Card className="p-5">
+              <h2 className="text-[15px] font-semibold">Pelanggan teratas</h2>
+              {data.buyers.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">Belum ada penjualan pada periode ini.</p>
+              ) : (
+                <ol className="mt-3 divide-y">
+                  {data.buyers.map((row, i) => (
+                    <li key={`${row.name}-${i}`} className="flex items-center gap-3 py-2.5 text-sm first:pt-0">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary-soft text-xs font-semibold text-primary-ink dark:bg-primary/15 dark:text-primary">{i + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{row.name}</span>
+                        <span className="block text-xs text-muted-foreground">{row.orders} penjualan</span>
+                      </span>
+                      <span className="num font-semibold">{formatRupiah(row.revenue)}</span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+              <Link to="/customers" className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline">Lihat semua pelanggan →</Link>
+            </Card>
+          </div>
+        </>
       )}
     </div>
   );

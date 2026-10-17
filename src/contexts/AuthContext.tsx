@@ -9,6 +9,7 @@ import { auth, googleProvider } from '@/lib/firebase';
 import { AuthContextType, UserProfile } from '@/types/user';
 import { getUserProfile, createUserProfile, updateUserProfile as updateUserProfileInDB } from '@/lib/storage';
 import { toast } from 'sonner';
+import { NEW_ACCOUNT_ACCENT } from '@/lib/branding';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -42,6 +43,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               email: firebaseUser.email || '',
               displayName: firebaseUser.displayName || '',
               photoURL: firebaseUser.photoURL || undefined,
+              // Only brand-new accounts start on the platform accent; existing profiles are untouched.
+              businessAccent: NEW_ACCOUNT_ACCENT,
             };
             
             await createUserProfile(newProfile);
@@ -62,31 +65,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // The login page shows progress and errors inline (loading, failed, popup
+  // blocked); the global `loading` flag stays for the auth state itself.
   const signInWithGoogle = async () => {
-    try {
-      setLoading(true);
-      const result = await signInWithPopup(auth, googleProvider);
-      toast.success(`Selamat datang, ${result.user.displayName || result.user.email}!`);
-    } catch (error: any) {
-      console.error('Sign-in error:', error);
-      
-      // Handle specific error cases
-      if (error.code === 'auth/popup-closed-by-user') {
-        // User closed popup - this is normal behavior, don't show error
-        return;
-      } else if (error.code === 'auth/popup-blocked') {
-        toast.error('Popup diblokir browser. Silakan izinkan popup dan coba lagi.');
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        // Another popup was opened - don't show error
-        return;
-      } else {
-        toast.error('Gagal masuk dengan Google. Silakan coba lagi.');
-      }
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+    const result = await signInWithPopup(auth, googleProvider);
+    toast.success(`Selamat datang, ${result.user.displayName || result.user.email}!`);
   };
+
 
   const signOut = async () => {
     try {

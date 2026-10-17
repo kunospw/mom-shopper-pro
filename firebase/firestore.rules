@@ -1,0 +1,173 @@
+rules_version = '2';
+// Proposed replacement based on the live policy supplied on 2026-10-15.
+// Review and test before publishing. This file is not deployed automatically.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ---- Subscription (see docs/subscription.md) ----
+    // PLACEHOLDER: set this to the end of the legacy grace period before deploying.
+    // Shops that were already published before entitlements existed keep working
+    // without an entitlement until this instant; new accounts never benefit from it.
+    function graceEnd() { return timestamp.date(2026, 12, 31); }
+    // Trial and paid access are evaluated here from server time, never by the client.
+    function entActive(e) {
+      return (e.paidUntil != null && request.time < e.paidUntil) ||
+        request.time < e.trialStartedAt + duration.value(7, 'd');
+    }
+    function hasAccess(id) {
+      let path = /databases/$(database)/documents/entitlements/$(id);
+      return exists(path) ? entActive(get(path).data) : request.time < graceEnd();
+    }
+    // Access that will exist after this write (no grace: new accounts must start the trial).
+    function activeAfter(id) {
+      let path = /databases/$(database)/documents/entitlements/$(id);
+      return existsAfter(path) && entActive(getAfter(path).data);
+    }
+
+    // Preserve profile and transaction access for each signed-in owner.
+    // The former global authenticated catch-all is intentionally removed.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /storefronts/{storeId} {
+      function owner() { return request.auth != null && request.auth.uid == storeId; }
+      function raster(value, limit) {
+        return value is string && value.size() <= limit &&
+          (value == '' || value.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$'));
+      }
+      function validStore(d) {
+        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','assistant','updatedAt']) &&
+          d.keys().hasAll(['name','description','whatsapp','accent','logo','published','slug','updatedAt']) &&
+          d.slug is string && (d.slug == '' || (d.slug.matches('^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$') && !(d.slug in reserved()) &&
+            getAfter(/databases/$(database)/documents/slugs/$(d.slug)).data.storeId == storeId)) &&
+          d.name is string && d.name.size() <= 80 && d.description is string && d.description.size() <= 600 &&
+          d.whatsapp is string && (d.whatsapp == '' || d.whatsapp.matches('^[1-9][0-9]{7,14}$')) &&
+          d.accent in ['forest','teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
+          (!('assistant' in d) || d.assistant is bool) &&
+          (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) &&
+          // Publishing needs a running trial/plan, unless the shop was already published.
+          (!d.published || (resource != null && resource.data.published == true) || activeAfter(storeId)) &&
+          d.updatedAt == request.time;
+      }
+      function reserved() {
+        return ['admin','api','app','catalog','customers','costs','login','logout','orders','reports','sales','settings','shop','signup','static','www'];
+      }
+      function choice(values, i) {
+        return values.size() <= i || (values[i] is map && values[i].keys().hasOnly(['label','price']) &&
+          values[i].keys().hasAll(['label','price']) && values[i].label is string && values[i].label.size() > 0 &&
+          values[i].label.size() <= 50 && values[i].price is int && values[i].price >= 0 && values[i].price <= 1000000000);
+      }
+      function validProduct(d) {
+        return d.keys().hasOnly(['name','description','category','price','image','availability','leadTime','optionLabel','options','kind','published','updatedAt']) &&
+          d.keys().hasAll(['name','description','category','price','image','availability','leadTime','optionLabel','options','kind','published','updatedAt']) &&
+          d.kind in ['physical','digital'] &&
+          d.name is string && d.name.size() > 0 && d.name.size() <= 80 && d.description is string && d.description.size() <= 1500 &&
+          d.category is string && d.category.size() <= 40 && d.price is int && d.price > 0 && d.price <= 1000000000 && raster(d.image,180000) &&
+          d.availability in ['ready','preorder','unavailable'] && d.leadTime is string && d.leadTime.size() <= 100 &&
+          (d.availability != 'preorder' || d.leadTime.size() > 0) && d.optionLabel is string && d.optionLabel.size() > 0 && d.optionLabel.size() <= 30 &&
+          d.options is list && d.options.size() <= 8 &&
+          choice(d.options,0) && choice(d.options,1) && choice(d.options,2) && choice(d.options,3) &&
+          choice(d.options,4) && choice(d.options,5) && choice(d.options,6) && choice(d.options,7) &&
+          d.published is bool && d.updatedAt == request.time;
+      }
+      allow get: if owner() || resource.data.published == true;
+      allow list: if false;
+      allow create, update: if owner() && validStore(request.resource.data);
+      allow delete: if owner();
+      match /products/{productId} {
+        allow read: if owner() || (resource.data.published == true && get(/databases/$(database)/documents/storefronts/$(storeId)).data.published == true &&
+          hasAccess(storeId));
+        allow create, update: if owner() && validProduct(request.resource.data);
+        allow delete: if owner();
+      }
+      match /orders/{orderId} {
+        // Rules cap evaluation at 1000 expressions; with these checks 6 items is the most that fits.
+        // Reading each required field also fails when a key is missing.
+        function orderItem(it) {
+          // Eight fields, each read and typed below, so a size check rules out extras.
+          return it.size() == 8 &&
+            it.productId is string && it.name is string && it.name.size() > 0 && it.name.size() <= 80 &&
+            it.option is string && it.option.size() <= 50 && it.kind in ['physical','digital'] &&
+            it.unitPrice is int && it.unitPrice > 0 && it.unitPrice <= 1000000000 &&
+            it.quantity is int && it.quantity > 0 && it.quantity < 100 &&
+            it.availability in ['ready','preorder'] && it.leadTime is string && it.leadTime.size() <= 100;
+        }
+        function orderItemAt(items, i) {
+          return items.size() <= i || orderItem(items[i]);
+        }
+        // The shop details shown on the status page are frozen into the order, so
+        // tracking keeps working after the seller unpublishes or the plan expires.
+        function validShop(d, s) {
+          return d is map && d.size() == 3 &&
+            d.name == s.name && d.whatsapp == s.whatsapp && d.slug == s.slug;
+        }
+        // `steps` records when each progress stage was reached; only the stage being
+        // set now may change, and it must carry the server time.
+        function validSteps(next, prev) {
+          return !('steps' in next.diff(prev).affectedKeys()) ||
+            (next.steps is map &&
+              next.steps.diff(prev.get('steps', {})).affectedKeys().hasOnly([next.progress]) &&
+              next.steps[next.progress] == request.time);
+        }
+        function validOrder(d, s) {
+          return d.keys().hasOnly(['status','progress','buyerName','note','items','subtotal','trackingNo','sellerNote','shop','steps','createdAt','updatedAt']) &&
+            d.keys().hasAll(['status','progress','buyerName','note','items','subtotal','trackingNo','sellerNote','shop','steps','createdAt','updatedAt']) &&
+            s.published == true && validShop(d.shop, s) && d.steps == {} &&
+            d.status == 'pending' && d.progress == 'pending' && d.trackingNo == '' && d.sellerNote == '' &&
+            d.buyerName is string && d.buyerName.size() > 0 && d.buyerName.size() <= 60 &&
+            d.note is string && d.note.size() <= 300 &&
+            d.items is list && d.items.size() >= 1 && d.items.size() <= 6 &&
+            orderItemAt(d.items,0) && orderItemAt(d.items,1) && orderItemAt(d.items,2) && orderItemAt(d.items,3) && orderItemAt(d.items,4) && orderItemAt(d.items,5) &&
+            d.subtotal is int && d.subtotal > 0 && d.subtotal <= 100000000000 &&
+            d.createdAt == request.time && d.updatedAt == request.time;
+        }
+        // Anyone holding the unguessable order ID may read it (buyer status page).
+        allow get: if true;
+        allow list: if owner();
+        // New requests need an open shop with an active plan. Reading and updating
+        // existing orders is never gated by publish state or the plan.
+        allow create: if validOrder(request.resource.data, get(/databases/$(database)/documents/storefronts/$(storeId)).data) &&
+          hasAccess(storeId);
+        allow update: if owner() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','progress','trackingNo','sellerNote','steps','updatedAt']) &&
+          validSteps(request.resource.data, resource.data) &&
+          request.resource.data.status in ['pending','confirmed','rejected'] &&
+          (resource.data.status == 'pending' || request.resource.data.status == resource.data.status) &&
+          request.resource.data.progress in ['pending','confirmed','packed','shipped','delivered','done','cancelled'] &&
+          request.resource.data.trackingNo is string && request.resource.data.trackingNo.size() <= 60 &&
+          request.resource.data.sellerNote is string && request.resource.data.sellerNote.size() <= 300 &&
+          request.resource.data.updatedAt == request.time;
+        allow delete: if false;
+      }
+    }
+
+    // Plan state: the client may only start the trial, and only for a published shop.
+    // `paidUntil` is set by the operator (console / Admin SDK), never by a client.
+    match /entitlements/{userId} {
+      allow get: if request.auth != null && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if request.auth != null && request.auth.uid == userId &&
+        request.resource.data.keys().hasOnly(['trialStartedAt','paidUntil']) &&
+        request.resource.data.keys().hasAll(['trialStartedAt','paidUntil']) &&
+        request.resource.data.trialStartedAt == request.time &&
+        request.resource.data.paidUntil == null &&
+        getAfter(/databases/$(database)/documents/storefronts/$(userId)).data.published == true;
+      allow update, delete: if false;
+    }
+
+    // Readable shop links: slugs/{slug} -> { storeId }. Tied to the storefront's own slug field.
+    match /slugs/{slug} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasOnly(['storeId']) &&
+        request.resource.data.storeId == request.auth.uid &&
+        getAfter(/databases/$(database)/documents/storefronts/$(request.auth.uid)).data.slug == slug;
+      allow delete: if request.auth != null && resource.data.storeId == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}

@@ -7,102 +7,117 @@ All colors MUST be HSL.
 */
 
 @layer base {
+  /* LarisKu design tokens. Colors are HSL triplets converted from the design hexes. */
   :root {
-    --background: 40 30% 96%;
-    --foreground: 30 20% 20%;
+    --background: 72 20% 95%;            /* #F4F5F0 */
+    --foreground: 148 17% 17%;           /* #24332B */
 
-    --card: 40 40% 98%;
-    --card-foreground: 30 20% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 148 17% 17%;
 
-    --popover: 40 40% 98%;
-    --popover-foreground: 30 20% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 148 17% 17%;
 
-    --primary: 145 60% 45%;
+    /* The brand falls back to the original teal so owners who never chose a color keep it. */
+    --primary: var(--brand, 173 80% 26%);
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 35% 75%;
-    --secondary-foreground: 30 20% 20%;
+    --secondary: 75 13% 94%;             /* #F1F2EE */
+    --secondary-foreground: 148 17% 17%;
 
-    --muted: 40 25% 90%;
-    --muted-foreground: 30 15% 45%;
+    --muted: 75 13% 94%;
+    --muted-foreground: 140 6% 39%;      /* #5E6A62, 5.6:1 */
 
-    --accent: 25 45% 55%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 96 19% 95%;                /* #F1F4EF hover */
+    --accent-foreground: 148 17% 17%;
 
-    --destructive: 0 70% 50%;
+    --destructive: 5 54% 42%;            /* #A33A31 */
     --destructive-foreground: 0 0% 100%;
+    --danger-soft: 10 67% 93%;           /* #F9E5E1 */
 
-    --success: 145 60% 45%;
+    --success: 146 55% 27%;              /* #1F6B40 */
     --success-foreground: 0 0% 100%;
+    --success-soft: 137 33% 92%;         /* #E3F1E7 */
 
-    --pending: 15 85% 55%;
+    --warning: 37 85% 27%;               /* #7F520A */
+    --warning-foreground: 0 0% 100%;
+    --warning-soft: 41 81% 92%;          /* #FBF0D9 */
+    --pending: var(--warning);           /* existing name kept as an alias */
     --pending-foreground: 0 0% 100%;
 
-    --border: 40 20% 85%;
-    --input: 40 20% 85%;
-    --ring: 145 60% 45%;
+    --info: 207 49% 34%;                 /* #2C5A80 */
+    --info-soft: 206 44% 93%;            /* #E5EEF5 */
 
-    --radius: 1rem;
+    --request: 24 56% 35%;               /* #8A4F27, order requests */
+    --request-soft: 29 56% 92%;          /* #F6EADF */
+    --clay: 25 51% 64%;                  /* #D29B75 */
 
-    --sidebar-background: 0 0% 98%;
+    --border: 105 16% 90%;               /* #E4EAE2 */
+    /* Form-control borders need 3:1 against the surface (WCAG 1.4.11). */
+    --input: 132 5% 52%;                 /* ~#7E8780: 3.4:1 on the page background; the design's #D5DDD3 is only 1.5:1 */
+    --ring: var(--primary);
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --radius: 0.625rem;                  /* controls 10px; cards 16px; sheets 24px via Tailwind */
 
-    --sidebar-primary: 240 5.9% 10%;
+    --shadow-card: 0 1px 2px 0 hsl(148 17% 17% / 0.05);                           /* e1 */
+    --shadow-pop: 0 4px 14px -4px hsl(148 17% 17% / 0.12);                        /* e2 menu */
+    --shadow-dialog: 0 24px 48px -12px hsl(148 17% 17% / 0.24);                   /* e3 dialog */
 
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 148 17% 17%;
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 96 19% 95%;
+    --sidebar-accent-foreground: 148 17% 17%;
+    --sidebar-border: 105 16% 90%;
+    --sidebar-ring: var(--primary);
   }
 
   .dark {
-    --background: 30 15% 12%;
-    --foreground: 40 30% 96%;
-
-    --card: 30 15% 15%;
-    --card-foreground: 40 30% 96%;
-
-    --popover: 30 15% 15%;
-    --popover-foreground: 40 30% 96%;
-
-    --primary: 145 60% 45%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 30 20% 25%;
-    --secondary-foreground: 40 30% 96%;
-
-    --muted: 30 15% 20%;
-    --muted-foreground: 40 15% 60%;
-
-    --accent: 25 45% 55%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 70% 50%;
-    --destructive-foreground: 0 0% 100%;
-
-    --success: 145 60% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --pending: 15 85% 55%;
-    --pending-foreground: 0 0% 100%;
-
-    --border: 30 15% 25%;
-    --input: 30 15% 25%;
-    --ring: 145 60% 45%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 146 15% 9%;            /* #141B17 */
+    --foreground: 129 14% 90%;           /* #E3EAE4 */
+    --card: 147 14% 13%;                 /* #1C2520 */
+    --card-foreground: 129 14% 90%;
+    --popover: 147 14% 13%;
+    --popover-foreground: 129 14% 90%;
+    --primary: var(--brand-dark, 173 65% 60%);
+    --primary-foreground: 146 15% 9%;
+    --secondary: 150 12% 16%;
+    --secondary-foreground: 129 14% 90%;
+    --muted: 150 12% 16%;
+    --muted-foreground: 140 9% 70%;
+    --accent: 150 12% 19%;
+    --accent-foreground: 129 14% 90%;
+    --destructive: 5 75% 74%;
+    --destructive-foreground: 146 15% 9%;
+    --danger-soft: 6 35% 17%;
+    --success: 144 40% 68%;
+    --success-foreground: 146 15% 9%;
+    --success-soft: 146 28% 16%;
+    --warning: 40 75% 68%;
+    --warning-foreground: 146 15% 9%;
+    --warning-soft: 38 40% 15%;
+    --pending: var(--warning);
+    --pending-foreground: 146 15% 9%;
+    --info: 207 60% 74%;
+    --info-soft: 207 35% 16%;
+    --request: 25 65% 72%;
+    --request-soft: 26 35% 16%;
+    --clay: 25 45% 62%;
+    --border: 153 12% 19%;               /* #2A3530 */
+    --input: 145 9% 46%;
+    --ring: var(--primary);
+    --shadow-card: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-pop: 0 4px 14px -4px hsl(0 0% 0% / 0.5);
+    --shadow-dialog: 0 24px 48px -12px hsl(0 0% 0% / 0.6);
+    --sidebar-background: 147 14% 13%;
+    --sidebar-foreground: 129 14% 90%;
+    --sidebar-primary: var(--primary);
+    --sidebar-primary-foreground: 146 15% 9%;
+    --sidebar-accent: 150 12% 19%;
+    --sidebar-accent-foreground: 129 14% 90%;
+    --sidebar-border: 153 12% 19%;
+    --sidebar-ring: var(--primary);
   }
 }
 
@@ -113,33 +128,21 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-size: 16px; /* Base font size for better readability */
-  }
-
-  /* Larger base font sizes for better readability for older users */
-  p, span, div {
     font-size: 1rem;
   }
 
-  h1 {
-    font-size: 2rem;
-  }
+  html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  h1, h2, h3 { letter-spacing: -0.015em; }
+  button, input, select, textarea { font: inherit; }
+  :focus-visible { outline-offset: 3px; }
 
-  h2 {
-    font-size: 1.75rem;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
-
-  /* Improve text readability with better line height */
-  p, span, div, button {
-    line-height: 1.6;
-  }
 }
 
 @layer utilities {
+  /* Aligned digits make columns of money easy to scan. */
+  .num { font-variant-numeric: tabular-nums; }
+  .pb-safe { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
   /* Hide scrollbar but keep scrolling functionality */
   .scrollbar-hide {
     /* Hide scrollbar for IE, Edge and Firefox */
@@ -151,4 +154,23 @@ All colors MUST be HSL.
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Keep exported invoices as readable light paper, independent of workspace appearance. */
+.invoice-paper {
+  color-scheme: light;
+  --foreground: 148 17% 17%;
+  --card: 0 0% 100%;
+  --card-foreground: 148 17% 17%;
+  --primary: var(--brand, 173 80% 26%);
+  --muted: 75 13% 94%;
+  --muted-foreground: 140 6% 39%;
+  --border: 105 16% 90%;
+  --success: 146 55% 27%;
+  --pending: 37 85% 27%;
+  background: white;
+  color: hsl(var(--card-foreground));
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

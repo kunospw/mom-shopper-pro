@@ -22,6 +22,9 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          // Tinted background of the owner's accent (active nav, quiet buttons); light mode only.
+          soft: "hsl(var(--brand-soft, var(--accent)))",
+          ink: "hsl(var(--brand-ink, var(--primary)))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -30,14 +33,37 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          soft: "hsl(var(--danger-soft))",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
+          soft: "hsl(var(--success-soft))",
         },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+          soft: "hsl(var(--warning-soft))",
+        },
+        // Kept so existing `text-pending` / `bg-pending/10` classes still work.
         pending: {
           DEFAULT: "hsl(var(--pending))",
           foreground: "hsl(var(--pending-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          soft: "hsl(var(--info-soft))",
+        },
+        request: {
+          DEFAULT: "hsl(var(--request))",
+          soft: "hsl(var(--request-soft))",
+        },
+        clay: "hsl(var(--clay))",
+        // Buyer pages: the shop's own accent, with its tinted background and dark text.
+        shop: {
+          DEFAULT: "hsl(var(--brand, var(--primary)))",
+          soft: "hsl(var(--shop-soft, var(--accent)))",
+          ink: "hsl(var(--shop-ink, var(--primary)))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -65,6 +91,15 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        pop: "var(--shadow-pop)",
+        dialog: "var(--shadow-dialog)",
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
       },
       borderRadius: {
         lg: "var(--radius)",
