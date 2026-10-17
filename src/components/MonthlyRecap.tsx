@@ -195,7 +195,7 @@ export const MonthlyRecap = ({ sales, purchases, expenses }: { sales: Sale[]; pu
                 </figcaption>
                 <div className="min-h-[260px] flex-1" aria-hidden="true">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={data.chart} barGap={3} barCategoryGap="24%" margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+                    <BarChart accessibilityLayer={false} data={data.chart} barGap={3} barCategoryGap="24%" margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
                       <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
                       <XAxis dataKey="label" tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={8} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
                       <YAxis tickFormatter={axisRupiah} tickLine={false} axisLine={false} width={64} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />

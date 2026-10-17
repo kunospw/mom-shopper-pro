@@ -166,8 +166,10 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 
 export const createUserProfile = async (profile: Omit<UserProfile, 'createdAt' | 'updatedAt'>): Promise<void> => {
   try {
+    // Firestore rejects undefined values (e.g. a Google account without a photo)
+    const defined = Object.fromEntries(Object.entries(profile).filter(([, value]) => value !== undefined));
     await setDoc(doc(db, "users", profile.uid), {
-      ...profile,
+      ...defined,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

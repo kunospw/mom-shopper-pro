@@ -109,7 +109,7 @@ function SalesChart({ period }: { period: Period }) {
       </figcaption>
       <div className="h-[230px]" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={4} barCategoryGap="28%" margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+          <BarChart accessibilityLayer={false} data={data} barGap={4} barCategoryGap="28%" margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
             <CartesianGrid vertical={false} stroke="hsl(var(--border))" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }} />
             <YAxis tickFormatter={axisRupiah} tickLine={false} axisLine={false} width={44} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
@@ -338,7 +338,7 @@ export function Beranda({ name, link, onShare }: { name: string; link: string; o
             <div className="flex items-center justify-between">
               <h2 className="text-sm opacity-90">Keuntungan bersih</h2>
               {before.netProfit > 0 && (
-                <span className="inline-flex items-center gap-0.5 rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
+                <span className="inline-flex items-center gap-0.5 rounded-full bg-black/20 px-2 py-0.5 text-xs font-semibold dark:bg-white/10">
                   {report.netProfit >= before.netProfit ? <ArrowUpRight className="h-3 w-3" aria-hidden="true" /> : <ArrowDownRight className="h-3 w-3" aria-hidden="true" />}
                   {Math.abs(Math.round(((report.netProfit - before.netProfit) / before.netProfit) * 100))}%
                   <span className="sr-only">{report.netProfit >= before.netProfit ? "naik" : "turun"} {previousLabel}</span>

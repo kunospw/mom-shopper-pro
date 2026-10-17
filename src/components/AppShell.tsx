@@ -148,6 +148,7 @@ function Shell() {
         key={id}
         to={item.path}
         end={item.path === "/"}
+        aria-label={id === "orders" && pendingOrders > 0 ? `${item.label}, ${pendingOrders} menunggu` : undefined}
         className={({ isActive }) =>
           cn(
             "relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors",
@@ -166,7 +167,7 @@ function Shell() {
               <Icon className="h-5 w-5" aria-hidden="true" />
               {id === "orders" && pendingOrders > 0 && (
                 <span
-                  aria-label={`${pendingOrders} menunggu`}
+                  aria-hidden="true"
                   className="absolute -right-0.5 -top-1 min-w-4 rounded-full bg-primary px-1 text-[10px] font-semibold leading-4 text-primary-foreground"
                 >
                   {pendingOrders > 9 ? "9+" : pendingOrders}
