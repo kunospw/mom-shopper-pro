@@ -64,3 +64,6 @@ export function upgradeMessage({
 export function upgradeLink(text: string, phone = UPGRADE_WHATSAPP) {
   return phone ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` : null;
 }
+
+/** The shop assistant is offered once the operator has set up Ollama (docs/shop-assistant.md). */
+export const SHOP_ASSISTANT_ENABLED = import.meta.env?.VITE_SHOP_ASSISTANT === "1";

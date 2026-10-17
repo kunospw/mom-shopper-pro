@@ -56,6 +56,8 @@ import {
   focusRing,
   useShopTheme,
 } from "@/components/shop/shop-ui";
+import { ShopAssistant } from "@/components/shop/ShopAssistant";
+import { SHOP_ASSISTANT_ENABLED } from "@/lib/plan-config";
 
 type CatalogData = { store: Storefront; products: CatalogProduct[] };
 type Placed = { id: string; waUrl: string; message: string; statusPath: string };
@@ -851,7 +853,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
         </nav>
       )}
 
-      <main className="flex-1 px-5 pb-32 pt-3">
+      <main className={cn("flex-1 px-5 pt-3", SHOP_ASSISTANT_ENABLED && store.assistant ? "pb-48" : "pb-32")}>
         <p role="status" className="sr-only">{notice}</p>
         {shown.length ? (
           <section aria-label="Produk katalog" className="grid grid-cols-2 gap-x-3 gap-y-3.5 sm:grid-cols-3">
@@ -888,6 +890,10 @@ function CatalogView({ initial }: { initial: CatalogData }) {
           Harga akhir, stok, ongkir, dan pembayaran dikonfirmasi langsung oleh penjual.
         </p>
       </main>
+
+      {SHOP_ASSISTANT_ENABLED && store.assistant && (
+        <ShopAssistant store={store} slug={slugOf(store)} products={products} raised={count > 0} onOpenProduct={(id) => go({ product: id })} />
+      )}
 
       {count > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-[max(1.75rem,env(safe-area-inset-bottom))]">

@@ -33,6 +33,11 @@ export default defineConfig({
       VITE_FIREBASE_APP_ID: "demo-app",
       VITE_FIRESTORE_EMULATOR_PORT: "8088",
       VITE_AUTH_EMULATOR_PORT: "9099",
+      // shop assistant: the real handler, against a fake Ollama server the test runs
+      VITE_SHOP_ASSISTANT: "1",
+      OLLAMA_API_KEY: "test-key",
+      OLLAMA_HOST: "http://127.0.0.1:11499",
+      FIRESTORE_EMULATOR_HOST: "127.0.0.1:8088",
     },
   },
 });

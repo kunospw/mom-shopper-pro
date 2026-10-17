@@ -9,7 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check": "node scripts/check-books.mjs && node scripts/check-catalog.mjs && node scripts/check-design.mjs && node scripts/check-contrast.mjs && node scripts/check-status.mjs && node scripts/check-entitlement.mjs && node scripts/check-plan.mjs && node scripts/check-setup.mjs && node scripts/check-import.mjs && node scripts/check-pwa.mjs",
+    "check": "node scripts/check-books.mjs && node scripts/check-catalog.mjs && node scripts/check-design.mjs && node scripts/check-contrast.mjs && node scripts/check-status.mjs && node scripts/check-entitlement.mjs && node scripts/check-plan.mjs && node scripts/check-setup.mjs && node scripts/check-import.mjs && node scripts/check-pwa.mjs && node scripts/check-assistant.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json",
     "test:unit": "npm run check",
     "test:e2e": "playwright test",

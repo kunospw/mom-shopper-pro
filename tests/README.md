@@ -46,6 +46,7 @@ Useful options:
 | Laporan breakdown and identities | `reports` | `books-plan` (exact numbers) | `check-books` (randomized ledgers) |
 | Trial, expiry, paywall, "Saya sudah bayar" | `trial-gate`, `paywall-promosi` | `books-plan` (time travel, rules deny) | `check-entitlement`, `rules-subscription` |
 | Promosi (broadcast, images) | `paywall-promosi` | – | `check-plan` |
+| Shop assistant (buyer Q&A, owner opt-in) | `shop-assistant` | `assistant` (real handler + rules, fake Ollama) | `check-assistant`, `rules` |
 | Pengaturan and invoice PDF | `settings-invoice` | persistence: `books-plan` | – |
 | Owner isolation, anonymous access | – | `books-plan` | `rules` |
 | Installable app, offline shell, update, order notifications | `pwa`, `order-alerts` | – | `check-pwa` |
@@ -53,4 +54,4 @@ Useful options:
 | Accessibility (axe, WCAG 2.1 AA: no serious/critical) on every workspace page, dialogs, buyer pages, login, 404 | `accessibility` | – | `check-contrast` |
 | No horizontal overflow at 390 px | most specs (`noHorizontalOverflow`) | – | – |
 
-Not covered automatically: Google's real account picker, real WhatsApp delivery (wa.me links are checked, not opened), browser install prompts on real phones, and printing.
+Not covered automatically: answers from the real Ollama Cloud model (see the preview checklist in `docs/shop-assistant.md`), Google's real account picker, real WhatsApp delivery (wa.me links are checked, not opened), browser install prompts on real phones, and printing.

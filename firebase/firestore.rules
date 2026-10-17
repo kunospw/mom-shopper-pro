@@ -39,13 +39,14 @@ service cloud.firestore {
           (value == '' || value.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$'));
       }
       function validStore(d) {
-        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','updatedAt']) &&
+        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','assistant','updatedAt']) &&
           d.keys().hasAll(['name','description','whatsapp','accent','logo','published','slug','updatedAt']) &&
           d.slug is string && (d.slug == '' || (d.slug.matches('^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$') && !(d.slug in reserved()) &&
             getAfter(/databases/$(database)/documents/slugs/$(d.slug)).data.storeId == storeId)) &&
           d.name is string && d.name.size() <= 80 && d.description is string && d.description.size() <= 600 &&
           d.whatsapp is string && (d.whatsapp == '' || d.whatsapp.matches('^[1-9][0-9]{7,14}$')) &&
           d.accent in ['forest','teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
+          (!('assistant' in d) || d.assistant is bool) &&
           (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) &&
           // Publishing needs a running trial/plan, unless the shop was already published.
           (!d.published || (resource != null && resource.data.published == true) || activeAfter(storeId)) &&

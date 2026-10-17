@@ -35,7 +35,7 @@ See [tests/README.md](../tests/README.md).
 ## 2. Deploy order
 
 1. **Back up Firestore** (console export or `gcloud firestore export`).
-2. **Set the environment variables** in Vercel (Production and Preview): the Firebase keys plus `VITE_PLAN_PRICE_IDR`, `VITE_UPGRADE_WHATSAPP`, `VITE_GRACE_END`.
+2. **Set the environment variables** in Vercel (Production and Preview): the Firebase keys plus `VITE_PLAN_PRICE_IDR`, `VITE_UPGRADE_WHATSAPP`, `VITE_GRACE_END`. Optional shop assistant: `OLLAMA_API_KEY` (server only), `OLLAMA_MODEL`, `VITE_SHOP_ASSISTANT=1` (see [shop assistant](shop-assistant.md)). Never set `VITE_FIREBASE_EMULATOR` in Vercel.
 3. **Publish the rules and deploy the client back to back**, at a quiet hour:
    - Publish `firebase/firestore.rules` in Firebase console → Firestore → Rules (the repo has no `firebase.json`, so use the console or your own deploy config).
    - Immediately deploy the client (merge to the production branch or promote the preview).

@@ -185,6 +185,12 @@ try {
   await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, accent: "forest" }));
   for (const accent of ["pink", "Forest", ""])
     await assertFails(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, accent }));
+  // shop assistant opt-in: optional boolean
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, assistant: true }));
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, assistant: false }));
+  for (const assistant of ["yes", 1, null])
+    await assertFails(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, assistant }));
+  await assertFails(setDoc(doc(other, "storefronts/seller-a"), { ...shop, assistant: true }));
   await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
   // ---- orders, slugs (PR B) ----
   await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));

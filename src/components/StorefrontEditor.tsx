@@ -9,6 +9,7 @@ import { useSlugCheck } from "@/hooks/use-slug-check";
 import { storefrontSchema, type StorefrontFields } from "@/lib/catalog";
 import { effectiveAccentKey } from "@/lib/branding";
 import { toWhatsApp, whatsAppPattern } from "@/lib/store-setup";
+import { SHOP_ASSISTANT_ENABLED } from "@/lib/plan-config";
 export function StorefrontEditor({
   initial,
   wasPublished = false,
@@ -162,6 +163,23 @@ export function StorefrontEditor({
             onCheckedChange={(value) => change("published", value)}
           />
         </div>
+        {SHOP_ASSISTANT_ENABLED && (
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-4">
+            <div className="min-w-0">
+              <Label htmlFor="store-assistant">Asisten tanya-jawab otomatis</Label>
+              <p id="store-assistant-note" className="mt-1 text-xs text-muted-foreground">
+                Menjawab pertanyaan pembeli dari katalog Anda. Stok, ongkir dan pembayaran tetap lewat WhatsApp Anda.
+                {!draft.published && " Aktif saat toko dibuka."}
+              </p>
+            </div>
+            <Switch
+              id="store-assistant"
+              checked={draft.assistant === true}
+              aria-describedby="store-assistant-note"
+              onCheckedChange={(value) => change("assistant", value)}
+            />
+          </div>
+        )}
       </fieldset>
       {error && (
         <p role="alert" className="text-sm text-destructive">

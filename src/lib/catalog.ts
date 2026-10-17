@@ -37,6 +37,8 @@ export const storefrontSchema = z
     logo: image(140000),
     published: z.boolean(),
     slug: z.union([z.literal(""), slugSchema]),
+    // Shop assistant (buyer Q&A, docs/shop-assistant.md); absent on older shops = off.
+    assistant: z.boolean().optional(),
   })
   .strict()
   .refine(
@@ -114,7 +116,7 @@ export function readStorefront(
   id: string,
   value: Record<string, unknown>,
 ): Storefront {
-  const { name, description, whatsapp, accent, logo, published, slug } = value;
+  const { name, description, whatsapp, accent, logo, published, slug, assistant } = value;
   return {
     id,
     ...storefrontSchema.parse({
@@ -125,6 +127,7 @@ export function readStorefront(
       logo,
       published,
       slug: slug ?? "",
+      assistant: assistant === true,
     }),
   };
 }

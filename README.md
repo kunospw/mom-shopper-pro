@@ -12,6 +12,7 @@ A WhatsApp-first shop and bookkeeping app for small resellers, built with React,
 - **Pelanggan**: purchase history and what each customer still owes, with WhatsApp reminders.
 - **Katalog**: products with cost and optional automatic stock, show/hide per product.
 - **Pembelian & biaya**: stock purchases (adding to stock) and business costs.
+- **Asisten toko** (optional): buyers can ask questions on the shop page; answers come from the published catalog via Ollama Cloud, and stock, shipping and payment go to WhatsApp. See [shop assistant](docs/shop-assistant.md).
 - **Laporan**: sales, cost of goods, costs and net profit per period, with the full breakdown. See [accounting rules](docs/accounting.md) and the [bookkeeping model](docs/bookkeeping.md).
 - **Promosi**: WhatsApp broadcast and status text, story and post images, shop and product links.
 - **Langganan**: 7-day free trial for the online shop, paid plan via WhatsApp; bookkeeping stays free. See [plan and trial](docs/subscription.md).

@@ -16,7 +16,11 @@ export default defineConfig({
   root: repo,
   server: { port: 8099, strictPort: true, fs: { allow: [repo] } },
   preview: { port: 8097, strictPort: true },
-  define: { "import.meta.env.VITE_GRACE_END": JSON.stringify("2999-01-01T00:00:00Z") },
+  define: {
+    "import.meta.env.VITE_GRACE_END": JSON.stringify("2999-01-01T00:00:00Z"),
+    // the shop assistant UI is on; /api/shop-chat is stubbed per test
+    "import.meta.env.VITE_SHOP_ASSISTANT": JSON.stringify("1"),
+  },
   plugins: [react()],
   resolve: {
     alias: [

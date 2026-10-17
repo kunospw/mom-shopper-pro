@@ -61,7 +61,7 @@ export async function saveStorefront(
   // The storefront and its slug claim change together or not at all.
   const batch = writeBatch(db);
   batch.set(doc(db, "storefronts", id), {
-    ...safe,
+    ...Object.fromEntries(Object.entries(safe).filter(([, value]) => value !== undefined)),
     updatedAt: serverTimestamp(),
   });
   if (previousSlug && previousSlug !== safe.slug)
