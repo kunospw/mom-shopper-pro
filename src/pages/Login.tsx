@@ -51,6 +51,56 @@ function Brand({ size = "md" }: { size?: "md" | "sm" }) {
   );
 }
 
+/** Phone version of the brand collage: sales card, a shop preview and a new-order alert (not real data). */
+function MobileCollage() {
+  return (
+    <div aria-hidden="true" className="relative mx-auto h-[236px] w-full max-w-[360px] [@media(max-height:720px)]:hidden">
+      {/* shop preview, tilted behind */}
+      <div className="absolute right-0 top-0 w-[54%] rotate-[4deg] rounded-[18px] bg-[#FBFBF8] p-2.5 text-foreground shadow-[0_18px_36px_-14px_rgba(10,30,20,0.55)]">
+        <div className="flex items-center gap-1.5 rounded-xl bg-[#E9F0E7] px-2 py-1.5">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-clay text-[9px] font-bold text-white">S</span>
+          <span className="truncate text-[10px] font-bold text-primary-ink">Toko Bu Sari</span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          {[
+            { bg: "#EFE3D6", name: "Hijab Voal", price: "Rp 45.000" },
+            { bg: "#E2EADF", name: "Gamis Rayon", price: "Rp 189.000" },
+          ].map((p) => (
+            <div key={p.name}>
+              <div className="aspect-square rounded-lg" style={{ background: p.bg }} />
+              <p className="mt-1 truncate text-[9px] font-semibold">{p.name}</p>
+              <p className="num text-[9px] font-bold text-primary-ink">{p.price}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+      {/* sales card in front */}
+      <div className="absolute left-0 top-[34px] w-[64%] rounded-2xl bg-white p-3.5 text-foreground shadow-[0_20px_40px_-14px_rgba(10,30,20,0.55)]">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-muted-foreground">Total penjualan · Okt</span>
+          <span className="text-[10.5px] font-semibold text-success">↑ 12%</span>
+        </div>
+        <p className="num mt-1 text-xl font-bold">Rp 18.450.000</p>
+        <div className="mt-2 flex h-14 items-end gap-1.5">
+          {[38, 52, 46, 64, 58, 82].map((h, i) => (
+            <span key={i} className={cn("flex-1 rounded-t-[4px]", i === 5 ? "bg-primary" : "bg-[#A3B8A0]")} style={{ height: `${h}%` }} />
+          ))}
+        </div>
+      </div>
+      {/* new order alert */}
+      <div className="absolute bottom-0 right-2 flex w-[70%] items-center gap-2.5 rounded-2xl bg-white px-3 py-2.5 text-foreground shadow-[0_16px_32px_-12px_rgba(10,30,20,0.6)]">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-request-soft text-request">
+          <Inbox className="h-4 w-4" />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-[11.5px] font-semibold">Pesanan baru masuk</span>
+          <span className="block truncate text-[10.5px] text-muted-foreground">Ayu Lestari · Rp 263.000</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /** Decorative product collage on the desktop brand panel (not real data). */
 function Collage() {
   const bars = [[48, 20], [56, 24], [52, 21], [70, 28], [78, 31], [96, 37]];
@@ -282,25 +332,37 @@ export const Login = () => {
         </section>
       </div>
 
-      {/* Mobile: green top, white sheet */}
-      <div className="flex min-h-dvh flex-col bg-primary lg:hidden">
-        <div className="flex flex-col gap-3.5 px-6 pt-14 text-white">
+      {/* Mobile: green top with a small product collage, white sheet */}
+      <div className="relative flex min-h-dvh flex-col overflow-hidden bg-primary lg:hidden">
+        <div aria-hidden="true" className="absolute -right-[120px] -top-[110px] h-[300px] w-[300px] rounded-full bg-[#376B51]" />
+        <div aria-hidden="true" className="absolute -left-[110px] top-[46%] h-[260px] w-[260px] rounded-full bg-[#2A5340]" />
+        <div className="relative flex flex-col gap-3.5 px-6 pt-12 text-white">
           <Brand size="sm" />
-          <h1 className="mt-2.5 text-[30px] font-bold leading-[1.12] tracking-tight">Usaha kecil, kelola dengan lebih mudah.</h1>
+          <h1 className="mt-2 text-[30px] font-bold leading-[1.12] tracking-tight">Usaha kecil, kelola dengan lebih mudah.</h1>
           {state === "idle" && (
             <p className="text-[15px] leading-normal text-[#D7E4D9]">Catat penjualan, kelola pesanan, dan bagikan katalog usahamu dalam satu tempat.</p>
           )}
         </div>
         {state === "idle" ? (
-          <div aria-hidden="true" className="relative mx-6 mb-6 mt-[22px] flex flex-col gap-2 rounded-2xl bg-white p-3.5 text-foreground shadow-[0_20px_40px_-14px_rgba(10,30,20,0.5)]">
-            <div className="flex items-center justify-between"><span className="text-xs text-muted-foreground">Total penjualan · Okt</span><span className="text-[11px] font-semibold text-success">↑ 12%</span></div>
-            <p className="num text-[22px] font-bold">Rp 18.450.000</p>
-            <div className="flex h-1.5 overflow-hidden rounded"><span className="w-[77%] bg-primary" /><span className="flex-1 bg-clay" /></div>
+          <div className="relative flex flex-1 flex-col justify-center gap-5 px-6 py-6">
+            <MobileCollage />
+            <ul className="flex flex-wrap gap-2 text-[12.5px] font-medium text-white">
+              {[
+                { Icon: MessageCircle, label: "Pesanan dari WhatsApp" },
+                { Icon: Receipt, label: "DP & pelunasan" },
+                { Icon: BarChart3, label: "Laporan untung" },
+              ].map(({ Icon, label }) => (
+                <li key={label} className="flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 ring-1 ring-white/15">
+                  <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {label}
+                </li>
+              ))}
+            </ul>
           </div>
         ) : (
-          <div className="h-12" />
+          <div className="h-12 flex-1" />
         )}
-        <main className="mt-auto rounded-t-[28px] bg-[#FAFAF7] px-6 pb-10 pt-7">{panel(true)}</main>
+        <main className="relative rounded-t-[28px] bg-[#FAFAF7] px-6 pb-10 pt-7">{panel(true)}</main>
       </div>
     </div>
   );
