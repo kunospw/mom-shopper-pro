@@ -1,3 +1,4 @@
+import { PLATFORM_NAME } from "@/lib/branding";
 import type { PlanState } from "./entitlement";
 
 /** Monthly plan price in whole Rupiah. Override with VITE_PLAN_PRICE_IDR; 0 or invalid hides the price. */
@@ -52,7 +53,7 @@ export function upgradeMessage({
   price?: number;
 }) {
   return [
-    `Halo, saya ingin berlangganan Mom Shopper Pro${price ? ` (Rp ${price.toLocaleString("id-ID")}/bulan)` : ""}.`,
+    `Halo, saya ingin berlangganan ${PLATFORM_NAME}${price ? ` (Rp ${price.toLocaleString("id-ID")}/bulan)` : ""}.`,
     `Toko: ${shopName || "-"}`,
     `Email akun: ${email || "-"}`,
     `Kode akun: ${accountCode(uid)}`,

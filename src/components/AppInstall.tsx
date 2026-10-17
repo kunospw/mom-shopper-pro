@@ -9,6 +9,7 @@ import { usePwa } from "@/hooks/use-pwa";
 import { applyUpdate, promptInstall, requestNotifications, showNotification } from "@/lib/pwa";
 import { playChime, readAlertPrefs, writeAlertPrefs, type AlertPrefs } from "@/lib/order-alerts";
 import { cn } from "@/lib/utils";
+import { PLATFORM_NAME, PLATFORM_TAGLINE } from "@/lib/branding";
 
 function IosSteps({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   return (
@@ -113,10 +114,10 @@ export function AppSettings() {
         <div className="flex min-w-0 items-start gap-3">
           <img src="/icon-192.png" alt="" className="h-11 w-11 shrink-0 rounded-xl" />
           <div className="min-w-0">
-            <p className="text-sm font-semibold">Mom Shopper di layar utama</p>
+            <p className="text-sm font-semibold">{PLATFORM_NAME} di layar utama</p>
             <p className="text-xs text-muted-foreground">
               {pwa.standalone
-                ? "Sudah terpasang. Anda sedang memakai aplikasinya."
+                ? `Sudah terpasang. ${PLATFORM_TAGLINE}!`
                 : pwa.canPrompt
                   ? "Buka lebih cepat, layar penuh, tanpa bilah alamat."
                   : pwa.ios

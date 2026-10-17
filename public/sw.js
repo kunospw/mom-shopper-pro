@@ -1,7 +1,7 @@
-/* Mom Shopper Pro service worker: offline app shell, cached build assets,
+/* LarisKu service worker: offline app shell, cached build assets,
    and notification clicks. Firebase, Google sign-in and API calls are never
    cached or intercepted. Bump VERSION to drop old caches. */
-const VERSION = "v1";
+const VERSION = "v2";
 const SHELL = `shell-${VERSION}`;
 const ASSETS = `assets-${VERSION}`;
 const STATIC = `static-${VERSION}`;

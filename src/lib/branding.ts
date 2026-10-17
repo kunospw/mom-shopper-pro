@@ -1,4 +1,5 @@
-export const PLATFORM_NAME = "Mom Shopper Pro";
+export const PLATFORM_NAME = "LarisKu";
+export const PLATFORM_TAGLINE = "Dari rumah, laris ke mana-mana";
 
 /**
  * Brand accents. teal, blue and violet keep their original values exactly so

@@ -34,6 +34,7 @@ const trial = planState({ trialStartedAt: new Date(now.getTime() - 5 * 86400000)
 const text = plan.upgradeMessage({ shopName: "Toko Bu Sari", email: "sari@x.id", uid: "abcdefgh12345", plan: trial });
 assert(text.includes("Rp 49.000/bulan") && text.includes("Toko Bu Sari") && text.includes("sari@x.id"), text);
 assert(text.includes("Kode akun: abcdefgh"), "account code for the operator");
+assert(text.startsWith("Halo, saya ingin berlangganan LarisKu"), text);
 assert(text.includes("Uji coba berakhir"), text);
 const url = new URL(plan.upgradeLink(text));
 assert.equal(url.host + url.pathname, "wa.me/6281298590798");

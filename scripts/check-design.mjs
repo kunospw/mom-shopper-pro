@@ -25,7 +25,7 @@ async function bundle(file) {
   });
   return import(`data:text/javascript;base64,${Buffer.from(out.outputFiles[0].text).toString("base64")}`);
 }
-const { getAccent, isBusinessLogo, accents, effectiveAccentKey, LEGACY_ACCENT, NEW_ACCOUNT_ACCENT, PLATFORM_NAME } = await load("src/lib/branding.ts");
+const { getAccent, isBusinessLogo, accents, effectiveAccentKey, LEGACY_ACCENT, NEW_ACCOUNT_ACCENT, PLATFORM_NAME, PLATFORM_TAGLINE } = await load("src/lib/branding.ts");
 
 // ---- accents: nothing that exists today may change; forest is purely additive ----
 assert.deepEqual(
@@ -52,7 +52,8 @@ assert.equal(effectiveAccentKey("forest"), "forest");
 assert.equal(getAccent("blue").color, "217 76% 40%");
 // forest is only ever written for brand-new accounts
 assert.equal(NEW_ACCOUNT_ACCENT, "forest");
-assert.equal(PLATFORM_NAME, "Mom Shopper Pro");
+assert.equal(PLATFORM_NAME, "LarisKu");
+assert.ok(PLATFORM_TAGLINE.length > 0 && PLATFORM_TAGLINE.length <= 40, "short tagline");
 {
   const auth = await readFile(new URL("../src/contexts/AuthContext.tsx", import.meta.url), "utf8");
   assert(/businessAccent:\s*NEW_ACCOUNT_ACCENT/.test(auth), "new profiles get the platform accent");

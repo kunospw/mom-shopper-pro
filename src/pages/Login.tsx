@@ -17,7 +17,7 @@ import {
   Users,
   House,
 } from "lucide-react";
-import { PLATFORM_NAME, accents } from "@/lib/branding";
+import { PLATFORM_NAME, PLATFORM_TAGLINE, accents } from "@/lib/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -43,7 +43,10 @@ function Brand({ size = "md" }: { size?: "md" | "sm" }) {
       <span className={cn("flex items-center justify-center bg-white text-primary", size === "md" ? "h-[38px] w-[38px] rounded-[11px]" : "h-8 w-8 rounded-[9px]")}>
         <ShoppingBag className={size === "md" ? "h-5 w-5" : "h-[17px] w-[17px]"} aria-hidden="true" />
       </span>
-      <span className={cn("font-bold tracking-tight", size === "md" ? "text-lg" : "text-[15px]")}>{PLATFORM_NAME}</span>
+      <span className="flex flex-col leading-tight">
+        <span className={cn("font-bold tracking-tight", size === "md" ? "text-lg" : "text-[15px]")}>{PLATFORM_NAME}</span>
+        <span className={cn("font-medium opacity-80", size === "md" ? "text-xs" : "text-[11px]")}>{PLATFORM_TAGLINE}</span>
+      </span>
     </div>
   );
 }

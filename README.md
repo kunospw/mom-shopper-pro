@@ -1,4 +1,6 @@
-# Mom Shopper Pro
+# LarisKu
+
+*Dari rumah, laris ke mana-mana.*
 
 A WhatsApp-first shop and bookkeeping app for small resellers, built with React, TypeScript, Vite and Firebase. Sellers get a branded online catalog whose orders arrive on WhatsApp, and a workspace to record sales, payments, stock and costs with honest profit reports. The interface is in Indonesian.
 

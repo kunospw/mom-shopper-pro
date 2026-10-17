@@ -7,7 +7,7 @@ All colors MUST be HSL.
 */
 
 @layer base {
-  /* Mom Shopper Pro 2.0 tokens. Colors are HSL triplets converted from the design hexes. */
+  /* LarisKu design tokens. Colors are HSL triplets converted from the design hexes. */
   :root {
     --background: 72 20% 95%;            /* #F4F5F0 */
     --foreground: 148 17% 17%;           /* #24332B */

@@ -12,6 +12,8 @@ const pngSize = (buf) => [buf.readUInt32BE(16), buf.readUInt32BE(20)];
 const manifest = JSON.parse(read("public/manifest.webmanifest"));
 for (const key of ["name", "short_name", "start_url", "scope", "display", "icons", "theme_color", "background_color"]) assert.ok(manifest[key], `manifest.${key}`);
 assert.equal(manifest.display, "standalone");
+assert.equal(manifest.short_name, "LarisKu");
+assert.ok(manifest.name.startsWith("LarisKu"));
 assert.ok(manifest.start_url.startsWith(manifest.scope), "start_url inside scope");
 assert.ok(manifest.short_name.length <= 12, "short_name fits under an icon");
 const sizes = new Set();

@@ -1,7 +1,7 @@
 {
-  "name": "Mom Shopper Pro",
-  "short_name": "Mom Shopper",
-  "description": "Toko online lewat WhatsApp dan catatan penjualan untuk reseller.",
+  "name": "LarisKu — Dari rumah, laris ke mana-mana",
+  "short_name": "LarisKu",
+  "description": "Toko online lewat WhatsApp dan catatan usaha untuk penjual rumahan.",
   "id": "/",
   "start_url": "/?source=pwa",
   "scope": "/",
