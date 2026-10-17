@@ -2,18 +2,9 @@ import { useState, useRef } from "react";
 import { NavLink, Navigate, useParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -52,6 +43,7 @@ import {
   settingsPatch,
 } from "@/lib/settings";
 import { cn } from "@/lib/utils";
+import { field } from "@/components/form-parts";
 import { toast } from "sonner";
 const sectionIcons = {
   appearance: Monitor,
@@ -60,6 +52,21 @@ const sectionIcons = {
   plan: Sparkles,
   account: User,
 };
+
+function Panel({ title, description, action, children }: { title: string; description?: string; action?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border bg-card p-5 shadow-card sm:p-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold">{title}</h3>
+          {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export const Profile = () => {
   const { user, signOut, updateUserProfile } = useAuth();
@@ -180,18 +187,11 @@ export const Profile = () => {
   return (
     <>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Pengaturan
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Pilih bagian yang ingin Anda sesuaikan.
-        </p>
+        <h1 className="text-[28px] font-bold leading-tight tracking-tight">Pengaturan</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Tampilan, identitas bisnis di invoice, pembayaran, langganan, dan akun.</p>
       </header>
-      <div className="grid items-start gap-6 lg:grid-cols-[12rem_minmax(0,1fr)]">
-        <nav
-          aria-label="Bagian pengaturan"
-          className="grid grid-cols-2 gap-2 lg:sticky lg:top-24 lg:flex lg:flex-col"
-        >
+      <div className="grid items-start gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+        <nav aria-label="Bagian pengaturan" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide lg:sticky lg:top-24 lg:mx-0 lg:flex-col lg:overflow-visible lg:rounded-2xl lg:border lg:bg-card lg:p-2 lg:shadow-card">
           {settingsSections.map((item) => {
             const Icon = sectionIcons[item.id];
             return (
@@ -200,47 +200,35 @@ export const Profile = () => {
                 to={`/settings/${item.id}`}
                 className={({ isActive }) =>
                   cn(
-                    "relative flex min-h-12 min-w-0 items-center gap-3 rounded-lg border px-3 py-3 text-sm hover:bg-muted",
-                    isActive
-                      ? "border-primary/30 bg-primary/10 font-medium text-primary"
-                      : "border-transparent text-muted-foreground",
+                    "relative flex min-h-11 shrink-0 items-center gap-3 rounded-full border px-4 text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring lg:rounded-xl lg:border-0 lg:px-3 lg:py-2.5",
+                    isActive ? "border-foreground bg-foreground font-semibold text-background lg:bg-primary-soft lg:text-primary-ink dark:lg:bg-primary/15 dark:lg:text-primary" : "border-input hover:bg-accent lg:text-muted-foreground lg:hover:text-foreground",
                   )
                 }
               >
-                <Icon className="hidden h-4 w-4 shrink-0 lg:block" />
-                <span className="min-w-0 break-words">{item.label}</span>
+                <Icon className="hidden h-[18px] w-[18px] shrink-0 lg:block" aria-hidden="true" />
+                <span className="min-w-0">
+                  <span className="block">{item.label}</span>
+                  <span className="hidden text-xs font-normal text-muted-foreground lg:block">{item.description}</span>
+                </span>
                 {dirty(item.id) && (
-                  <span
-                    className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary"
-                    aria-label="Perubahan belum disimpan"
-                  />
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-request" aria-label="Perubahan belum disimpan" />
                 )}
               </NavLink>
             );
           })}
         </nav>
-        <section
-          className="min-w-0 space-y-4"
-          aria-labelledby="settings-section-title"
-        >
+        <section className="min-w-0 space-y-4" aria-labelledby="settings-section-title">
           <div>
-            <h2 id="settings-section-title" className="text-xl font-semibold">
-              {section.label}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {section.description}
-            </p>
+            <h2 id="settings-section-title" className="text-xl font-semibold">{section.label}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
           </div>
           {section.id === "appearance" ? (
             <AppearanceSettings />
           ) : section.id === "plan" ? (
             <PlanSettings />
           ) : (
-            <form onSubmit={saveSection} className="space-y-4">
-              <fieldset
-                disabled={saving || signingOut}
-                className="min-w-0 space-y-4"
-              >
+            <form onSubmit={saveSection} className="space-y-4" noValidate>
+              <fieldset disabled={saving || signingOut} className="min-w-0 space-y-4">
                 {section.id === "business" && (
                   <>
                     <BrandingSettings
@@ -249,363 +237,146 @@ export const Profile = () => {
                       logo={values.businessLogo}
                       accent={values.businessAccent}
                       onLogoChange={(value) => setValue("businessLogo", value)}
-                      onAccentChange={(value) =>
-                        setValue("businessAccent", value)
-                      }
+                      onAccentChange={(value) => setValue("businessAccent", value)}
                     />
-                    {/* Business Information */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3 sm:pb-4">
-                        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                          <Building className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                          Informasi Bisnis
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                          Detail bisnis yang akan tampil di invoice
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-3">
-                          <Label
-                            htmlFor="businessName"
-                            className="text-base font-semibold text-foreground"
-                          >
-                            Nama Bisnis
-                          </Label>
-                          <Input
-                            id="businessName"
-                            {...register("businessName")}
-                            placeholder="Nama toko/bisnis Anda"
-                            className="text-base h-12 border border-border"
-                          />
+                    <Panel title="Informasi bisnis" description="Tampil di kepala invoice. Katalog publik punya pengaturan sendiri di Katalog → Atur toko.">
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="businessName">Nama bisnis</Label>
+                          <input id="businessName" className={field} {...register("businessName")} placeholder="Nama toko atau bisnis Anda" />
                         </div>
-
-                        <div className="space-y-3">
-                          <Label
-                            htmlFor="businessAddress"
-                            className="text-base font-semibold text-foreground"
-                          >
-                            Alamat Bisnis
-                          </Label>
-                          <Textarea
-                            id="businessAddress"
-                            {...register("businessAddress")}
-                            placeholder="Alamat lengkap bisnis"
-                            rows={4}
-                            className="text-base resize-none border border-border"
-                          />
+                        <div className="space-y-1.5">
+                          <Label htmlFor="businessAddress">Alamat bisnis</Label>
+                          <Textarea id="businessAddress" {...register("businessAddress")} placeholder="Alamat lengkap bisnis" rows={3} className="resize-none" />
                         </div>
-
-                        <div className="space-y-3">
-                          <Label
-                            htmlFor="businessPhone"
-                            className="text-base font-semibold text-foreground"
-                          >
-                            Nomor Telepon Bisnis
-                          </Label>
-                          <Input
-                            id="businessPhone"
-                            {...register("businessPhone")}
-                            placeholder="Nomor telepon yang bisa dihubungi"
-                            className="text-base h-12 border border-border"
-                            type="tel"
-                          />
+                        <div className="space-y-1.5">
+                          <Label htmlFor="businessPhone">Nomor telepon bisnis</Label>
+                          <input id="businessPhone" className={field} {...register("businessPhone")} placeholder="0812 3456 7890" type="tel" />
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </Panel>
                   </>
                 )}
                 {section.id === "account" && (
-                  <>
-                    {/* Personal Information */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3 sm:pb-4">
-                        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                          <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                          Informasi Pribadi
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                          Informasi dasar akun Anda
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Mobile-Friendly Avatar Section */}
-                        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                          <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
-                            <AvatarImage src={user.photoURL} />
-                            <AvatarFallback className="text-base sm:text-lg">
-                              {user.displayName?.charAt(0)?.toUpperCase() ||
-                                "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="space-y-1 text-center sm:text-left">
-                            <p className="font-medium text-sm sm:text-base">
-                              {user.email}
-                            </p>
-                            <p className="text-xs sm:text-sm text-muted-foreground">
-                              Masuk dengan Google
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          <Label
-                            htmlFor="displayName"
-                            className="text-base font-semibold text-foreground"
-                          >
-                            Nama Lengkap
-                          </Label>
-                          <Input
-                            id="displayName"
-                            {...register("displayName", {
-                              validate: (value) =>
-                                !!value.trim() || "Nama lengkap wajib diisi",
-                            })}
-                            placeholder="Masukkan nama lengkap"
-                            className="text-base h-12 border border-border"
-                          />
-                          {errors.displayName && (
-                            <p className="text-sm text-destructive font-semibold">
-                              {errors.displayName.message}
-                            </p>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </>
+                  <Panel title="Informasi pribadi" description="Nama Anda di ruang usaha. Email mengikuti akun Google.">
+                    <div className="flex items-center gap-4 rounded-xl bg-muted/50 p-3">
+                      <Avatar className="h-14 w-14">
+                        <AvatarImage src={user.photoURL} />
+                        <AvatarFallback className="text-base">{user.displayName?.charAt(0)?.toUpperCase() || "U"}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold">{user.email}</p>
+                        <p className="text-sm text-muted-foreground">Masuk dengan Google</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-1.5">
+                      <Label htmlFor="displayName">Nama lengkap</Label>
+                      <input
+                        id="displayName"
+                        className={field}
+                        aria-invalid={!!errors.displayName || undefined}
+                        {...register("displayName", { validate: (value) => !!value.trim() || "Nama lengkap wajib diisi" })}
+                        placeholder="Masukkan nama lengkap"
+                      />
+                      {errors.displayName && <p className="text-sm font-medium text-destructive">{errors.displayName.message}</p>}
+                    </div>
+                  </Panel>
                 )}
                 {section.id === "payments" && (
                   <>
-                    {/* Payment Information */}
-                    <Card className="shadow-sm">
-                      <CardHeader className="pb-3 sm:pb-4">
-                        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                          <CreditCard className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                          Informasi Pembayaran
-                        </CardTitle>
-                        <CardDescription className="text-sm">
-                          Detail rekening dan QRIS untuk invoice
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Bank Accounts */}
-                        <div className="space-y-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                            <Label className="text-base font-semibold text-foreground">
-                              Rekening Bank
-                            </Label>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="default"
-                              onClick={() =>
-                                append({
-                                  id: Date.now().toString(),
-                                  bankName: "",
-                                  accountNumber: "",
-                                  accountHolder: "",
-                                })
-                              }
-                              className="w-full sm:w-auto h-12 text-base border border-border font-semibold"
-                            >
-                              <Plus className="h-5 w-5 mr-2" />
-                              <span>Tambah Rekening</span>
-                            </Button>
-                          </div>
-
-                          {fields.map((field, index) => (
-                            <div
-                              key={field.id}
-                              className="border border-border rounded-xl p-4 sm:p-5 space-y-4 bg-muted/40"
-                            >
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-semibold text-base text-foreground">
-                                  Rekening {index + 1}
-                                </h4>
+                    <Panel
+                      title="Rekening bank"
+                      description="Tampil di invoice supaya pembeli tahu ke mana harus membayar."
+                      action={
+                        <Button type="button" variant="outline" onClick={() => append({ id: Date.now().toString(), bankName: "", accountNumber: "", accountHolder: "" })}>
+                          <Plus /> Tambah rekening
+                        </Button>
+                      }
+                    >
+                      {fields.length === 0 ? (
+                        <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">Belum ada rekening. Tambahkan minimal satu agar muncul di invoice.</p>
+                      ) : (
+                        <ul className="space-y-3">
+                          {fields.map((item, index) => (
+                            <li key={item.id} className="rounded-xl border p-4">
+                              <div className="mb-3 flex items-center justify-between">
+                                <p className="text-sm font-semibold">Rekening {index + 1}</p>
                                 {fields.length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-label={`Hapus rekening ${index + 1}`}
-                                    onClick={() => remove(index)}
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 p-0 border border-destructive/30"
-                                  >
-                                    <Trash2 className="h-5 w-5" />
+                                  <Button type="button" variant="ghost" size="icon" aria-label={`Hapus rekening ${index + 1}`} onClick={() => remove(index)} className="h-10 w-10 text-muted-foreground hover:text-destructive">
+                                    <Trash2 />
                                   </Button>
                                 )}
                               </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-3">
-                                  <Label
-                                    htmlFor={`bankAccounts.${index}.bankName`}
-                                    className="text-base font-semibold text-foreground"
-                                  >
-                                    Nama Bank
-                                  </Label>
-                                  <Input
-                                    id={`bankAccounts.${index}.bankName`}
-                                    {...register(
-                                      `bankAccounts.${index}.bankName` as const,
-                                    )}
-                                    placeholder="Contoh: Bank BCA"
-                                    className="text-base h-12 border border-border"
-                                  />
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`bankAccounts.${index}.bankName`}>Nama bank</Label>
+                                  <input id={`bankAccounts.${index}.bankName`} className={field} {...register(`bankAccounts.${index}.bankName` as const)} placeholder="Contoh: BCA" />
                                 </div>
-
-                                <div className="space-y-3">
-                                  <Label
-                                    htmlFor={`bankAccounts.${index}.accountNumber`}
-                                    className="text-base font-semibold text-foreground"
-                                  >
-                                    Nomor Rekening
-                                  </Label>
-                                  <Input
-                                    id={`bankAccounts.${index}.accountNumber`}
-                                    {...register(
-                                      `bankAccounts.${index}.accountNumber` as const,
-                                    )}
-                                    placeholder="Nomor rekening"
-                                    className="text-base h-12 border border-border"
-                                  />
+                                <div className="space-y-1.5">
+                                  <Label htmlFor={`bankAccounts.${index}.accountNumber`}>Nomor rekening</Label>
+                                  <input id={`bankAccounts.${index}.accountNumber`} className={cn(field, "num")} inputMode="numeric" {...register(`bankAccounts.${index}.accountNumber` as const)} placeholder="Nomor rekening" />
+                                </div>
+                                <div className="space-y-1.5 sm:col-span-2">
+                                  <Label htmlFor={`bankAccounts.${index}.accountHolder`}>Nama pemilik rekening</Label>
+                                  <input id={`bankAccounts.${index}.accountHolder`} className={field} {...register(`bankAccounts.${index}.accountHolder` as const)} placeholder="Nama sesuai buku tabungan" />
                                 </div>
                               </div>
-
-                              <div className="space-y-3">
-                                <Label
-                                  htmlFor={`bankAccounts.${index}.accountHolder`}
-                                  className="text-base font-semibold text-foreground"
-                                >
-                                  Nama Pemilik Rekening
-                                </Label>
-                                <Input
-                                  id={`bankAccounts.${index}.accountHolder`}
-                                  {...register(
-                                    `bankAccounts.${index}.accountHolder` as const,
-                                  )}
-                                  placeholder="Nama sesuai rekening bank"
-                                  className="text-base h-12 border border-border"
-                                />
-                              </div>
-                            </div>
+                            </li>
                           ))}
+                        </ul>
+                      )}
+                    </Panel>
+                    <Panel title="QRIS" description="Gambar QRIS tampil di invoice setelah disimpan.">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        {qrisPreview || user.qrisImageBase64 ? (
+                          <img src={qrisPreview || user.qrisImageBase64} alt="Kode QRIS" className="h-36 w-36 shrink-0 rounded-xl border object-cover" />
+                        ) : (
+                          <div className="flex h-36 w-36 shrink-0 items-center justify-center rounded-xl border border-dashed bg-muted/40 px-3 text-center text-sm text-muted-foreground">Belum ada QRIS</div>
+                        )}
+                        <div className="space-y-2">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            aria-label="Pilih gambar QRIS"
+                            onChange={(event) => {
+                              void handleFileSelect(event);
+                            }}
+                            className="sr-only"
+                            tabIndex={-1}
+                          />
+                          <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                            {uploading ? <Loader2 className="animate-spin" /> : <Upload />}
+                            {qrisPreview || user.qrisImageBase64 ? "Ganti QRIS" : "Unggah QRIS"}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">PNG, JPG, atau WebP, maksimal 300 KB.</p>
                         </div>
-
-                        <Separator />
-
-                        <div className="space-y-4">
-                          <Label className="text-base font-semibold text-foreground">
-                            QRIS
-                          </Label>
-                          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-                            {/* Current QRIS or Preview */}
-                            <div className="flex-shrink-0">
-                              {qrisPreview || user.qrisImageBase64 ? (
-                                <div className="border border-dashed border-border rounded-xl p-3">
-                                  <img
-                                    src={qrisPreview || user.qrisImageBase64}
-                                    alt="QRIS Code"
-                                    className="w-28 h-28 sm:w-36 sm:h-36 object-cover rounded-lg"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="w-28 h-28 sm:w-36 sm:h-36 border border-dashed border-border rounded-xl flex items-center justify-center bg-muted/40">
-                                  <p className="text-sm text-muted-foreground text-center px-2 font-semibold">
-                                    Belum ada QRIS
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Upload Button */}
-                            <div className="space-y-3 text-center sm:text-left w-full sm:w-auto">
-                              <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={(event) => {
-                                  void handleFileSelect(event);
-                                }}
-                                className="hidden"
-                              />
-                              <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => fileInputRef.current?.click()}
-                                disabled={uploading}
-                                className="w-full sm:w-auto h-12 text-base border border-border font-semibold"
-                                size="default"
-                              >
-                                <Upload className="h-5 w-5 mr-2" />
-                                <span>
-                                  {user.qrisImageBase64
-                                    ? "Ganti QRIS"
-                                    : "Upload QRIS"}
-                                </span>
-                              </Button>
-                              <p className="text-sm text-muted-foreground font-semibold">
-                                PNG, JPG, atau WebP, maksimal 300 KB. Gambar
-                                tampil di invoice setelah disimpan.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </Panel>
                   </>
                 )}
               </fieldset>
               <div
                 className={cn(
-                  "flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card/95 p-3 backdrop-blur",
-                  (dirty(section.id) || saving) &&
-                    "sticky bottom-[max(1rem,env(safe-area-inset-bottom))] z-10",
+                  "flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-card/95 p-3 shadow-card backdrop-blur",
+                  (dirty(section.id) || saving) && "sticky bottom-[max(5.5rem,env(safe-area-inset-bottom))] z-10 lg:bottom-4",
                 )}
               >
-                <p
-                  role="status"
-                  className="sr-only text-sm text-muted-foreground sm:not-sr-only"
-                >
-                  {saving
-                    ? "Menyimpan perubahan…"
-                    : dirty(section.id)
-                      ? "Ada perubahan belum disimpan"
-                      : "Tidak ada perubahan yang perlu disimpan"}
+                <p role="status" className="sr-only text-sm text-muted-foreground sm:not-sr-only">
+                  {saving ? "Menyimpan perubahan…" : dirty(section.id) ? "Ada perubahan belum disimpan" : "Tidak ada perubahan yang perlu disimpan"}
                 </p>
-                <Button
-                  type="submit"
-                  className="w-full sm:w-auto"
-                  disabled={
-                    !dirty(section.id) || saving || uploading || logoReading
-                  }
-                >
+                <Button type="submit" className="h-11 w-full rounded-[10px] sm:w-auto" disabled={!dirty(section.id) || saving || uploading || logoReading}>
                   {saving ? <Loader2 className="animate-spin" /> : <Save />}
-                  {saving
-                    ? "Menyimpan…"
-                    : `Simpan ${section.label.toLowerCase()}`}
+                  {saving ? "Menyimpan…" : `Simpan ${section.label.toLowerCase()}`}
                 </Button>
               </div>
               {section.id === "account" && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Sesi akun</CardTitle>
-                    <CardDescription>
-                      Keluar dari akun pada perangkat ini.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={signingOut || saving}
-                      onClick={() => setSignOutOpen(true)}
-                    >
-                      <LogOut />
-                      Keluar dari akun
-                    </Button>
-                  </CardContent>
-                </Card>
+                <Panel title="Sesi akun" description="Keluar dari akun pada perangkat ini. Data Anda tetap tersimpan.">
+                  <Button type="button" variant="outline" disabled={signingOut || saving} onClick={() => setSignOutOpen(true)}>
+                    <LogOut />
+                    Keluar dari akun
+                  </Button>
+                </Panel>
               )}
             </form>
           )}

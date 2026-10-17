@@ -104,11 +104,11 @@ export function WhatsAppField({
 }
 
 /** Catalog color as large tiles, each showing how the shop header looks in it. */
-export function AccentPicker({ value, onChange }: { value: AccentKey; onChange: (value: AccentKey) => void }) {
+export function AccentPicker({ value, onChange, legend = "Warna katalog" }: { value: AccentKey; onChange: (value: AccentKey) => void; legend?: string }) {
   return (
     <fieldset className="min-w-0">
-      <legend className="mb-2 text-sm font-medium">Warna katalog</legend>
-      <div role="radiogroup" aria-label="Warna katalog" className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <legend className="mb-2 text-sm font-medium">{legend}</legend>
+      <div role="radiogroup" aria-label={legend} className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
         {(Object.keys(accents) as AccentKey[]).map((key) => {
           const choice = accents[key];
           const selected = key === value;
@@ -146,11 +146,13 @@ export function LogoPicker({
   value,
   onChange,
   onBusyChange,
+  hint = "Tanpa logo, huruf pertama nama toko yang tampil.",
 }: {
   name: string;
   value: string;
   onChange: (value: string) => void;
   onBusyChange?: (busy: boolean) => void;
+  hint?: string;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -189,7 +191,7 @@ export function LogoPicker({
   return (
     <div className="min-w-0 space-y-2">
       <p className="text-sm font-medium" id="store-logo-label">
-        Logo toko <span className="font-normal text-muted-foreground">(opsional)</span>
+        Logo <span className="font-normal text-muted-foreground">(opsional)</span>
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <ShopAvatar name={name} logo={value} size={56} ring={false} />
@@ -217,7 +219,7 @@ export function LogoPicker({
         )}
       </div>
       <p className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")} role={error ? "alert" : undefined}>
-        {error || "Tanpa logo, huruf pertama nama toko yang tampil."}
+        {error || hint}
       </p>
     </div>
   );

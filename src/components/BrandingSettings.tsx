@@ -1,63 +1,30 @@
-import { useRef, useState, type CSSProperties } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import type { CSSProperties } from "react";
 import { BusinessBrand } from "./BusinessBrand";
+import { AccentPicker, LogoPicker } from "@/components/StoreFields";
 import { useAppearance } from "@/hooks/use-appearance";
-import { accents, effectiveAccentKey, getAccent, isBusinessLogo } from "@/lib/branding";
+import { effectiveAccentKey, getAccent } from "@/lib/branding";
 import type { UserProfileForm } from "@/types/user";
 
 type Accent = NonNullable<UserProfileForm["businessAccent"]>;
+/** Workspace and invoice identity: logo and main color, with a live preview. */
 export function BrandingSettings({ name, logo, accent, onLogoChange, onAccentChange, onBusyChange }: {
   name: string; logo?: string; accent?: Accent;
   onBusyChange: (value: boolean) => void;
   onLogoChange: (value: string) => void; onAccentChange: (value: Accent) => void;
 }) {
   const { resolvedMode } = useAppearance();
-  const input = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState("");
-  const [reading, setReading] = useState(false);
-  async function upload(file?: File) {
-    if (!file) return;
-    setError("");
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type) || file.size > 100 * 1024) {
-      setError("Pilih PNG, JPG, atau WebP maksimal 100 KB."); return;
-    }
-    setReading(true); onBusyChange(true);
-    try {
-      const result = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file);
-      });
-      if (!isBusinessLogo(result)) throw new Error("Invalid logo");
-      await new Promise<void>((resolve, reject) => {
-        const image = new Image(); image.onload = () => resolve(); image.onerror = reject; image.src = result;
-      });
-      onLogoChange(result);
-    } catch { setError("Gambar tidak dapat dibaca. Pilih file lain."); }
-    finally { setReading(false); onBusyChange(false); }
-  }
-  return <Card>
-    <CardHeader><CardTitle className="text-lg">Identitas & tampilan</CardTitle><CardDescription>Sesuaikan ruang kerja dengan bisnis Anda. Simpan pengaturan untuk menerapkannya.</CardDescription></CardHeader>
-    <CardContent className="space-y-5">
-      <div className="rounded-xl border bg-muted/40 p-4" style={{ "--primary": resolvedMode === "dark" ? getAccent(accent).darkColor : getAccent(accent).color } as CSSProperties}><BusinessBrand name={name} logo={logo} /></div>
-      <div className="space-y-2"><Label htmlFor="business-logo">Logo bisnis</Label>
-        <Input ref={input} id="business-logo" type="file" accept="image/png,image/jpeg,image/webp" disabled={reading} className="h-auto min-h-11 file:mr-3 file:py-1" onChange={e => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
-        <p className="text-xs text-muted-foreground">PNG, JPG, atau WebP, maksimal 100 KB. Logo tampil di ruang kerja dan invoice.</p>
-        {reading && <p role="status" className="text-sm">Membaca gambar…</p>}
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-        {logo && <Button type="button" variant="outline" disabled={reading} onClick={() => onLogoChange("")}>Hapus logo</Button>}
+  const theme = getAccent(accent);
+  return (
+    <section className="rounded-2xl border bg-card p-5 shadow-card sm:p-6">
+      <h3 className="text-base font-semibold">Identitas & warna</h3>
+      <p className="mt-0.5 text-sm text-muted-foreground">Logo dan warna ruang usaha serta invoice. Simpan untuk menerapkannya.</p>
+      <div className="mt-4 rounded-xl border bg-muted/40 p-4" style={{ "--primary": resolvedMode === "dark" ? theme.darkColor : theme.color } as CSSProperties}>
+        <BusinessBrand name={name} logo={logo} />
       </div>
-      <fieldset><legend className="mb-3 text-sm font-medium">Warna utama</legend>
-        <RadioGroup value={effectiveAccentKey(accent)} onValueChange={value => onAccentChange(value as Accent)} className="flex flex-wrap gap-3" aria-label="Warna utama">
-          {Object.entries(accents).map(([key, choice]) => <Label key={key} htmlFor={`accent-${key}`} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border px-3 has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5">
-            <RadioGroupItem id={`accent-${key}`} value={key} />
-            <span aria-hidden="true" className="h-4 w-4 rounded-full" style={{ backgroundColor: `hsl(${choice.color})` }} />{choice.label}
-          </Label>)}
-        </RadioGroup>
-      </fieldset>
-    </CardContent>
-  </Card>;
+      <div className="mt-5 space-y-5">
+        <LogoPicker name={name || "Bisnis"} value={logo ?? ""} onChange={onLogoChange} onBusyChange={onBusyChange} hint="PNG, JPG, atau WebP, maksimal 100 KB. Tampil di ruang usaha dan invoice." />
+        <AccentPicker value={effectiveAccentKey(accent)} onChange={(value) => onAccentChange(value as Accent)} legend="Warna utama" />
+      </div>
+    </section>
+  );
 }
