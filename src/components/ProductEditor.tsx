@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ImagePlus, Loader2, Lock, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { Crop, ImagePlus, Loader2, Lock, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { MoneyInput, Section, Segmented, field, parseRupiah } from "@/components/form-parts";
 import { AvailabilityBadge, priceLabel, productMeta } from "@/components/ShopProductCard";
 import { productSchema, emptyProduct, type CatalogProduct, type CatalogProductFields } from "@/lib/catalog";
-import { catalogPhoto } from "@/lib/catalog-image";
+import { centerCrop, loadPhoto, squarePhoto, type PhotoCrop } from "@/lib/catalog-image";
+import { PhotoCropper } from "@/components/PhotoCropper";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import type { Inventory } from "@/types/books";
@@ -53,6 +54,10 @@ export function ProductEditor({
   const [error, setError] = useState("");
   const [photoError, setPhotoError] = useState("");
   const photoInput = useRef<HTMLInputElement>(null);
+  // The full photo as chosen, so the square crop can be adjusted without quality loss.
+  const [photoSource, setPhotoSource] = useState<HTMLImageElement | null>(null);
+  const [crop, setCrop] = useState<PhotoCrop>(centerCrop);
+  const [cropping, setCropping] = useState(false);
 
   function change<K extends keyof CatalogProductFields>(key: K, value: CatalogProductFields[K]) {
     setDraft((previous) => ({ ...previous, [key]: value }));
@@ -70,13 +75,30 @@ export function ProductEditor({
     onBusyChange(true);
     setPhotoError("");
     try {
-      change("image", await catalogPhoto(file));
+      const image = await loadPhoto(file);
+      change("image", squarePhoto(image));
+      setPhotoSource(image);
+      setCrop(centerCrop);
     } catch (failure) {
       setPhotoError(failure instanceof Error ? failure.message : "Foto tidak dapat dibaca.");
     } finally {
       setUploading(false);
       onBusyChange(false);
     }
+  }
+
+  async function adjustPhoto() {
+    setPhotoError("");
+    if (!photoSource && draft.image) {
+      try {
+        setPhotoSource(await loadPhoto(draft.image));
+        setCrop(centerCrop);
+      } catch {
+        setPhotoError("Foto ini belum bisa disesuaikan. Unggah ulang fotonya.");
+        return;
+      }
+    }
+    setCropping(true);
   }
 
   const options = optionRows
@@ -122,6 +144,19 @@ export function ProductEditor({
   const busy = saving || uploading;
   const meta = productMeta(preview);
   return (
+    <>
+    {cropping && (
+      <PhotoCropper
+        image={photoSource}
+        initial={crop}
+        onCancel={() => setCropping(false)}
+        onDone={(data, next) => {
+          change("image", data);
+          setCrop(next);
+          setCropping(false);
+        }}
+      />
+    )}
     <form onSubmit={save} noValidate className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
       <fieldset disabled={busy} className="min-w-0 space-y-4">
         <Section step={1} title="Foto & nama">
@@ -157,9 +192,14 @@ export function ProductEditor({
                 }}
               />
               {draft.image && (
-                <button type="button" className="mt-1.5 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => change("image", "")}>
-                  <X className="h-3.5 w-3.5" aria-hidden="true" /> Hapus foto
-                </button>
+                <div className="mt-1.5 flex w-32 flex-col items-start gap-1">
+                  <button type="button" className="flex min-h-8 items-center gap-1 text-xs font-semibold text-primary hover:underline" onClick={() => void adjustPhoto()}>
+                    <Crop className="h-3.5 w-3.5" aria-hidden="true" /> Sesuaikan foto
+                  </button>
+                  <button type="button" className="flex min-h-8 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" onClick={() => { change("image", ""); setPhotoSource(null); }}>
+                    <X className="h-3.5 w-3.5" aria-hidden="true" /> Hapus foto
+                  </button>
+                </div>
               )}
             </div>
             <div className="min-w-0 flex-1 space-y-3">
@@ -181,7 +221,7 @@ export function ProductEditor({
             </div>
           </div>
           <p id="product-photo-hint" className={cn("mt-3 text-xs", photoError ? "text-destructive" : "text-muted-foreground")} role={photoError ? "alert" : undefined}>
-            {photoError || "PNG, JPG, atau WebP hingga 10 MB. Foto diperkecil otomatis untuk katalog."}
+            {photoError || "PNG, JPG, atau WebP hingga 10 MB. Foto otomatis dipotong persegi di tengah dan diperkecil; tekan Sesuaikan foto untuk memilih bagiannya."}
           </p>
           <div className="mt-4 space-y-1.5">
             <Label htmlFor="product-description">
@@ -365,5 +405,6 @@ export function ProductEditor({
         </div>
       </aside>
     </form>
+    </>
   );
 }

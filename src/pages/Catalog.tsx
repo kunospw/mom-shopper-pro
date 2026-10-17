@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import { Copy, ExternalLink, Pencil, Plus, Settings2, ShoppingBag, Store, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Layers, Pencil, Plus, Settings2, ShoppingBag, Store, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBooks } from "@/contexts/BooksContext";
 import { saveInventory } from "@/lib/books-storage";
@@ -30,6 +30,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { ProductEditor } from "@/components/ProductEditor";
+import { BulkAddProducts } from "@/components/BulkAddProducts";
 import { AvailabilityBadge, priceLabel, productMeta } from "@/components/ShopProductCard";
 import { ShopAvatar } from "@/components/shop/shop-ui";
 import { FilterChips, SearchBox, StatCard } from "@/components/form-parts";
@@ -73,7 +74,8 @@ export function Catalog() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const edit = params.get("edit");
-  const editor = params.get("new") === "product" || !!edit;
+  const bulk = params.get("new") === "bulk";
+  const editor = params.get("new") === "product" || !!edit || bulk;
   const storeEditor = params.get("store") === "edit";
   const open = editor || storeEditor;
   const search = params.get("q") ?? "";
@@ -182,10 +184,16 @@ export function Catalog() {
           <h1 className="text-[28px] font-bold leading-tight tracking-tight">Katalog</h1>
           <p className="mt-1 text-sm text-muted-foreground">Produk yang dilihat pembeli di toko online. Modal dan stok hanya terlihat oleh Anda.</p>
         </div>
-        <Button className="h-11 rounded-[10px]" disabled={loading || failed} onClick={() => navigateEditor("new", "product")}>
-          <Plus />
-          Tambah produk
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="h-11 rounded-[10px]" disabled={loading || failed} onClick={() => navigateEditor("new", "bulk")}>
+            <Layers />
+            Tambah banyak
+          </Button>
+          <Button className="h-11 rounded-[10px]" disabled={loading || failed} onClick={() => navigateEditor("new", "product")}>
+            <Plus />
+            Tambah produk
+          </Button>
+        </div>
       </header>
       {planLoaded && <SubscriptionNotice plan={plan} published={!!store?.published} />}
       {loading ? (
@@ -305,9 +313,14 @@ export function Catalog() {
                     Tampilkan semua
                   </button>
                 ) : (
-                  <Button className="mt-2" onClick={() => navigateEditor("new", "product")}>
-                    <Plus /> Tambah produk pertama
-                  </Button>
+                  <div className="mt-2 flex flex-wrap justify-center gap-2">
+                    <Button onClick={() => navigateEditor("new", "product")}>
+                      <Plus /> Tambah produk pertama
+                    </Button>
+                    <Button variant="outline" onClick={() => navigateEditor("new", "bulk")}>
+                      <Layers /> Tambah banyak sekaligus
+                    </Button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -470,11 +483,39 @@ export function Catalog() {
           }}
         >
           <SheetHeader className="sticky top-0 z-10 border-b bg-card px-5 py-4 pr-16 text-left sm:px-7">
-            <SheetTitle className="text-xl">{edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
-            <SheetDescription>Isi foto, harga, dan pilihan. Produk baru tersembunyi sampai Anda menampilkannya.</SheetDescription>
+            <SheetTitle className="text-xl">{bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
+            <SheetDescription>
+              {bulk
+                ? "Dari foto atau dari Excel/CSV. Periksa daftarnya dulu, lalu simpan sekaligus."
+                : "Isi foto, harga, dan pilihan. Produk baru tersembunyi sampai Anda menampilkannya."}
+            </SheetDescription>
           </SheetHeader>
           <div className="p-4 sm:p-7">
-            {edit && !selected ? (
+            {bulk ? (
+              <BulkAddProducts
+                categories={categories}
+                onDirtyChange={setDirty}
+                onBusyChange={setBusy}
+                onCancel={() => navigateEditor()}
+                onSave={async (fields, inventory) => {
+                  const saved = await saveCatalogProduct(fields);
+                  setProducts((previous) => [...previous, saved].sort((a, b) => a.name.localeCompare(b.name, "id")));
+                  if (inventory) {
+                    try {
+                      await saveInventory(saved.id, inventory);
+                    } catch {
+                      toast.error(`${saved.name} tersimpan, tetapi modal dan stoknya belum. Buka produknya untuk menyimpan ulang.`);
+                    }
+                  }
+                  return saved;
+                }}
+                onDone={(count) => {
+                  void books.reload();
+                  done();
+                  toast.success(`${count} produk ditambahkan`);
+                }}
+              />
+            ) : edit && !selected ? (
               <p>Produk tidak ditemukan.</p>
             ) : (
               <ProductEditor
