@@ -27,7 +27,7 @@ export function productMeta(product: CatalogProduct) {
 export function AvailabilityBadge({ product, className }: { product: CatalogProduct; className?: string }) {
   const base = "inline-flex items-center gap-1 rounded-md px-[7px] py-0.5 text-[10.5px] font-semibold";
   if (product.availability === "unavailable")
-    return <span className={cn(base, "bg-muted text-[#3D4A42]", className)}>Belum tersedia</span>;
+    return <span className={cn(base, "bg-[#F1F2EE] text-[#3D4A42]", className)}>Belum tersedia</span>;
   if (product.availability === "preorder")
     return (
       <span className={cn(base, "bg-warning-soft text-warning", className)}>
@@ -43,8 +43,8 @@ export function AvailabilityBadge({ product, className }: { product: CatalogProd
       </span>
     );
   return (
-    <span className={cn(base, "bg-white text-foreground", className)}>
-      <span className="h-1.5 w-1.5 rounded-full bg-success" aria-hidden="true" />
+    <span className={cn(base, "bg-white text-[#24332B]", className)}>
+      <span className="h-1.5 w-1.5 rounded-full bg-[#1F6B40]" aria-hidden="true" />
       Ready
     </span>
   );

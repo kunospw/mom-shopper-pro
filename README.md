@@ -1,17 +1,19 @@
-# Reseller Manager App
+# Mom Shopper Pro
 
-A modern reseller management application built with React, TypeScript, Vite, and Firebase. Features include Google authentication, user profile management with customizable business information, and professional invoicing with QRIS integration.
+A WhatsApp-first shop and bookkeeping app for small resellers, built with React, TypeScript, Vite and Firebase. Sellers get a branded online catalog whose orders arrive on WhatsApp, and a workspace to record sales, payments, stock and costs with honest profit reports. The interface is in Indonesian.
 
 ## Features
 
-- 🔐 **Google Authentication** - Secure login with Firebase Auth
-- 👤 **User Profile Management** - Customize business info, bank details, and QRIS
-- 📄 **Professional Invoicing** - Invoices with shipping, discount, payments made and balance due
-- 💳 **Payment Integration** - Bank transfer details and QRIS code display
-- 📱 **WhatsApp Sharing** - Share invoices directly via WhatsApp
-- 📊 **Bookkeeping** - Sales with DP/partial payments, fulfillment and tracking numbers (physical and digital goods), customers, purchases, expenses, optional stock; see [bookkeeping model](docs/bookkeeping.md) and [accounting rules](docs/accounting.md).
-- 📈 **Monthly Reports** - View detailed sales analytics
-- 🛍️ **Shareable catalog and order inbox** - A branded shop link (`/shop/yourname`), per-option prices, WhatsApp order requests saved as pending orders you confirm or reject, and a status page for buyers; see [pilot setup, rules and security](docs/catalog-pilot.md).
+- **Toko online**: a shop link (`/shop/nama-toko`) with photos, options with their own prices, ready/preorder/digital products, and a cart that sends the order to the seller's WhatsApp. Buyers get a status page that keeps working even if the shop closes. Guided setup for new sellers.
+- **Pesanan**: incoming order requests to confirm (into a sale) or reject with a reason the buyer sees.
+- **Penjualan**: sales with DP and partial payments, refunds, shipping and discounts, fulfillment steps with courier and resi, physical and digital goods, invoices as PDF or image.
+- **Pelanggan**: purchase history and what each customer still owes, with WhatsApp reminders.
+- **Katalog**: products with cost and optional automatic stock, show/hide per product.
+- **Pembelian & biaya**: stock purchases (adding to stock) and business costs.
+- **Laporan**: sales, cost of goods, costs and net profit per period, with the full breakdown. See [accounting rules](docs/accounting.md) and the [bookkeeping model](docs/bookkeeping.md).
+- **Promosi**: WhatsApp broadcast and status text, story and post images, shop and product links.
+- **Langganan**: 7-day free trial for the online shop, paid plan via WhatsApp; bookkeeping stays free. See [plan and trial](docs/subscription.md).
+- Light and dark mode, larger text option, phone and desktop layouts.
 
 ## Setup Instructions
 
@@ -49,6 +51,9 @@ npm install
    VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
    VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
    VITE_FIREBASE_APP_ID=your-app-id
+   VITE_PLAN_PRICE_IDR=49000            # plan price on the upgrade screen
+   VITE_UPGRADE_WHATSAPP=6281298590798  # WhatsApp for upgrades
+   VITE_GRACE_END=                      # same date as graceEnd() in firestore.rules
    ```
 
 ### 4. Firebase Security Rules
@@ -62,30 +67,32 @@ Rules are not deployed by a Vercel build. The checked-in rules must be tested an
 ### 5. Run the Application
 
 ```bash
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
+npm run dev         # development server on port 8081
+npm run typecheck   # TypeScript, app and tooling
+npm run check       # unit checks: finance (3 time zones), catalog, design, contrast, status, plan, setup
+npm run build       # production build
 ```
+
+### 6. Releasing
+
+Rules, environment variables and the client must go out in a set order. Follow the [release checklist](docs/release.md).
 
 ## Usage
 
-1. **Login**: Visit the app and sign in with your Google account
-2. **Setup Profile**: Go to Profile page to add your business information:
-   - Business name, address, and phone
-   - Bank account details for transfers
-   - Upload QRIS image for digital payments
-3. **Record Sales**: Add sales with customer, items, DP and shipping; update payment and delivery as they happen
-4. **Generate Invoices**: View and share professional invoices with your branding
-5. **Track Performance**: Monitor your sales through monthly reports
+1. **Sign in** with Google.
+2. **Set up the shop**: Katalog → Buat toko (name, WhatsApp, colour), then add products.
+3. **Share the link** from Beranda or Promosi; orders arrive in Pesanan and on WhatsApp.
+4. **Record sales**, payments and shipping; send invoices and reminders on WhatsApp.
+5. **Record purchases and costs**, and read the profit breakdown in Laporan.
+6. **Settings**: business identity and bank/QRIS for invoices, appearance, plan.
 
 ## Technologies Used
 
 - **Frontend**: React 18, TypeScript, Vite
 - **UI**: shadcn/ui, Tailwind CSS, Radix UI
-- **Backend**: Firebase (Auth, Firestore, Storage)
+- **Backend**: Firebase (Auth, Firestore)
 - **Forms**: React Hook Form with Zod validation
 - **Routing**: React Router Dom
 - **Charts**: Recharts
+- **Images and PDF**: html2canvas, jsPDF
 - **Notifications**: Sonner

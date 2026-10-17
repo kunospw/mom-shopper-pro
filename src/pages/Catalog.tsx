@@ -324,9 +324,9 @@ export function Catalog() {
                           onClick={() => navigateEditor("edit", product.id)}
                           tabIndex={-1}
                           aria-hidden="true"
-                          className={cn("relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F1EDE6] sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none", !product.published && "opacity-70")}
+                          className={cn("relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#F1EDE6] dark:bg-muted sm:aspect-[4/3] sm:h-auto sm:w-full sm:rounded-none", !product.published && "opacity-70")}
                         >
-                          {product.image ? <img src={product.image} alt="" className="h-full w-full object-cover" loading="lazy" /> : <ShoppingBag className="h-8 w-8 text-[#8C7A68]/40" />}
+                          {product.image ? <img src={product.image} alt="" className="h-full w-full object-cover" loading="lazy" /> : <ShoppingBag className="h-8 w-8 text-[#8C7A68]/40 dark:text-muted-foreground/50" />}
                           <AvailabilityBadge product={product} className="absolute left-1.5 top-1.5 max-sm:hidden sm:left-2.5 sm:top-2.5" />
                         </button>
                         <div className="min-w-0 flex-1 sm:p-3.5">

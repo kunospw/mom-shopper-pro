@@ -324,8 +324,8 @@ export function ProductEditor({
         <div className="rounded-2xl bg-card p-5 shadow-card">
           <p className="mb-3 text-[13px] font-semibold text-muted-foreground">Pratinjau di katalog</p>
           <div className={cn("mx-auto flex max-w-[200px] flex-col gap-1.5", draft.availability === "unavailable" && "opacity-60")} aria-hidden="true">
-            <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[14px] bg-[#F1EDE6]">
-              {draft.image ? <img src={draft.image} alt="" className="h-full w-full object-cover" /> : <ShoppingBag className="h-10 w-10 text-[#8C7A68]/40" />}
+            <span className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-[14px] bg-[#F1EDE6] dark:bg-muted">
+              {draft.image ? <img src={draft.image} alt="" className="h-full w-full object-cover" /> : <ShoppingBag className="h-10 w-10 text-[#8C7A68]/40 dark:text-muted-foreground/50" />}
               <AvailabilityBadge product={preview} className="absolute left-2 top-2" />
             </span>
             <span className="line-clamp-2 break-words text-[13.5px] font-semibold leading-tight">{draft.name || "Nama produk"}</span>
