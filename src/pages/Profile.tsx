@@ -31,6 +31,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { AppearanceSettings } from "@/components/AppearanceSettings";
+import { AppSettings } from "@/components/AppInstall";
 import { BrandingSettings } from "@/components/BrandingSettings";
 import { UnsavedChangesDialog } from "@/components/UnsavedChangesDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -223,7 +224,10 @@ export const Profile = () => {
             <p className="mt-1 text-sm text-muted-foreground">{section.description}</p>
           </div>
           {section.id === "appearance" ? (
-            <AppearanceSettings />
+            <>
+              <AppSettings />
+              <AppearanceSettings />
+            </>
           ) : section.id === "plan" ? (
             <PlanSettings />
           ) : (

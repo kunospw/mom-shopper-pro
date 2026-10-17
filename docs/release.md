@@ -61,6 +61,17 @@ On a phone and a desktop, with a test account:
 - [ ] Record a purchase linked to a tracked product (stock goes up) and an expense; Laporan's breakdown adds up.
 - [ ] Invoice downloads as PDF; Promosi copies a broadcast and downloads a story image.
 - [ ] Upgrade dialog opens and the WhatsApp link carries the account code.
+- [ ] Android Chrome: "Pasang aplikasi" installs it; the icon, name and shortcuts look right; it opens full screen.
+- [ ] iPhone Safari: Bagikan → Tambahkan ke Layar Utama; then Pengaturan → Tampilan → turn on notifications (iOS 16.4+).
+- [ ] With the app open on Beranda, send an order from another device: sound, pop-up and notification arrive; "Lihat" opens that order.
+- [ ] Airplane mode: the app still opens and shows the offline strip.
+
+## PWA notes
+
+- `public/sw.js` is served with `Cache-Control: no-cache` (see `vercel.json`) so browsers pick up new versions; the app then shows "Versi baru tersedia". When changing caching rules in `sw.js`, bump `VERSION` to drop old caches.
+- The service worker never touches Firebase, Google sign-in or other cross-origin traffic (Google Fonts excepted), and only GET requests.
+- Buyer pages (`/shop/...`) do not offer installing the seller app.
+- New-order alerts use a Firestore listener on pending orders while the app runs. Alerts while the app is fully closed need Firebase Cloud Messaging plus a Cloud Function, which requires the Blaze plan.
 
 ## 4. Activating a paying shop
 

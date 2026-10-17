@@ -13,6 +13,8 @@ A WhatsApp-first shop and bookkeeping app for small resellers, built with React,
 - **Laporan**: sales, cost of goods, costs and net profit per period, with the full breakdown. See [accounting rules](docs/accounting.md) and the [bookkeeping model](docs/bookkeeping.md).
 - **Promosi**: WhatsApp broadcast and status text, story and post images, shop and product links.
 - **Langganan**: 7-day free trial for the online shop, paid plan via WhatsApp; bookkeeping stays free. See [plan and trial](docs/subscription.md).
+- **Installable app (PWA)**: add to the home screen (Android, iPhone, desktop), opens offline to the last screen, home-screen shortcuts, update notice on new versions.
+- **New-order alerts**: sound, pop-up and a system notification when a buyer sends an order, while the app is open or in the background (works on Firebase's free plan; alerts while the app is fully closed would need a push server).
 - Light and dark mode, larger text option, phone and desktop layouts.
 
 ## Setup Instructions

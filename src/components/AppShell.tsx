@@ -23,6 +23,8 @@ import { BusinessBrand } from "@/components/BusinessBrand";
 import { WorkspaceSearch } from "@/components/WorkspaceSearch";
 import { PlanProvider } from "@/contexts/PlanContext";
 import { PlanPill } from "@/components/PlanPill";
+import { AppStatus, InstallAppButton } from "@/components/AppInstall";
+import { OrderAlerts } from "@/components/OrderAlerts";
 import { isBusinessLogo } from "@/lib/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { BooksProvider, useBooks } from "@/contexts/BooksContext";
@@ -187,6 +189,8 @@ function Shell() {
 
   return (
     <div className="min-h-screen">
+      <OrderAlerts />
+      <AppStatus />
       <a
         href="#main-content"
         className="sr-only z-50 rounded bg-primary p-3 text-primary-foreground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
@@ -234,6 +238,7 @@ function Shell() {
             <Store className="h-[18px] w-[18px]" aria-hidden="true" />
             Lihat toko saya
           </a>
+          <InstallAppButton />
           {link("settings")}
           <PlanPill className="mx-1 mt-2" />
           <div className="mt-2 flex items-center gap-2.5 px-2 pt-2">
@@ -387,6 +392,7 @@ function Shell() {
               <Store className="h-[18px] w-[18px]" aria-hidden="true" />
               Lihat toko saya
             </a>
+            <InstallAppButton className="min-h-11 rounded-lg text-muted-foreground" onDone={() => setMenuOpen(false)} />
             <PlanPill className="mt-2" onNavigate={() => { menuNavigation.current = true; setMenuOpen(false); }} />
           </div>
         </SheetContent>

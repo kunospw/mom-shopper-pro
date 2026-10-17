@@ -13,7 +13,7 @@ export const settingsSections = [
   {
     id: "appearance",
     label: "Tampilan",
-    description: "Mode layar dan kenyamanan membaca",
+    description: "Aplikasi, notifikasi, dan mode layar",
   },
   {
     id: "business",
