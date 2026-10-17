@@ -77,6 +77,8 @@ npm run check       # unit checks: finance (3 time zones), catalog, design, cont
 npm run build       # production build
 ```
 
+Tests (all local, never a real Firebase project): `npm test` runs typecheck, unit checks and the browser suite on a mocked app; `npm run test:integration` runs the real app against the Firebase emulators; `npm run test:rules` runs the security rules suites. The emulator suites need Java 21+. See [tests/README.md](tests/README.md) for details and the feature coverage table.
+
 ### 6. Releasing
 
 Rules, environment variables and the client must go out in a set order. Follow the [release checklist](docs/release.md).

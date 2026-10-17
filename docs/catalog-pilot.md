@@ -55,21 +55,14 @@ npx --no-install tsc -p tsconfig.node.json
 npm run build
 ```
 
-The rules suite uses the exact proposed deployment file and a demo project in a local Firestore emulator. It covers anonymous/private boundaries, drafts/closed shops, cross-owner reads/writes/deletes, owner profile/transaction compatibility, product queries, field validation, and unknown fields. Install its tools outside application dependencies (Node 20+ and Java 21+):
+The rules suite uses the exact proposed deployment file and a demo project in a local Firestore emulator. It covers anonymous/private boundaries, drafts/closed shops, cross-owner reads/writes/deletes, owner profile/transaction compatibility, product queries, field validation, and unknown fields, plus the trial and tracking rules. It needs Node 20+ and Java 21+; the emulator tooling is installed outside the application dependencies on first run:
 
 ```bash
-catalog_tools="$(mktemp -d)"
-npm install --prefix "$catalog_tools" --no-package-lock firebase-tools@15.34.0 @firebase/rules-unit-testing@5.0.0 firebase@12.4.0
-CATALOG_TEST_TOOLING="$catalog_tools" \
-FIREBASE_EMULATORS_PATH="$catalog_tools/emulators" \
-XDG_CONFIG_HOME="$catalog_tools/config" \
-XDG_CACHE_HOME="$catalog_tools/cache" \
-"$catalog_tools/node_modules/.bin/firebase" emulators:exec \
-  --config firebase/emulators.json --project demo-catalog-tests --only firestore \
-  'node tests/catalog/rules.mjs && node tests/catalog/rules-subscription.mjs'
+npm run test:rules          # rules suites on the Firestore emulator
+npm run test:integration    # the real app against the Auth + Firestore emulators
 ```
 
-This command does not deploy rules. The official emulator download requires access to `storage.googleapis.com`. In this cloud session the download was blocked by the environment domain allowlist, so emulator execution is pending. Do not interpret the isolated browser checks with sample persistence as proof of Firestore enforcement.
+These commands do not deploy rules and only accept `demo-` projects. See [tests/README.md](../tests/README.md).
 
 Desktop/mobile browser checks with isolated sample data cover owner product creation/edit/delete, failed-write recovery, publishing/closing shops, required options, unavailable items, search, cart persistence, WhatsApp content, price-change review, unsaved edits, and absence of owner authentication modules on the buyer entry route. They make no production requests. Repository-wide lint still has its pre-existing 11 errors and 10 warnings; new catalog modules pass focused lint.
 

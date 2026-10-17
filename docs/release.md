@@ -19,17 +19,18 @@ npm ci
 npm run typecheck
 npm run check        # finance (3 time zones), catalog, design, contrast, status, entitlement, plan, setup
 npm run build
+npm run test:e2e     # browser suite on the mocked app, desktop + phone
 npm run lint         # 10 known errors, all older than this branch: generated ui/ files, the plugin require() in tailwind.config.ts, legacy src/lib/storage.ts
 ```
 
-Firestore rules, against the emulator (needs Java and firebase-tools):
+Firestore rules and the real app against the emulators (needs Java 21+; tooling installs itself on first run, `demo-` projects only):
 
 ```bash
-firebase emulators:exec --config firebase/emulators.json --project demo-catalog-tests --only firestore \
-  "node tests/catalog/rules.mjs && node tests/catalog/rules-subscription.mjs"
+npm run test:rules         # both suites must print PASS
+npm run test:integration   # sign-in, shop, orders, books, trial expiry, isolation
 ```
 
-Both suites must print `PASS`.
+See [tests/README.md](../tests/README.md).
 
 ## 2. Deploy order
 
