@@ -3,6 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { externalAdapters } from "./catalogue-adapters";
 import { handleCatalogue } from "./catalogue-ingestion";
+import { localOcr } from "./catalogue-local-ocr";
 
 export async function ingestCatalogue(body: unknown, authorization: string | null) {
   if (process.env.CATALOGUE_INGESTION_ENABLED !== "1") return { status: 503, body: { error: "ingestion-disabled" } };
@@ -12,5 +13,9 @@ export async function ingestCatalogue(body: unknown, authorization: string | nul
       throw new Error("Use both emulators with a demo- project");
   } else if (projectId !== "truly-yours-51176") throw new Error("Unexpected LarisKu project");
   const app = getApps().find(a => a.name === "catalogue-ingestion") ?? initializeApp({ projectId, credential: applicationDefault() }, "catalogue-ingestion");
-  return handleCatalogue(body, authorization, { db: getFirestore(app), verify: token => getAuth(app).verifyIdToken(token, true), adapters: externalAdapters(process.env) });
+  const adapters = externalAdapters(process.env);
+  const mode = process.env.CATALOGUE_OCR_ADAPTER || "vision";
+  if (mode !== "vision" && mode !== "tesseract") throw new Error("Unsupported OCR adapter");
+  if (mode === "tesseract") adapters.ocr = localOcr(process.env);
+  return handleCatalogue(body, authorization, { db: getFirestore(app), verify: token => getAuth(app).verifyIdToken(token, true), adapters, pipeline: `${mode}-ollama-v1` });
 }

@@ -35,7 +35,7 @@ export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusy
   }
   useEffect(() => {
     const id = localStorage.getItem(key);
-    void run(async () => { const jobs = await loadHistory(); const resume = id ?? (jobs.filter(j => j.status === "review").length === 1 ? jobs.find(j => j.status === "review")?.id : null); if (resume) accept(await catalogueRequest({ action: "status", jobId: resume })); });
+    void run(async () => { const jobs = await loadHistory(); const resume = id ?? (jobs.filter(j => j.status === "review").length === 1 ? jobs.find(j => j.status === "review")?.id : null); if (resume) { const value = await catalogueRequest({ action: "status", jobId: resume }); if (import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1" && value.pipeline !== "tesseract-ollama-v1") localStorage.removeItem(key); else accept(value); } });
     // One resume per seller; processing can also be refreshed manually.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);

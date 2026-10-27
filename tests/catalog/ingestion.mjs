@@ -74,6 +74,12 @@ try {
   assert.equal((await db.doc(`${root}/drafts/00`).get()).data().status, "confirmed");
   assert.equal((await call(user, confirm)).body.status, "confirmed");
   assert.equal((await call(user, upload)).body.status, "confirmed");
+  const realVersion = await call(user, upload, { ...context, pipeline: "real-test-v1" });
+  assert.notEqual(realVersion.body.id, id, "real extraction never reuses a legacy mock receipt");
+  assert.equal(realVersion.body.pipeline, "real-test-v1");
+  assert.equal(realVersion.body.status, "review");
+  assert.equal((await products.get()).size, 2, "new pipeline still requires explicit confirmation");
+  assert.equal((await call(user, upload, { ...context, pipeline: "real-test-v1" })).body.id, realVersion.body.id);
   // Malformed extraction persists an explicit failed job, never products.
   const failedUser = await account();
   for (const output of [{ complete: true, products: [{ ...candidate, uid: "evil" }] }, { complete: false, products: [] }]) {

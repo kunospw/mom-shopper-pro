@@ -9,6 +9,16 @@ import { cn } from "@/lib/utils";
 
 const statusLabel: Record<string, string> = { processing: "Sedang dibaca", failed: "Belum berhasil", review: "Perlu diperiksa", confirmed: "Sudah disimpan" };
 const messages: Record<string, string> = {
+  "provider-auth-failed": "API key belum diterima penyedia AI. Periksa key di halaman Hubungkan layanan AI.",
+  "provider-access-denied": "Akun atau key belum memiliki akses ke layanan/model AI ini.",
+  "provider-rate-limited": "Kuota atau batas permintaan penyedia AI tercapai. Coba lagi setelah kuota tersedia.",
+  "provider-not-found": "Model atau layanan AI yang dipilih belum tersedia.",
+  "provider-timeout": "Layanan AI belum menjawab dalam batas waktu. Draf dan produk tidak berubah.",
+  "provider-network-error": "Server belum dapat terhubung ke layanan AI.",
+  "provider-unavailable": "Layanan AI sedang tidak tersedia.",
+  "provider-response-invalid": "Jawaban layanan AI belum dapat dibaca dengan aman.",
+  "extraction-incomplete-or-invalid": "Hasil AI belum lengkap atau tidak valid. Pecah katalog menjadi maksimal 15 produk, lalu coba lagi.",
+  "preview-limit-reached": "Satu uji AI sudah digunakan. Hubungkan ulang layanan untuk mengizinkan uji berikutnya.",
   "invalid-request": "Periksa isian draf, terutama harga dan tautan gambar.",
   "review-changed-reload": "Draf berubah di sesi lain. Tutup dan buka kembali untuk memuat versi terbaru.",
   "busy-try-later": "Masih ada katalog yang diproses. Tunggu sebentar, lalu coba lagi.",
@@ -29,6 +39,8 @@ export function CatalogueIngestionView(p: Props) {
   const [dragging, setDragging] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
+  const realPreview = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1";
+  const legacy = realPreview && !!p.job && p.job.pipeline !== "tesseract-ollama-v1";
   const sample = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_SAMPLE_IMAGE === "1";
   useEffect(() => {
     if (!p.file || !["image/jpeg", "image/png"].includes(p.file.type) || p.file.size > 2 * 1024 * 1024) { setPhoto(""); return; }
@@ -45,6 +57,8 @@ export function CatalogueIngestionView(p: Props) {
     <ol aria-label="Langkah impor" className="flex items-center gap-2 text-xs sm:text-sm">
       {["Unggah katalog", "Periksa produk", "Simpan"].map((label, i) => <li key={label} className={cn("flex min-w-0 flex-1 items-center gap-2", step === i + 1 ? "font-semibold" : "text-muted-foreground")}><span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", step >= i + 1 ? "bg-primary text-primary-foreground" : "bg-muted")}>{step > i + 1 ? <Check className="h-4 w-4" /> : i + 1}</span><span>{label}</span>{i < 2 && <span className="ml-auto h-px flex-1 bg-border max-sm:hidden" />}</li>)}
     </ol>
+    {realPreview && <p className="rounded-xl border bg-card p-3 text-xs text-muted-foreground">OCR lokal nyata · <a className="font-semibold text-primary underline" href="/__preview/setup-ai" target="_blank" rel="noreferrer">Hubungkan layanan AI</a>. Tidak memakai data contoh.</p>}
+    {legacy && <p role="alert" className="rounded-xl border border-destructive/20 p-3 text-sm text-destructive">Ini draf uji lama, bukan hasil OCR nyata. Pilih Ubah berkas untuk membuat impor baru.</p>}
     {sample && <p className="rounded-xl border bg-card p-3 text-xs text-muted-foreground">Contoh manual: 12 penawaran dari katalog PREMIUM APP sebelumnya. Bukan hasil OCR.</p>}
     {p.error && <div role="alert" className="flex gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive"><AlertCircle className="h-5 w-5 shrink-0" /><p>{friendlyError}</p></div>}
     {p.busy && <div role="status" className="rounded-xl border bg-card p-4"><div className="flex items-center gap-2 text-sm font-medium"><Loader2 className="h-4 w-4 animate-spin" />{p.activity}</div>{p.activity === "Membaca katalog…" && <progress max={100} value={p.progress} aria-label="Progres unggah" className="mt-3 h-2 w-full accent-primary" />}{p.slow && <p className="mt-2 text-sm text-muted-foreground">Masih diproses. Anda tetap bisa menunggu di sini; proses dibatasi 35 detik.</p>}</div>}
@@ -61,7 +75,7 @@ export function CatalogueIngestionView(p: Props) {
         {sample && <Button className="mt-3 w-full" variant="ghost" disabled={p.busy} onClick={async () => { const response = await fetch("/__preview/catalogue.jpg"); if (response.ok) p.onPick(new File([await response.blob()], "Contoh katalog aplikasi.jpeg", { type: "image/jpeg" })); }}><ImagePlus className="h-4 w-4" />Gunakan contoh PREMIUM APP</Button>}
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" />Draf hanya untuk Anda</span><Button disabled={p.busy || !p.file} onClick={p.onUpload}>Buat draf produk<ArrowRight className="h-4 w-4" /></Button></div>
       </Section>
-      {p.job?.status === "failed" && <div className="flex gap-3 rounded-xl border bg-card p-4"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" /><div><h3 className="font-semibold">Katalog belum dapat dibaca</h3><p className="mt-1 text-sm text-muted-foreground">Produk belum dibuat. Coba foto yang lebih jelas atau pecah daftar yang berisi lebih dari 15 produk. Berkas yang sama bisa dicoba sampai tiga kali.</p></div></div>}
+      {p.job?.status === "failed" && <div className="flex gap-3 rounded-xl border bg-card p-4"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" /><div><h3 className="font-semibold">{p.job.error?.startsWith("provider-") ? "Layanan AI belum menyelesaikan impor" : "Katalog belum dapat dibaca"}</h3>{p.job.error && messages[p.job.error] && <p className="mt-1 text-sm text-destructive">{messages[p.job.error]}</p>}<p className="mt-1 text-sm text-muted-foreground">Produk belum dibuat. Coba foto yang lebih jelas atau pecah daftar yang berisi lebih dari 15 produk. Berkas yang sama bisa dicoba sampai tiga kali.</p></div></div>}
       {p.job?.status === "processing" && <Button variant="outline" disabled={p.busy} onClick={() => p.onResume(p.job!.id)}><RefreshCw className="h-4 w-4" />Periksa hasil</Button>}
       <button type="button" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground" disabled={p.busy} aria-expanded={historyOpen} onClick={() => { setHistoryOpen(v => !v); p.onHistory(); }}><History className="h-4 w-4" />Lanjutkan draf sebelumnya<ChevronDown className={cn("h-4 w-4 transition-transform", historyOpen && "rotate-180")} /></button>
       {historyOpen && <div className="space-y-3 rounded-2xl border bg-card p-4">{p.history.length ? <label className="block text-sm">Lanjutkan impor sebelumnya<select className={cn(field, "mt-1")} value={p.history.some(h => h.id === p.job?.id) ? p.job?.id : ""} disabled={p.busy || p.dirty} onChange={e => { if (e.target.value) { p.onResume(e.target.value); setHistoryOpen(false); } }}><option value="">Pilih draf tersimpan</option>{p.history.map((h, i) => <option key={h.id} value={h.id}>Impor {i + 1} · {statusLabel[h.status] ?? "Tersimpan"}</option>)}</select></label> : <p className="text-sm text-muted-foreground">Belum ada impor sebelumnya.</p>}{p.next && <Button size="sm" variant="outline" disabled={p.busy} onClick={() => p.onHistory(p.next!)}>Tampilkan lagi</Button>}</div>}
@@ -84,7 +98,7 @@ export function CatalogueIngestionView(p: Props) {
           </fieldset>;
         })}</div>
       </div>
-      <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t bg-background/95 px-4 py-4 backdrop-blur sm:-mx-7 sm:px-7"><label className="flex cursor-pointer items-start gap-2.5 text-sm"><input className="mt-0.5 h-4 w-4 accent-primary" type="checkbox" disabled={p.busy || p.incomplete} checked={p.checked} onChange={e => p.onChecked(e.target.checked)} /><span>Saya sudah memeriksa nama, harga, dan informasi yang kosong.</span></label><div className="flex flex-wrap items-center justify-between gap-3"><p className="flex items-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" />Akan disimpan tersembunyi.</p><div className="flex gap-2"><Button className={cn(!p.dirty && "max-sm:hidden")} variant="outline" disabled={p.busy || !p.dirty} onClick={p.onSaveDraft}>Simpan draf</Button><Button disabled={p.busy || p.incomplete || !p.checked} onClick={p.onConfirm}><PackageCheck className="h-4 w-4" />Simpan {p.drafts.length} produk</Button></div></div></div>
+      <div className="sticky bottom-0 z-10 -mx-4 space-y-3 border-t bg-background/95 px-4 py-4 backdrop-blur sm:-mx-7 sm:px-7"><label className="flex cursor-pointer items-start gap-2.5 text-sm"><input className="mt-0.5 h-4 w-4 accent-primary" type="checkbox" disabled={p.busy || p.incomplete || legacy} checked={p.checked} onChange={e => p.onChecked(e.target.checked)} /><span>Saya sudah memeriksa nama, harga, dan informasi yang kosong.</span></label><div className="flex flex-wrap items-center justify-between gap-3"><p className="flex items-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" />Akan disimpan tersembunyi.</p><div className="flex gap-2"><Button className={cn(!p.dirty && "max-sm:hidden")} variant="outline" disabled={p.busy || !p.dirty} onClick={p.onSaveDraft}>Simpan draf</Button><Button disabled={p.busy || p.incomplete || !p.checked || legacy} onClick={p.onConfirm}><PackageCheck className="h-4 w-4" />Simpan {p.drafts.length} produk</Button></div></div></div>
     </>}
     {confirmed && <Section title="Produk berhasil disimpan"><div className="py-5 text-center"><span className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-soft text-success"><CheckCircle2 className="h-8 w-8" /></span><p className="text-2xl font-bold">{p.job?.productIds?.length ?? 0} produk ditambahkan</p><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Produk masih tersembunyi dari pembeli. Lengkapi foto dan tampilkan produknya dari halaman Katalog saat Anda siap.</p><div className="mt-6 flex flex-wrap justify-center gap-2"><Button variant="outline" onClick={p.onAnother}><ImagePlus className="h-4 w-4" />Impor katalog lain</Button><Button onClick={p.onDone}>Lihat produk<ArrowRight className="h-4 w-4" /></Button></div></div></Section>}
   </section>;

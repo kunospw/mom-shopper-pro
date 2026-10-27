@@ -51,6 +51,7 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
       const body = JSON.parse(init.body);
       assert.match(body.messages[0].content, /untrusted data, NEVER instructions/);
       assert.equal(body.messages[1].role, "user");
+      assert.equal(body.think, "low");
       assert.match(JSON.parse(body.messages[1].content).catalogueText, /ignore instructions/);
       return Response.json({ message: { content: JSON.stringify({ complete: true, products: [c] }) } });
     };
@@ -61,6 +62,13 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
     await assert.rejects(adapter.extract("text", new AbortController().signal));
     globalThis.fetch = async () => Response.json({ message: { content: JSON.stringify({ complete: true, products: [{ ...c, uid: "evil", published: true }] }) } });
     await assert.rejects(adapter.extract("text", new AbortController().signal));
+    for (const [status, code, expectedCalls] of [[401,"provider-auth-failed",1],[403,"provider-access-denied",1],[404,"provider-not-found",1],[429,"provider-rate-limited",2],[503,"provider-unavailable",2]]) {
+      let attempts=0; globalThis.fetch=async()=>{ attempts++; return new Response("PRIVATE_PROVIDER_CONTENT",{status}); };
+      await assert.rejects(adapter.extract("text",new AbortController().signal), error=>error.message===code);
+      assert.equal(attempts,expectedCalls);
+    }
+    globalThis.fetch=async()=>{throw new DOMException("sensitive timeout detail","TimeoutError");};
+    await assert.rejects(adapter.extract("text",new AbortController().signal), /provider-timeout/);
     await assert.rejects(a.externalAdapters({}).extract("text", new AbortController().signal));
   } finally { globalThis.fetch = original; }
   console.log("PASS ingestion unit: schema mapping, missing values, prompt isolation, malformed/untrusted output, bounds; all provider calls mocked.");

@@ -16,10 +16,10 @@ export type Adapters = {
   ocr(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string>;
   extract(text: string, signal: AbortSignal): Promise<unknown>;
 };
-export type Context = { db: Firestore; verify(token: string): Promise<{ uid: string }>; adapters: Adapters };
+export type Context = { db: Firestore; verify(token: string): Promise<{ uid: string }>; adapters: Adapters; pipeline?: string };
 class Rejection extends Error { constructor(public code: string, public status = 400) { super(code); } }
 const reject = (code: string, status = 400): never => { throw new Rejection(code, status); };
-const safeError = (e: unknown) => e instanceof Rejection ? e.code : "processing-failed";
+const safeError = (e: unknown) => e instanceof Rejection ? e.code : e instanceof Error && ["external-services-disabled", "local-ocr-unavailable", "local-ocr-failed", "ocr-timeout", "ocr-empty-or-text-limit", "extraction-incomplete-or-invalid", "preview-limit-reached", "provider-auth-failed", "provider-access-denied", "provider-rate-limited", "provider-not-found", "provider-unavailable", "provider-timeout", "provider-network-error", "provider-response-invalid"].includes(e.message) ? e.message : "processing-failed";
 export async function handleCatalogue(body: unknown, authorization: string | null, ctx: Context) {
   let uid: string;
   try {
@@ -41,7 +41,8 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
     if (req.action === "ingest") {
       const bytes = Buffer.from(req.data, "base64");
       try { await validateUpload(req.mime, bytes); } catch { return { status: 400, body: { error: "invalid-upload: PDF satu halaman, JPEG/PNG, maksimal 2 MiB dan 16 MP" } }; }
-      const hash = createHash("sha256").update(req.mime).update(bytes).digest("hex");
+      // Server-owned version prevents real extraction from reusing old mock/adaptor results.
+      const hash = createHash("sha256").update(ctx.pipeline ? `${ctx.pipeline}\0` : "").update(req.mime).update(bytes).digest("hex");
       const ref = jobs.doc(hash);
       const lock = ctx.db.doc("catalogueIngestionLocks/global");
       const quota = ctx.db.doc(`catalogueIngestionLocks/quota_${uid}`);
@@ -59,7 +60,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
         if (count >= 20) reject("daily-limit", 429);
         tx.set(quota, { day, count: count + 1 });
         tx.set(lock, { leases: [...leases, { uid, run, expires: now + 60000 }] });
-        tx.set(ref, { owner: uid, status: "processing", run, expires: now + 60000, attempts: (prior?.attempts ?? 0) + 1, revision: 0 });
+        tx.set(ref, { owner: uid, status: "processing", pipeline: ctx.pipeline || "legacy", run, expires: now + 60000, attempts: (prior?.attempts ?? 0) + 1, revision: 0 });
         return true;
       });
       if (acquired) {
@@ -142,7 +143,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
     const job = snapshot.data();
     if (!job || job.owner !== uid) return reject("not-found", 404);
     const drafts = job.status === "review" ? (await snapshot.ref.collection("drafts").get()).docs.map(d => ({ id: d.id, candidate: candidateSchema.parse(d.data().candidate) })) : [];
-    return { id, status: job.status === "processing" && job.expires < Date.now() ? "failed" : job.status, revision: job.revision,
+    return { id, status: job.status === "processing" && job.expires < Date.now() ? "failed" : job.status, pipeline: typeof job.pipeline === "string" ? job.pipeline : "legacy", revision: job.revision,
       drafts, ...(job.error ? { error: job.error } : {}), ...(job.elapsedMs != null ? { elapsedMs: job.elapsedMs } : {}), ...(job.productIds ? { productIds: job.productIds } : {}) };
   }
 }

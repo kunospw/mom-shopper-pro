@@ -18,7 +18,8 @@
     "test:rules": "node scripts/test-emulators.mjs rules",
     "check:ingestion": "node scripts/check-ingestion.mjs",
     "test:ingestion": "node scripts/test-emulators.mjs ingestion",
-    "build:ingestion": "node scripts/build-ingestion.mjs"
+    "build:ingestion": "node scripts/build-ingestion.mjs",
+    "check:local-ocr": "node scripts/check-local-ocr.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
