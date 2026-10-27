@@ -3,6 +3,7 @@ import { z } from "zod";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { candidateSchema, extractionSchema, finalProduct, LIMITS, reviewSchema, type JobView } from "../src/lib/catalogue-ingestion";
 import { validateUpload } from "./catalogue-adapters";
+import { explicitPricePoints, groundCandidates } from "./catalogue-quality";
 
 const jobId = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.discriminatedUnion("action", [
@@ -64,13 +65,17 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
         return true;
       });
       if (acquired) {
+        let sourcePricePoints: number | undefined;
         const controller = new AbortController();
         let timer: ReturnType<typeof setTimeout> | undefined;
         try {
           const extraction = async () => {
             const text = await ctx.adapters.ocr(bytes, req.mime, controller.signal);
             if (!text.trim() || text.length > LIMITS.text) reject("ocr-empty-or-text-limit");
-            return extractionSchema.parse(await ctx.adapters.extract(text, controller.signal));
+            sourcePricePoints = explicitPricePoints(text);
+            if (sourcePricePoints > LIMITS.products) reject("catalogue-price-limit");
+            const result = extractionSchema.parse(await ctx.adapters.extract(text, controller.signal));
+            return { ...result, products: groundCandidates(result.products, text) };
           };
           const result = await Promise.race([extraction(), new Promise<never>((_, fail) => {
             timer = setTimeout(() => { controller.abort(); fail(new Rejection("processing-timeout", 408)); }, LIMITS.processingMs);
@@ -80,12 +85,12 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
             if (snapshot.data()?.run !== run) reject("stale-attempt", 409);
             const ids = result.products.map((_, i) => String(i).padStart(2, "0"));
             result.products.forEach((candidate, i) => tx.create(ref.collection("drafts").doc(ids[i]), { owner: uid, candidate, status: "review" }));
-            tx.update(ref, { status: "review", draftIds: ids, elapsedMs: Date.now() - now });
+            tx.update(ref, { status: "review", draftIds: ids, sourcePricePoints, elapsedMs: Date.now() - now });
           });
         } catch (e) {
           await ctx.db.runTransaction(async tx => {
             const current = await tx.get(ref);
-            if (current.data()?.run === run) tx.update(ref, { status: "failed", error: safeError(e), elapsedMs: Date.now() - now });
+            if (current.data()?.run === run) tx.update(ref, { status: "failed", error: safeError(e), ...(sourcePricePoints != null ? { sourcePricePoints } : {}), elapsedMs: Date.now() - now });
           });
         } finally {
           clearTimeout(timer);
@@ -120,6 +125,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
       if (!job || job.owner !== uid) return reject("not-found", 404);
       if (job.status === "confirmed") return; // durable receipt, even when products were later edited/deleted
       if (job.status !== "review" || job.revision !== req.revision) reject("review-changed-reload", 409);
+      if (job.sourcePricePoints != null && (!Number.isInteger(job.sourcePricePoints) || job.sourcePricePoints < 0 || job.sourcePricePoints > LIMITS.products)) reject("catalogue-price-limit");
       const ids = z.array(z.string().regex(/^\d{2}$/)).min(1).max(LIMITS.products).parse(job.draftIds);
       if (new Set(ids).size !== ids.length) reject("invalid-draft-set");
       const docs = await tx.getAll(...ids.map(id => ref.collection("drafts").doc(id)));

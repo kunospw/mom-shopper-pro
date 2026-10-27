@@ -12,8 +12,16 @@ export { bundle };
 if (process.argv[1].endsWith("check-ingestion.mjs")) {
   const m = await bundle("src/lib/catalogue-ingestion.ts");
   const a = await bundle("server/catalogue-adapters.ts");
+  const quality = await bundle("server/catalogue-quality.ts");
+  assert.equal(quality.explicitPricePoints(Array(16).fill("Rp. 25.000").join(" ")),16);
+  assert.equal(quality.explicitPricePoints("1 bulan, tahun 2026"),0);
+  assert.equal(quality.explicitPricePoints(Array(16).fill("25.000").join(" ")),16);
+  assert.equal(quality.explicitPricePoints("Rp25.000 Rp. 11.000 IDR 25000"),3);
   const { PDFDocument } = await import("pdf-lib");
   const c = { name: "Kemeja", price: 150000, sku: null, description: null, imageUrl: null };
+  assert.deepEqual(quality.groundCandidates([{...c,name:"1 BUIAN",price:112000}],"Rp11.000")[0],{...c,name:null,price:null});
+  assert.equal(quality.groundCandidates([c],"Kemeja Rp150.000")[0].price,150000);
+  assert.equal(quality.groundCandidates([{...c,price:99999}],"Kemeja Rp150.000")[0].price,null);
   assert.equal(m.finalProduct(c).price, 150000);
   assert.equal(m.finalProduct(c).published, false);
   assert.equal(m.finalProduct(c).description, "");

@@ -99,6 +99,10 @@ try {
   const broken = { ...context, adapters: { ...context.adapters, extract: async () => ({ complete: false, products: [] }) } };
   for (let i = 0; i < 3; i++) assert.equal((await call(retryUser, upload, broken)).body.status, "failed");
   assert.equal((await call(retryUser, upload, broken)).body.error, "retry-limit");
+  const oversizedUser=await account(); let modelCalled=false;
+  const oversized=await call(oversizedUser,upload,{...context,adapters:{ocr:async()=>Array(16).fill("Rp25.000").join("\n"),extract:async()=>{modelCalled=true;throw Error("must not call model");}}});
+  assert.equal(oversized.body.status,"failed");assert.equal(oversized.body.error,"catalogue-price-limit");assert.equal(modelCalled,false);
+  assert.equal((await db.collection(`storefronts/${oversizedUser.uid}/products`).get()).size,0);
   // Global slots and per-owner slots are enforced by Firestore transactions.
   await db.doc("catalogueIngestionLocks/global").set({ leases: [ { uid: "x", run: "a", expires: Date.now() + 60000 }, { uid: "y", run: "b", expires: Date.now() + 60000 } ] });
   assert.equal((await call(await account(), upload)).status, 429);
