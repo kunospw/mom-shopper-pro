@@ -19,6 +19,16 @@ Private data paths are `catalogueIngestions/{uid}/jobs/{hash}` and `.../drafts/{
 
 Final products retain the actual schema at `storefronts/{uid}/products`: integer whole Rupiah, required positive price and nonblank name, optional description mapped to `""` only on confirmation, and the existing empty-product defaults. Products are always `published:false`; the owner may later publish using the existing editor. SKU and HTTPS image URL have no compatible final-product fields: retained as private, editable metadata only. URLs are never fetched, displayed as images or copied into the raster-only `image` field. No existing product is modified; transaction `create` preconditions prevent overwrites. Every candidate is labelled uncertain, with explicit missing-field indicators and a seller review acknowledgement.
 
+## Review flow (updated after interactive feedback)
+
+The import panel reuses the existing `Section`, `MoneyInput`, form field styles, buttons and catalogue sheet. It has three visible steps: upload, review, save. Only name and Rupiah price are expanded per product; descriptions and private metadata are optional disclosures. The source image can be compared beside the list on desktop and expanded on phone. The browser's temporary image URL is revoked when the file/panel changes; this does not add server-side raw-file storage. Saved imports resume without showing hashes or internal status codes.
+
+The seller can optionally save draft corrections for later. The main save button first persists any unsaved corrections, then confirms that exact revision through the existing atomic backend transaction. A separate draft-save click is no longer required. The acknowledgement resets after editing, and missing/invalid fields still block final confirmation. A success screen links back to the product list. No publishing behavior changed.
+
+The private interactive preview may set `VITE_CATALOGUE_SAMPLE_IMAGE=1` together with emulator mode. Its supplied image and 12 manually transcribed offers from the right-hand column are development-only assets in ignored cache, clearly labelled as a bounded manual sample, not an OCR result or a complete import of the image. The original image and this personal fixture are not checked into the repository. The preview's original two mock drafts were backed up before replacing only their unchanged initial test state; no final products were created.
+
+To run ingestion tests while that preview is open, use a separate emulator configuration and matching `INGESTION_TEST_FIRESTORE_PORT`, `INGESTION_TEST_AUTH_PORT`, `INGESTION_TEST_WEB_PORT`, and `INGESTION_TEST_CONFIG`. The verified design run used Firestore 8298, Auth 9298, frontend 8096, websocket 9250, hub 4450 and logging 4550. Tests still require loopback emulator hosts and the `demo-ingestion` project; their defaults remain unchanged. Do not run reset/clear tests against an interactive preview containing work you want to retain.
+
 ## Explicit limits and failure behavior
 
 | Limit | MVP behavior |

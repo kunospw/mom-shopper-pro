@@ -488,13 +488,13 @@ export function Catalog() {
           <SheetHeader className="sticky top-0 z-10 border-b bg-card px-5 py-4 pr-16 text-left sm:px-7">
             <SheetTitle className="text-xl">{ingestion ? "Impor katalog AI" : bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
             <SheetDescription>
-              {bulk
+              {ingestion ? "Dari daftar harga ke draf produk. Periksa sebelum disimpan." : bulk
                 ? "Dari foto atau dari Excel/CSV. Periksa daftarnya dulu, lalu simpan sekaligus."
                 : "Isi foto, harga, dan pilihan. Produk baru tersembunyi sampai Anda menampilkannya."}
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 sm:p-7">
-            {ingestion ? <CatalogueIngestion uid={user.uid} onDirtyChange={setDirty} onBusyChange={setBusy} onSaved={() => setRetry(value => value + 1)} /> : bulk ? (
+            {ingestion ? <CatalogueIngestion key={user.uid} uid={user.uid} onDone={done} onDirtyChange={setDirty} onBusyChange={setBusy} onSaved={() => setRetry(value => value + 1)} /> : bulk ? (
               <BulkAddProducts
                 categories={categories}
                 onDirtyChange={setDirty}

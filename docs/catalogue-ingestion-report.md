@@ -2,6 +2,10 @@
 
 27 October 2026 — LarisKu, `kunospw/mom-shopper-pro`.
 
+Interactive design follow-up: the upload/review UI now uses the existing form-card design, Rupiah inputs, compact editable rows, expandable details and source-image comparison. Final confirmation also saves current corrections, removing the mandatory intermediate draft-save step. Desktop and phone preview checks used the supplied image with a clearly labelled manual sample of 12 offers from its right-hand column; this is not a full OCR extraction. No final products were created in the user's interactive preview. The image and fixture remain outside Git in the private development cache.
+
+The design follow-up passed typechecking, targeted lint, the four ingestion journeys (including one-click correction/confirmation on phone), existing product-editor desktop/phone checks and the frontend build. Tests used separate emulator/frontend ports so they did not clear the interactive preview. `CatalogueIngestionView.tsx` contains the visual layout; `CatalogueIngestion.tsx` retains the authenticated state/actions. Test-port overrides were added to the existing test runner/config/context for this isolation.
+
 Implemented in the isolated `drini` worktree `/home/drini/personal/larisku/catalogue-ingestion`, branch `feat/ai-catalogue-ingestion`, based on `7fc1e8413193e5084505cd2edefd30ebc32a2087`. The original checkout remains on `feat/configurable-seller-design` at that revision, with its existing untracked `docs/house-plans/` preserved.
 
 ## Delivered
