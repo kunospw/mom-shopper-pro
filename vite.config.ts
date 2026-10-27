@@ -14,12 +14,30 @@ function shopChatDev(mode: string): Plugin {
     apply: "serve",
     configureServer(server) {
       const env = { ...loadEnv(mode, process.cwd(), ""), ...process.env };
+      server.middlewares.use("/api/ingest-catalogue", async (req, res) => {
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Content-Type", "application/json");
+        if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
+        let raw = "";
+        req.setEncoding("utf8");
+        try {
+          for await (const chunk of req) {
+            raw += chunk;
+            if (raw.length > 2900000) { res.statusCode = 413; return res.end(JSON.stringify({ error: "upload-too-large" })); }
+          }
+          const { ingestCatalogue } = await server.ssrLoadModule("/server/catalogue-runtime.ts");
+          const result = await ingestCatalogue(JSON.parse(raw), req.headers.authorization ?? null);
+          res.statusCode = result.status;
+          res.end(JSON.stringify(result.body));
+        } catch { res.statusCode = 400; res.end(JSON.stringify({ error: "invalid-request-or-unavailable" })); }
+      });
       server.middlewares.use("/api/shop-chat", async (req, res) => {
         if (req.method !== "POST") {
           res.statusCode = 405;
           return res.end();
         }
         let raw = "";
+        req.setEncoding("utf8");
         for await (const chunk of req) raw += chunk;
         let body: unknown = null;
         try {

@@ -217,7 +217,7 @@ export function cartTotal(lines: CartLine[], products: CatalogProduct[]) {
     (sum, line) =>
       sum +
       optionPrice(
-        products.find((product) => product.id === line.productId),
+        products.find((product) => product.id === line.productId)!,
         line.option,
       ) *
         line.quantity,
@@ -238,7 +238,7 @@ export function orderSignature(
       (() => {
         const product = products.find(
           (product) => product.id === line.productId,
-        );
+        )!;
         return [
           product.id,
           product.name,
@@ -390,7 +390,7 @@ export function whatsAppOrder(
   )
     throw new Error("Pesanan belum siap.");
   const items = cart.map((line, index) => {
-    const product = products.find((item) => item.id === line.productId);
+    const product = products.find((item) => item.id === line.productId)!;
     return `${index + 1}. ${product.name}${line.option ? ` — ${product.optionLabel}: ${line.option}` : ""}\n   ${line.quantity} × ${rupiah(optionPrice(product, line.option))}\n   ${product.kind === "digital" ? "Produk digital" : availabilityLabels[product.availability]}${product.availability === "preorder" ? ` · ${product.leadTime}` : ""}`;
   });
   const header = order

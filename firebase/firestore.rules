@@ -23,6 +23,20 @@ service cloud.firestore {
       return existsAfter(path) && entActive(getAfter(path).data);
     }
 
+    // Server-generated ingestion state: Admin SDK bypasses these rules.
+    // Ownership and all writes are validated in the authenticated backend.
+    match /catalogueIngestions/{ownerId}/jobs/{jobId} {
+      allow read: if request.auth != null && request.auth.uid == ownerId;
+      allow write: if false;
+      match /drafts/{draftId} {
+        allow read: if request.auth != null && request.auth.uid == ownerId;
+        allow write: if false;
+      }
+    }
+    match /catalogueIngestionLocks/{lockId} {
+      allow read, write: if false;
+    }
+
     // Preserve profile and transaction access for each signed-in owner.
     // The former global authenticated catch-all is intentionally removed.
     match /users/{userId} {

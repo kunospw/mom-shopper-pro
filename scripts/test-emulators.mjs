@@ -14,6 +14,11 @@ import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
 const suites = {
+  ingestion: {
+    config: "firebase/emulators.ingestion.json",
+    project: "demo-ingestion", only: "auth,firestore",
+    command: "node tests/catalog/ingestion.mjs && npx playwright test -c playwright.ingestion.config.ts",
+  },
   rules: {
     config: "firebase/emulators.json",
     project: "demo-catalog-tests",

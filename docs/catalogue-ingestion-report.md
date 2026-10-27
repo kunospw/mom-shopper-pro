@@ -1,0 +1,50 @@
+# Catalogue ingestion implementation report
+
+27 October 2026 — LarisKu, `kunospw/mom-shopper-pro`.
+
+Implemented in the isolated `drini` worktree `/home/drini/personal/larisku/catalogue-ingestion`, branch `feat/ai-catalogue-ingestion`, based on `7fc1e8413193e5084505cd2edefd30ebc32a2087`. The original checkout remains on `feat/configurable-seller-design` at that revision, with its existing untracked `docs/house-plans/` preserved.
+
+## Delivered
+
+- `server/catalogue-ingestion.ts`: authenticated ingestion, owner validation, persisted processing/failure/review states, duplicate-file protection, shared concurrency leases, daily/attempt quotas, corrected-draft saves and atomic/idempotent confirmation. No product is created before explicit confirmation; resulting products are hidden.
+- `server/catalogue-adapters.ts`: one-page Google Vision OCR and compact Ollama structured-extraction adapters, runtime validation, response limits, timeouts/retries and prompt/data separation. External calls require a separate enable flag and server credentials.
+- `server/catalogue-runtime.ts`, `server/catalogue-http.ts`, `api/ingest-catalogue.ts`, `scripts/build-ingestion.mjs`, `vite.config.ts`: server-only credentials, project/emulator guards, bounded HTTP entry points, local integration and a prepared VPS build. No daemon/service was started.
+- `src/lib/catalogue-ingestion.ts`, `catalogue-client.ts`, `catalogue-token.ts`, `src/components/CatalogueIngestion.tsx`, `src/pages/Catalog.tsx`: schema mapping, upload progress, processing/failure/retry states, persisted import history, editable review, missing-field indicators, saved corrections and seller acknowledgement/confirmation. The catalogue panel close button now sits above its sticky header, fixing pointer access on desktop and phone.
+- `firebase/firestore.rules`, `firebase/emulators.ingestion.json`: private owner reads, no direct client draft/job writes, no client access to locks; existing product/public-catalogue rules preserved. Admin writes are explicitly validated in the backend.
+- `scripts/check-ingestion.mjs`, `tests/catalog/ingestion*.mjs`, `tests/ingestion/journey.spec.mjs`, `playwright.ingestion.config.ts`, `scripts/test-emulators.mjs`: mocked provider checks, real Auth/Firestore emulator security/transaction tests and desktop/phone journeys with the actual frontend Auth/product storage. Only OCR/LLM are mocked in the new journeys.
+- Package scripts/dependency lockfile, `.env.example`, `.gitignore`, and [setup/deployment guide](catalogue-ingestion.md). Three non-null type assertions in `src/lib/catalog.ts` express the existing `reconcileCart` guarantee when importing the actual product schema into strict server compilation; no cart behavior changed.
+
+## Exact verification
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | PASS: app and server TypeScript |
+| `npm run check:ingestion` | PASS: mocked Vision PDF/image responses, structured extraction, malformed/injected output, nullable fields, schema mapping and input limits |
+| `npm run check` | PASS: all existing checks plus ingestion; includes 450 randomized ledgers across Jakarta/UTC/New York and 116 contrast pairs |
+| `npm run test:ingestion` | PASS: backend/rules assertions plus 4 desktop/phone journeys using real frontend authentication and storage against Auth/Firestore emulators |
+| `npm run test:rules` | PASS: existing catalogue/security suite and 38 subscription checks |
+| `npm run test:e2e -- tests/e2e/catalog.spec.mjs tests/e2e/buyer-order.spec.mjs tests/e2e/bulk-cropper.spec.mjs --workers=1` | PASS: 6 tests, 4 expected skips for duplicate viewport combinations |
+| `npm run test:e2e -- tests/e2e/catalog.spec.mjs --workers=1` | PASS after the close-button fix: 2 tests, 2 expected viewport skips |
+| `npm run build` | PASS: frontend build; compilation is not deployment verification |
+| `npm run build:ingestion` | PASS: prepared server bundle, without startup/deployment |
+| `npx eslint src/components/CatalogueIngestion.tsx src/lib/catalogue-*.ts server/catalogue-*.ts api/ingest-catalogue.ts` | PASS |
+| `git diff --check` / staged equivalent | PASS |
+| `npm run lint` | FAIL: 10 pre-existing errors and 19 warnings in unchanged files; errors in `ui/chart.tsx`, `ui/command.tsx`, `ui/textarea.tsx`, `lib/storage.ts`, `tailwind.config.ts` |
+
+The new emulator assertions cover real ID-token verification, unauthenticated/forged-token rejection, cross-seller read/save/confirm denial, direct owner/other/anonymous draft creation/edit/deletion denial, Admin-side validation despite rules bypass, missing-field atomic failure, product collision without overwrite/partial commit, concurrent/repeated confirmation, duplicate upload, failed/incomplete extraction and retry, per-seller/global leases, daily quota and attempt caps. Browser journeys cover upload → private review → correction → explicit confirmation → hidden final products visible in the actual seller list, plus unsupported input, a >5-second processing message, failure and safe retry. Screens were visually inspected. Expected permission-denied logs are negative assertions, not failed tests.
+
+Whole-repository `npm test` / all unrelated browser/integration specs were not run. Existing tests above provide the relevant manual-entry, bulk-entry, public-catalogue/order and security regressions. Emulator success does not verify deployed rules or IAM. SDK metadata-lookup and stale Browserslist warnings were non-failing.
+
+## Limits, costs and remaining live verification
+
+PDF exactly one page, JPEG or PNG; 2 MiB; 16 MP; 18,000 OCR characters; 15 products; 35-second processing deadline; two shared active pipelines, one per seller; 20 attempts/seller/UTC day; three attempts per identical file. The API needs a >=60-second hosting window. Entire batches fail rather than truncate. Re-uploading identical bytes reuses the same job; different files are not semantically deduplicated. Drafts/receipts currently have no automatic retention cleanup.
+
+The real product schema uses whole Rupiah and has no SKU or remote-image field. Those extracted values remain private review metadata. Missing required name/price blocks confirmation; missing optional description remains null in drafts and maps to the existing empty text only on confirmation. No URL is fetched. Default kind/availability/category/options follow the existing empty-product schema; richer extraction and images are outside this MVP.
+
+A recorded mocked PNG upload → persisted review was **3.600 seconds**, with two fake candidates. This includes emulator/backend overhead and does **not** measure real OCR/LLM latency. The declared <=5-second target workload is a clear one-page file under 250 KiB, <=5 products and <=3,000 OCR characters. Real latency/accuracy and its p50/p95 remain unmeasured because paid calls were not authorized. The >5-second processing state is tested.
+
+Activation requires a dedicated LarisKu runtime identity/ADC, reviewed least-privilege Firestore/Auth/usage IAM, authorized Vision service/billing, a dedicated server-only Ollama key and model access, proposed-rule review/publication, and a separately approved API runtime/proxy/frontend release. The guide details these steps; none was executed. The source and deployment documents were inspected; current live API/rules/site behavior remains unverified.
+
+Expected marginal costs beyond provider allowances: [Vision](https://cloud.google.com/vision/pricing) about US$0.0015/page after its first 1,000 monthly OCR units, plus [Ollama `gpt-oss:20b`](https://ollama.com/library/gpt-oss:20b-cloud) about US$0.00095 for an illustrative 5,000-input/2,000-output extraction at inspected public rates; retries may add calls. Firestore/runtime/network charges and account-specific plan terms also apply. No paid OCR/LLM calls, purchases or billing enablement occurred.
+
+No deployment, rule publication, production-data changes, push to GitHub, or production restart/reload occurred. All implementation and test work used the isolated LarisKu checkout and temporary loopback processes; no KAppHelper/Kairos application agents, databases, working trees or application credentials were used.

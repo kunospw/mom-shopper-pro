@@ -30,6 +30,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { ProductEditor } from "@/components/ProductEditor";
+import { CatalogueIngestion } from "@/components/CatalogueIngestion";
 import { BulkAddProducts } from "@/components/BulkAddProducts";
 import { AvailabilityBadge, priceLabel, productMeta } from "@/components/ShopProductCard";
 import { ShopAvatar } from "@/components/shop/shop-ui";
@@ -75,7 +76,8 @@ export function Catalog() {
   const [deleting, setDeleting] = useState(false);
   const edit = params.get("edit");
   const bulk = params.get("new") === "bulk";
-  const editor = params.get("new") === "product" || !!edit || bulk;
+  const ingestion = params.get("new") === "catalogue";
+  const editor = params.get("new") === "product" || !!edit || bulk || ingestion;
   const storeEditor = params.get("store") === "edit";
   const open = editor || storeEditor;
   const search = params.get("q") ?? "";
@@ -185,6 +187,7 @@ export function Catalog() {
           <p className="mt-1 text-sm text-muted-foreground">Produk yang dilihat pembeli di toko online. Modal dan stok hanya terlihat oleh Anda.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {import.meta.env.VITE_CATALOGUE_INGESTION === "1" && <Button variant="outline" disabled={loading || failed} onClick={() => navigateEditor("new", "catalogue")}>Impor katalog AI</Button>}
           <Button variant="outline" className="h-11 rounded-[10px]" disabled={loading || failed} onClick={() => navigateEditor("new", "bulk")}>
             <Layers />
             Tambah banyak
@@ -474,7 +477,7 @@ export function Catalog() {
         <SheetContent
           side="right"
           closeLabel="Tutup formulir"
-          className="flex w-full flex-col gap-0 overflow-y-auto bg-background p-0 sm:max-w-[1040px]"
+          className="flex w-full flex-col gap-0 overflow-y-auto bg-background p-0 sm:max-w-[1040px] [&>button]:z-20"
           onEscapeKeyDown={(event) => {
             if (busy) event.preventDefault();
           }}
@@ -483,7 +486,7 @@ export function Catalog() {
           }}
         >
           <SheetHeader className="sticky top-0 z-10 border-b bg-card px-5 py-4 pr-16 text-left sm:px-7">
-            <SheetTitle className="text-xl">{bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
+            <SheetTitle className="text-xl">{ingestion ? "Impor katalog AI" : bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
             <SheetDescription>
               {bulk
                 ? "Dari foto atau dari Excel/CSV. Periksa daftarnya dulu, lalu simpan sekaligus."
@@ -491,7 +494,7 @@ export function Catalog() {
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 sm:p-7">
-            {bulk ? (
+            {ingestion ? <CatalogueIngestion uid={user.uid} onDirtyChange={setDirty} onBusyChange={setBusy} onSaved={() => setRetry(value => value + 1)} /> : bulk ? (
               <BulkAddProducts
                 categories={categories}
                 onDirtyChange={setDirty}
