@@ -64,7 +64,7 @@ test("unsupported upload, slow processing, failure and safe retry", async ({ pag
   let fail = true;
   const ctx = { ...context, adapters: { ...context.adapters, ocr: async () => {
     if (fail) { await new Promise(resolve => setTimeout(resolve, 8000)); throw new Error("provider-secret-must-not-leak"); }
-    return "Kemeja tanpa harga";
+    return "Kemeja tanpa harga. Topi Rp15.000";
   } } };
   await page.route("**/api/ingest-catalogue", async route => {
     const request = route.request();
@@ -85,5 +85,7 @@ test("unsupported upload, slow processing, failure and safe retry", async ({ pag
   fail = false;
   await dialog.getByRole("button", { name: "Buat draf produk" }).click();
   await expect(dialog.getByRole("heading", { name: "Periksa draf produk" })).toBeVisible();
+  // The mocked model omits Topi; its source price is shown, not turned into a draft.
+  await expect(dialog.getByText(/Harga di katalog yang belum ada di draf/)).toContainText("Rp 15.000");
   expect((await db.collection(`storefronts/${seller.uid}/products`).get()).size).toBe(0);
 });

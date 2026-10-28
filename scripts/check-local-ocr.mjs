@@ -12,11 +12,16 @@ if (process.platform === "win32") {
   const image = await readFile("tests/e2e/fixtures/photo.png");
   const before = (await readdir(tmpdir())).filter(v => v.startsWith("larisku-ocr-") && !v.startsWith("larisku-ocr-test-"));
   const writeStub = async code => { await writeFile(binary, `#!/usr/bin/env node\n${code}\n`, { mode: 0o700 }); await chmod(binary, 0o700); };
-  const ocr = localOcr({ PATH: process.env.PATH, CATALOGUE_TESSERACT_BIN: binary, CATALOGUE_OLLAMA_KEY: "must-not-pass-to-ocr" });
+  // The 600px fixture is upscaled 2.8x through a one-page PDF before OCR.
+  const renderer = join(folder, "render-fixture");
+  await writeFile(renderer, '#!/usr/bin/env node\nconst a = process.argv; if (a[a.indexOf("-scale-to") + 1] !== "1680" || process.env.CATALOGUE_OLLAMA_KEY) process.exit(3);\nrequire("node:fs").writeFileSync(a.at(-1) + ".png", "rendered");\n', { mode: 0o700 });
+  await chmod(renderer, 0o700);
+  const ocr = localOcr({ PATH: process.env.PATH, CATALOGUE_TESSERACT_BIN: binary, CATALOGUE_PDFTOPPM_BIN: renderer, CATALOGUE_OLLAMA_KEY: "must-not-pass-to-ocr" });
+  const word = (text, left) => `5\\t1\\t1\\t1\\t1\\t1\\t${left}\\t0\\t80\\t20\\t95\\t${text}`;
   try {
-    await writeStub('if (!process.argv.includes("--psm") || process.env.CATALOGUE_OLLAMA_KEY) process.exit(2); process.stdout.write("Kemeja Rp25.000");');
-    assert.equal(await ocr(image, "image/png", new AbortController().signal), "Kemeja Rp25.000");
-    await writeStub('process.stdout.write("x".repeat(18001));');
+    await writeStub(`const a = process.argv; if (!a.includes("--psm") || a.at(-1) !== "tsv" || !a[2].endsWith("page.png") || process.env.CATALOGUE_OLLAMA_KEY) process.exit(2); process.stdout.write("header\\n${word("Kemeja", 0)}\\n${word("Rp25.000", 100)}");`);
+    assert.equal(await ocr(image, "image/png", new AbortController().signal), "[Kolom 1]\nKemeja Rp25.000");
+    await writeStub(`process.stdout.write("header\\n${word("x".repeat(18001), 0)}");`);
     await assert.rejects(ocr(image, "image/png", new AbortController().signal), /ocr-empty-or-text-limit/);
     await writeStub('console.error("PRIVATE_OCR_CONTENT"); process.exit(1);');
     await assert.rejects(ocr(image, "image/png", new AbortController().signal), error => error.message === "local-ocr-failed");

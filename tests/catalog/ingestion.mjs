@@ -103,6 +103,13 @@ try {
   const oversized=await call(oversizedUser,upload,{...context,adapters:{ocr:async()=>Array(16).fill("Rp25.000").join("\n"),extract:async()=>{modelCalled=true;throw Error("must not call model");}}});
   assert.equal(oversized.body.status,"failed");assert.equal(oversized.body.error,"catalogue-price-limit");assert.equal(modelCalled,false);
   assert.equal((await db.collection(`storefronts/${oversizedUser.uid}/products`).get()).size,0);
+  // An offer the model leaves out is reported to the seller, never added as an invented draft.
+  const omittedUser = await account();
+  const omitted = await call(omittedUser, upload, { ...context, adapters: { ocr: async () => "Tas Rp25000. Topi Rp15.000", extract: async () => ({ complete: true, products: [{ ...candidate, name: "Tas", price: 25000 }] }) } });
+  assert.equal(omitted.body.status, "review");
+  assert.deepEqual(omitted.body.unmatchedPrices, [15000]);
+  assert.equal(omitted.body.drafts.length, 1);
+  assert.equal((await db.collection(`storefronts/${omittedUser.uid}/products`).get()).size, 0);
   // Global slots and per-owner slots are enforced by Firestore transactions.
   await db.doc("catalogueIngestionLocks/global").set({ leases: [ { uid: "x", run: "a", expires: Date.now() + 60000 }, { uid: "y", run: "b", expires: Date.now() + 60000 } ] });
   assert.equal((await call(await account(), upload)).status, 429);

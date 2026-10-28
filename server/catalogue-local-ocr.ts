@@ -2,8 +2,17 @@ import { spawn } from "node:child_process";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { imageSize } from "image-size";
+import { PDFDocument } from "pdf-lib";
 import { LIMITS } from "../src/lib/catalogue-ingestion";
 import { validateUpload } from "./catalogue-adapters";
+import { layoutText } from "./catalogue-layout";
+
+// Tuned on one real price-list photo: 2.8x read the most headings, plan labels and exact prices;
+// 2.5x lost most plan labels and 3x+ lost logos. Not a general accuracy guarantee.
+const UPSCALE_BELOW = 2000, UPSCALE_FACTOR = 2.8, UPSCALE_MAX = 3000;
+// TSV carries one row per word box, so it is larger than the text it describes.
+const TSV_BYTES = 1024 * 1024;
 
 /** Small local OCR adapter. No shell, network, raw-text logging or model download. */
 export function localOcr(env: NodeJS.ProcessEnv) {
@@ -22,7 +31,7 @@ export function localOcr(env: NodeJS.ProcessEnv) {
       signal.addEventListener("abort", abort, { once: true });
       child.stdout.on("data", (chunk: Buffer) => {
         size += chunk.length;
-        if (size > LIMITS.text * 4) stop("ocr-text-limit");
+        if (size > TSV_BYTES) stop("ocr-text-limit");
         else chunks.push(chunk);
       });
       child.on("error", () => { failure = "local-ocr-unavailable"; });
@@ -41,13 +50,30 @@ export function localOcr(env: NodeJS.ProcessEnv) {
       const input = join(directory, mime === "application/pdf" ? "input.pdf" : mime === "image/png" ? "input.png" : "input.jpeg");
       await writeFile(input, bytes, { mode: 0o600, flag: "wx" });
       let image = input;
+      const render = (pdf: string, size: number) =>
+        execute(env.CATALOGUE_PDFTOPPM_BIN || "pdftoppm", ["-f", "1", "-l", "1", "-singlefile", "-scale-to", String(size), "-png", pdf, join(directory, "page")], signal);
       if (mime === "application/pdf") {
-        await execute(env.CATALOGUE_PDFTOPPM_BIN || "pdftoppm", ["-f", "1", "-l", "1", "-singlefile", "-scale-to", "2400", "-png", input, join(directory, "page")], signal);
+        await render(input, 2400);
         image = join(directory, "page.png");
+      } else {
+        // Chat-app images are often ~1000px wide; small poster text reads far better enlarged.
+        const { width = 0, height = 0 } = imageSize(bytes);
+        const longest = Math.max(width, height);
+        if (longest < UPSCALE_BELOW) {
+          const pdf = await PDFDocument.create();
+          const embedded = mime === "image/png" ? await pdf.embedPng(bytes) : await pdf.embedJpg(bytes);
+          pdf.addPage([embedded.width, embedded.height]).drawImage(embedded, { x: 0, y: 0, width: embedded.width, height: embedded.height });
+          const wrapper = join(directory, "scaled.pdf");
+          await writeFile(wrapper, await pdf.save(), { mode: 0o600, flag: "wx" });
+          await render(wrapper, Math.round(Math.min(UPSCALE_MAX, longest * UPSCALE_FACTOR)));
+          image = join(directory, "page.png");
+        }
       }
       const args = [image, "stdout", "-l", "eng+ind", "--psm", env.CATALOGUE_TESSERACT_PSM === "3" ? "3" : "11"];
       if (env.CATALOGUE_TESSDATA_DIR) args.push("--tessdata-dir", env.CATALOGUE_TESSDATA_DIR);
-      const text = (await execute(env.CATALOGUE_TESSERACT_BIN || "tesseract", args, signal)).toString("utf8").trim();
+      // Word boxes let layoutText keep side-by-side cards apart.
+      args.push("tsv");
+      const text = layoutText((await execute(env.CATALOGUE_TESSERACT_BIN || "tesseract", args, signal)).toString("utf8")).trim();
       if (!text || text.length > LIMITS.text) throw new Error("ocr-empty-or-text-limit");
       return text;
     } finally { await rm(directory, { recursive: true, force: true }); }

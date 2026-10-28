@@ -27,4 +27,4 @@ export function finalProduct(value: unknown) {
   return productSchema.parse({ ...emptyProduct, name: c.name, price: c.price, description: c.description ?? "", published: false });
 }
 export type Draft = { id: string; candidate: Candidate };
-export type JobView = { id: string; status: "processing" | "failed" | "review" | "confirmed"; pipeline?: string; error?: string; drafts: Draft[]; elapsedMs?: number; productIds?: string[] };
+export type JobView = { id: string; status: "processing" | "failed" | "review" | "confirmed"; pipeline?: string; error?: string; drafts: Draft[]; elapsedMs?: number; productIds?: string[]; unmatchedPrices?: number[] };

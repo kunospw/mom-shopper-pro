@@ -62,3 +62,19 @@ Two separately authorized Ollama tests used the supplied APPS BY AZ image. The f
 The new `server/catalogue-quality.ts` rejects more than 15 detected price points before calling the model. It clears duration/plan-only names and prices lacking numeric OCR evidence to null for seller correction. The prompt forbids dropping offers to fit the limit; confirmation independently checks the stored workload bound. This conservative heuristic does not prove completeness or correct price association and can overcount repeated/grouped numeric values. A supported small real catalogue still needs an authorized accuracy test. No further paid calls were made for the fix.
 
 Final local verification includes `npm run typecheck`, `npm run check:ingestion`, `npm run check:local-ocr`, the isolated emulator `npm run test:ingestion` (including provider-not-called assertion for oversized source), frontend build and server build. The preview was restored after its development reload stopped it; its memory-only key was cleared. Nothing was deployed, pushed or changed in production.
+
+## Layout-aware OCR follow-up — 28 October 2026
+
+Delivered: `server/catalogue-layout.ts` (card/column reading order from Tesseract TSV word boxes), 2.8x enlargement of small JPEG/PNG images before local OCR, a layout-aware extraction prompt, rejection of names containing words absent from the OCR text, `unmatchedPrices` stored on review jobs and shown in the review screen, and pipeline versions `*-ollama-v2`. Details and limits are in the [setup guide](catalogue-ingestion.md).
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm run check:ingestion` | PASS: adds synthetic TSV layout cases (side-by-side cards, spanning title, orphan price column, noise), name grounding, source/unmatched prices and prompt content |
+| `npm run check:local-ocr` | PASS: TSV output, 2.8x render argument, no key in child environments, limits, failure/abort, temporary-file cleanup |
+| `npm run test:ingestion` on isolated ports 8298/9298/8096 | PASS: emulator assertions (incl. omitted offer reported as an unmatched price, no product) and 4 desktop/phone journeys (incl. the unmatched-price notice) |
+| `npx eslint` on ingestion files | PASS |
+| `npm run build`, `npm run build:ingestion` | PASS |
+| `git diff --check` | PASS |
+
+Real local OCR on the VPS without any AI call: a 425x455 crop of the APPS BY AZ poster containing 13 offers (ChatGPT, Grammarly, CapCut, HBO Max, Zoom) produced all 13 prices exactly in about 2.3s; 4 of 13 offers lack a recognisable plan label in the OCR text. The full poster is still rejected before the model (48 detected price points). The crop is a private, ignored development file, not committed. No paid inference was used; model accuracy and end-to-end timing on the crop remain unverified. The interactive preview stopped during development reload and was restarted on the same loopback port with emulator guards and pipeline `tesseract-ollama-v2`; emulator products stayed 12 and the failed audit job kept its 15 drafts. Nothing was deployed, pushed, committed or changed in production.

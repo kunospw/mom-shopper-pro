@@ -1,5 +1,15 @@
 # AI catalogue ingestion MVP
 
+## Layout-aware OCR follow-up (pipeline v2)
+
+Price-list posters place several cards side by side. Plain Tesseract text joined neighbouring cards on one line, so the model could not tell which heading, plan label and price belonged together. `server/catalogue-layout.ts` now rebuilds reading order from Tesseract TSV word boxes: touching words form a card, a price-only column joins the row-aligned labels on its left, and cards are listed per page column with `[Kolom N]` markers and ` | ` cell gaps. Only OCR words are emitted. The one rewrite is the stylised-font misread `BUIAN`/`8UIAN`, read as `BULAN`. Low-confidence short fragments from card borders/icons are dropped.
+
+JPEG/PNG images under 2000 px on the longest side are enlarged 2.8x (at most 3000 px) through a one-page PDF and `pdftoppm` before OCR, so Poppler is now required for images as well as PDFs. The factor was tuned on one real photo: on a 425x455 crop of the APPS BY AZ poster, 2.8x read 5/5 headings, 8-9/10 plan labels and all 13 prices exactly; 2.5x lost most plan labels; 3x+ lost logos. This is not a general accuracy guarantee. PDFs still render at 2400 px; the same crop as a PDF misread one price (Rp28.000 as `AP. 26,000`), which grounding cannot detect because the wrong number is present in the OCR text.
+
+The prompt describes the layout and asks for one product per priced row, named heading + current plan label + row text, using only words from the text. Grounding also clears a name containing a word absent from the OCR text (matched inside the text with spaces removed, so `HBOMAX` supports "HBO Max"); the model cannot name a brand from a logo that OCR missed. After grounding, source prices not used by any draft are stored as `unmatchedPrices` (counting repeats) and listed in the review screen. They never become drafts; the seller adds a real omitted product manually after saving. The pipeline versions are now `vision-ollama-v2` and `tesseract-ollama-v2`, so v1 results are not reused.
+
+Real local OCR measurements on the VPS (no AI call): the 13-offer crop as JPEG took 2.3s per OCR run and produced 13/13 exact prices; Grammarly's two plan labels and Zoom's "PRIVATE 100 PESERTA" pill were not recognised, so those four names can only be completed by the seller. The full 43-offer poster took about 5.7s at 3000 px and is still rejected before the model by the 15-price limit; its coloured pill labels are largely unreadable at that size. Model accuracy on the crop and end-to-end p50/p95 remain unmeasured until a separately authorised Ollama test.
+
 ## Real OCR activation follow-up
 
 `CATALOGUE_OCR_ADAPTER=tesseract` selects the new local OCR adapter instead of Vision; Vision remains the default. Install Tesseract with English/Indonesian data and Poppler for one-page PDFs. Server-only optional paths are `CATALOGUE_TESSERACT_BIN`, `CATALOGUE_PDFTOPPM_BIN`, `CATALOGUE_TESSDATA_DIR`, and `CATALOGUE_OCR_LIBRARY_PATH`. The inspected private preview uses small Ubuntu packages extracted under ignored `node_modules/.cache/local-ocr`, without system-package changes or Google billing. No large LLM was downloaded.

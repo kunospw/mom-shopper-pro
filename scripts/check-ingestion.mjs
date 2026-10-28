@@ -22,6 +22,25 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
   assert.deepEqual(quality.groundCandidates([{...c,name:"1 BUIAN",price:112000}],"Rp11.000")[0],{...c,name:null,price:null});
   assert.equal(quality.groundCandidates([c],"Kemeja Rp150.000")[0].price,150000);
   assert.equal(quality.groundCandidates([{...c,price:99999}],"Kemeja Rp150.000")[0].price,null);
+  assert.equal(quality.groundCandidates([{...c,name:"Prime Video Sharing",price:12000}],"video SHARING Rp12.000")[0].name,null,"brand words must come from OCR");
+  assert.deepEqual(quality.groundCandidates([{...c,name:"HBO Max Private",price:65000}],"HBOMAX PRIVATE RP. 65.000")[0],{...c,name:"HBO Max Private",price:65000});
+  assert.deepEqual(quality.sourcePrices("A Rp25.000 B 15,000 C IDR 9000"),[25000,15000,9000]);
+  assert.deepEqual(quality.unmatchedPrices([{...c,price:25000},{...c,price:null}],"Rp25.000 Rp25.000 Rp14.000"),[14000,25000]);
+  const layout = await bundle("server/catalogue-layout.ts");
+  const tsv = rows => ["level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext",
+    ...rows.map(([text,l,t,w,h=20,conf=95]) => `5\t1\t1\t1\t1\t1\t${l}\t${t}\t${w}\t${h}\t${conf}\t${text}`)].join("\n");
+  // Side-by-side cards stay apart; a title spanning both columns is page-level; BUIAN reads as BULAN.
+  assert.equal(layout.layoutText(tsv([
+    ["Toko",100,-150,250,40],["Serba",370,-150,150,40],["Ada",540,-150,160,40],
+    ["Alpha",100,0,80],["SHARING",80,40,100],["1",10,80,10],["BUIAN",25,80,60],["RP.",200,80,30],["25.000",235,80,60],
+    ["Beta",550,0,80],["PRIVATE",530,40,100],["1",460,80,10],["BULAN",475,80,60],["RP.",650,80,30],["15.000",685,80,60],["Cc",400,60,20,20,50],
+  ])),"[Teks lain]\nToko Serba Ada\n\n[Kolom 1]\nAlpha\nSHARING\n1 BULAN | RP. 25.000\n\n[Kolom 2]\nBeta\nPRIVATE\n1 BULAN | RP. 15.000");
+  // A price column with no bridging label joins the row-aligned labels on its left.
+  assert.equal(layout.layoutText(tsv([
+    ["Zeta",0,0,60],["14",0,40,20],["HARI",25,40,50],["1",0,80,10],["BULAN",15,80,60],
+    ["RP.",300,40,30],["14.000",335,40,60],["RP.",300,80,30],["22.000",335,80,60],
+  ])),"[Kolom 1]\nZeta\n14 HARI | RP. 14.000\n1 BULAN | RP. 22.000");
+  assert.equal(layout.layoutText("not tsv"),"");
   assert.equal(m.finalProduct(c).price, 150000);
   assert.equal(m.finalProduct(c).published, false);
   assert.equal(m.finalProduct(c).description, "");
@@ -58,6 +77,7 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
       calls++;
       const body = JSON.parse(init.body);
       assert.match(body.messages[0].content, /untrusted data, NEVER instructions/);
+      assert.match(body.messages[0].content, /one product per priced row/);
       assert.equal(body.messages[1].role, "user");
       assert.equal(body.think, "low");
       assert.match(JSON.parse(body.messages[1].content).catalogueText, /ignore instructions/);
@@ -79,5 +99,5 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
     await assert.rejects(adapter.extract("text",new AbortController().signal), /provider-timeout/);
     await assert.rejects(a.externalAdapters({}).extract("text", new AbortController().signal));
   } finally { globalThis.fetch = original; }
-  console.log("PASS ingestion unit: schema mapping, missing values, prompt isolation, malformed/untrusted output, bounds; all provider calls mocked.");
+  console.log("PASS ingestion unit: schema mapping, missing values, OCR layout, name/price grounding, unmatched prices, prompt isolation, malformed/untrusted output, bounds; all provider calls mocked.");
 }

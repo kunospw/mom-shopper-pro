@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
 import { candidateSchema, extractionSchema, finalProduct, LIMITS, reviewSchema, type JobView } from "../src/lib/catalogue-ingestion";
 import { validateUpload } from "./catalogue-adapters";
-import { explicitPricePoints, groundCandidates } from "./catalogue-quality";
+import { explicitPricePoints, groundCandidates, unmatchedPrices } from "./catalogue-quality";
 
 const jobId = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.discriminatedUnion("action", [
@@ -75,7 +75,8 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
             sourcePricePoints = explicitPricePoints(text);
             if (sourcePricePoints > LIMITS.products) reject("catalogue-price-limit");
             const result = extractionSchema.parse(await ctx.adapters.extract(text, controller.signal));
-            return { ...result, products: groundCandidates(result.products, text) };
+            const products = groundCandidates(result.products, text);
+            return { ...result, products, unmatched: unmatchedPrices(products, text) };
           };
           const result = await Promise.race([extraction(), new Promise<never>((_, fail) => {
             timer = setTimeout(() => { controller.abort(); fail(new Rejection("processing-timeout", 408)); }, LIMITS.processingMs);
@@ -85,7 +86,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
             if (snapshot.data()?.run !== run) reject("stale-attempt", 409);
             const ids = result.products.map((_, i) => String(i).padStart(2, "0"));
             result.products.forEach((candidate, i) => tx.create(ref.collection("drafts").doc(ids[i]), { owner: uid, candidate, status: "review" }));
-            tx.update(ref, { status: "review", draftIds: ids, sourcePricePoints, elapsedMs: Date.now() - now });
+            tx.update(ref, { status: "review", draftIds: ids, sourcePricePoints, unmatchedPrices: result.unmatched, elapsedMs: Date.now() - now });
           });
         } catch (e) {
           await ctx.db.runTransaction(async tx => {
@@ -150,6 +151,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
     if (!job || job.owner !== uid) return reject("not-found", 404);
     const drafts = job.status === "review" ? (await snapshot.ref.collection("drafts").get()).docs.map(d => ({ id: d.id, candidate: candidateSchema.parse(d.data().candidate) })) : [];
     return { id, status: job.status === "processing" && job.expires < Date.now() ? "failed" : job.status, pipeline: typeof job.pipeline === "string" ? job.pipeline : "legacy", revision: job.revision,
-      drafts, ...(job.error ? { error: job.error } : {}), ...(job.elapsedMs != null ? { elapsedMs: job.elapsedMs } : {}), ...(job.productIds ? { productIds: job.productIds } : {}) };
+      drafts, ...(job.error ? { error: job.error } : {}), ...(job.elapsedMs != null ? { elapsedMs: job.elapsedMs } : {}), ...(job.productIds ? { productIds: job.productIds } : {}),
+      ...(Array.isArray(job.unmatchedPrices) ? { unmatchedPrices: z.array(z.number().int().positive()).max(LIMITS.products).parse(job.unmatchedPrices) } : {}) };
   }
 }
