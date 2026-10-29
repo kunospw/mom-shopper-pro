@@ -78,3 +78,21 @@ Delivered: `server/catalogue-layout.ts` (card/column reading order from Tesserac
 | `git diff --check` | PASS |
 
 Real local OCR on the VPS without any AI call: a 425x455 crop of the APPS BY AZ poster containing 13 offers (ChatGPT, Grammarly, CapCut, HBO Max, Zoom) produced all 13 prices exactly in about 2.3s; 4 of 13 offers lack a recognisable plan label in the OCR text. The full poster is still rejected before the model (48 detected price points). The crop is a private, ignored development file, not committed. No paid inference was used; model accuracy and end-to-end timing on the crop remain unverified. The interactive preview stopped during development reload and was restarted on the same loopback port with emulator guards and pipeline `tesseract-ollama-v2`; emulator products stayed 12 and the failed audit job kept its 15 drafts. Nothing was deployed, pushed, committed or changed in production.
+
+### Authorised Ollama test on the 13-offer crop
+
+One explicitly authorised `gpt-oss:20b` test sent the v2 OCR text of the crop (job `fda48f41…`, status review). It returned 13 drafts in 11.75s server time (about 2.3s local OCR, about 9.4s model), with no extra drafts and no unmatched prices. All 13 prices were correct and attached to the right service and duration. 7/13 names held service + plan + duration. The other 6: four lacked a plan label that OCR never read (two Grammarly drafts with identical names, two Zoom drafts without "Private 100 Peserta"); three carried OCR border fragments (`CapCut a 7 HARI`, `CapCut PRIVATE | J 7 HARI`, `HBOMAX a | PRIVATE | 2 1 BULAN`). The <=5s target was not met. Emulator products stayed 12; nothing was confirmed.
+
+Follow-up without paid calls: the layout step now drops lone characters beside a label in rows without prices, while keeping price rows and short option rows such as `S | M | L`. On the same crop the OCR text no longer contains those fragments and CapCut/HBO plan labels read cleanly. The improved names are expected from that text but have not been re-measured with the model. The checks above, the isolated emulator/browser suite, targeted ESLint and `build:ingestion` passed again.
+
+## Shopee share-text import — 28 October 2026
+
+Delivered: `server/catalogue-shopee.ts` (share-text parser, first-redirect shop/item ID resolver), the `link` API action with its own daily cap, `source` on job views, a paste section and Shopee reference box (listed price, "Pakai Rp…", "Buka di Shopee") in the import panel, and `retiredPipelines`. The last also fixes a preview-only regression from the v2 bump: v2 jobs had been treated as old sample drafts, blocking resume and confirmation in the private real preview. Design and limits are in the [setup guide](catalogue-ingestion.md).
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck`, `npm run check:ingestion`, `npm run check:local-ocr` | PASS; unit cases include the seller's real Oral-B share text, price ranges, bare links, unknown wording, two links, look-alike hosts, honest agent/manual redirect and rejected redirect targets |
+| `npm run test:ingestion` on isolated ports 8298/9298/8096 | PASS: emulator assertions (owner isolation, duplicate paste, resolver failure, selling price required, hidden product on confirmation) and 6 desktop/phone journeys including the paste flow |
+| Targeted ESLint, `npm run build`, `npm run build:ingestion`, `git diff --check` | PASS |
+
+Live checks without AI: the resolver returned shop/item IDs for all four seller-supplied links (24–466 ms). In the restarted private preview, pasting the real Oral-B share text as the interactive seller created one review draft (name from the text, empty price, Shopee price Rp22,600 as reference, real IDs) in 3.5s; emulator products stayed 12. The original preview was stopped and restarted on the same loopback port to load the new handler; its private config was backed up before patching. Nothing was deployed, pushed or changed in production.

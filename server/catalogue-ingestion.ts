@@ -1,14 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
-import { candidateSchema, extractionSchema, finalProduct, LIMITS, reviewSchema, type JobView } from "../src/lib/catalogue-ingestion";
+import { candidateSchema, extractionSchema, finalProduct, LIMITS, photoSchema, reviewSchema, SHOPEE_TEXT_MAX, shopeeSourceSchema, type JobView } from "../src/lib/catalogue-ingestion";
 import { validateUpload } from "./catalogue-adapters";
 import { explicitPricePoints, groundCandidates, unmatchedPrices } from "./catalogue-quality";
+import { parseShopeeShare, shopeeCandidate } from "./catalogue-shopee";
 
 const jobId = z.string().regex(/^[a-f0-9]{64}$/);
 const requestSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list"), after: jobId.optional() }).strict(),
   z.object({ action: z.literal("ingest"), mime: z.enum(["application/pdf", "image/jpeg", "image/png"]), data: z.string().min(4).max(Math.ceil(LIMITS.bytes / 3) * 4).regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/) }).strict(),
+  z.object({ action: z.literal("link"), text: z.string().min(1).max(SHOPEE_TEXT_MAX) }).strict(),
   z.object({ action: z.literal("status"), jobId }).strict(),
   z.object({ action: z.literal("save"), jobId, drafts: reviewSchema }).strict(),
   z.object({ action: z.literal("confirm"), jobId, confirmed: z.literal(true), revision: z.number().int().min(0) }).strict(),
@@ -16,6 +18,7 @@ const requestSchema = z.discriminatedUnion("action", [
 export type Adapters = {
   ocr(bytes: Buffer, mime: string, signal: AbortSignal): Promise<string>;
   extract(text: string, signal: AbortSignal): Promise<unknown>;
+  shopee?(code: string, signal: AbortSignal): Promise<{ shopId: string; itemId: string } | null>;
 };
 export type Context = { db: Firestore; verify(token: string): Promise<{ uid: string }>; adapters: Adapters; pipeline?: string };
 class Rejection extends Error { constructor(public code: string, public status = 400) { super(code); } }
@@ -104,6 +107,32 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
       }
       return { status: 200, body: await view(hash) };
     }
+    if (req.action === "link") {
+      const shared = parseShopeeShare(req.text);
+      if (!shared) return { status: 400, body: { error: "shopee-link-missing" } };
+      const id = createHash("sha256").update(`shopee-link-v1\0${shared.code}`).digest("hex");
+      const ref = jobs.doc(id);
+      if ((await ref.get()).exists) return { status: 200, body: await view(id) };
+      // Reading a link costs nothing but is an outbound request, so it has its own daily cap.
+      const quota = ctx.db.doc(`catalogueIngestionLocks/links_${uid}`);
+      const day = new Date().toISOString().slice(0, 10);
+      await ctx.db.runTransaction(async tx => {
+        const usage = (await tx.get(quota)).data();
+        const count = usage?.day === day ? usage.count : 0;
+        if (count >= 100) reject("daily-limit", 429);
+        tx.set(quota, { day, count: count + 1 });
+      });
+      // Shop/item IDs are optional reference data; the draft is created from the text either way.
+      let ids: { shopId: string; itemId: string } | null = null;
+      try { ids = (await ctx.adapters.shopee?.(shared.code, AbortSignal.timeout(6000))) ?? null; } catch { ids = null; }
+      const source = shopeeSourceSchema.parse({ kind: "shopee", ...shared, shopId: ids?.shopId ?? null, itemId: ids?.itemId ?? null });
+      await ctx.db.runTransaction(async tx => {
+        if ((await tx.get(ref)).exists) return; // a concurrent paste of the same link already created it
+        tx.create(ref, { owner: uid, status: "review", pipeline: "shopee-link-v1", revision: 0, attempts: 1, draftIds: ["00"], source });
+        tx.create(ref.collection("drafts").doc("00"), { owner: uid, candidate: shopeeCandidate(shared.title), status: "review" });
+      });
+      return { status: 200, body: await view(id) };
+    }
     const ref = jobs.doc(req.jobId);
     if (req.action === "status") return { status: 200, body: await view(req.jobId) };
     if (req.action === "save") {
@@ -115,7 +144,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
         if (JSON.stringify([...job.draftIds].sort()) !== JSON.stringify(req.drafts.map(x => x.id).sort())) reject("draft-set-mismatch");
         const docs = await tx.getAll(...req.drafts.map(x => ref.collection("drafts").doc(x.id)));
         docs.forEach(d => { if (d.data()?.owner !== uid || d.data()?.status !== "review") reject("invalid-draft", 409); });
-        req.drafts.forEach(d => tx.update(ref.collection("drafts").doc(d.id), { candidate: candidateSchema.parse(d.candidate) }));
+        req.drafts.forEach(d => tx.update(ref.collection("drafts").doc(d.id), { candidate: candidateSchema.parse(d.candidate), photo: d.photo ?? null }));
         tx.update(ref, { revision: job.revision + 1 });
       });
       return { status: 200, body: await view(req.jobId) };
@@ -132,7 +161,9 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
       const docs = await tx.getAll(...ids.map(id => ref.collection("drafts").doc(id)));
       const products = docs.map(d => {
         if (d.data()?.owner !== uid || d.data()?.status !== "review") reject("invalid-draft", 409);
-        try { return finalProduct(d.data()?.candidate); } catch { return reject("missing-or-invalid-fields"); }
+        // A Shopee link carries no usable photo, so the seller adds her own before saving.
+        if (job.source?.kind === "shopee" && !d.data()?.photo) reject("photo-required");
+        try { return finalProduct(d.data()?.candidate, d.data()?.photo ?? null); } catch { return reject("missing-or-invalid-fields"); }
       });
       const productIds = ids.map(id => `ingest_${req.jobId}_${id}`);
       // create() preconditions ensure existing products can NEVER be overwritten.
@@ -149,9 +180,10 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
     const snapshot = await jobs.doc(id).get();
     const job = snapshot.data();
     if (!job || job.owner !== uid) return reject("not-found", 404);
-    const drafts = job.status === "review" ? (await snapshot.ref.collection("drafts").get()).docs.map(d => ({ id: d.id, candidate: candidateSchema.parse(d.data().candidate) })) : [];
+    const drafts = job.status === "review" ? (await snapshot.ref.collection("drafts").get()).docs.map(d => ({ id: d.id, candidate: candidateSchema.parse(d.data().candidate), ...(d.data().photo ? { photo: photoSchema.parse(d.data().photo) } : {}) })) : [];
     return { id, status: job.status === "processing" && job.expires < Date.now() ? "failed" : job.status, pipeline: typeof job.pipeline === "string" ? job.pipeline : "legacy", revision: job.revision,
       drafts, ...(job.error ? { error: job.error } : {}), ...(job.elapsedMs != null ? { elapsedMs: job.elapsedMs } : {}), ...(job.productIds ? { productIds: job.productIds } : {}),
-      ...(Array.isArray(job.unmatchedPrices) ? { unmatchedPrices: z.array(z.number().int().positive()).max(LIMITS.products).parse(job.unmatchedPrices) } : {}) };
+      ...(Array.isArray(job.unmatchedPrices) ? { unmatchedPrices: z.array(z.number().int().positive()).max(LIMITS.products).parse(job.unmatchedPrices) } : {}),
+      ...(job.source ? { source: shopeeSourceSchema.parse(job.source) } : {}) };
   }
 }

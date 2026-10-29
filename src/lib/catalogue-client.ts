@@ -1,5 +1,5 @@
 import { catalogueToken } from "@/lib/catalogue-token";
-import { LIMITS, type JobView } from "./catalogue-ingestion";
+import { LIMITS, SHOPEE_TEXT_MAX, type JobView } from "./catalogue-ingestion";
 export type ReviewJob = JobView & { revision: number };
 export async function catalogueRequest<T = ReviewJob>(body: unknown, progress?: (percent: number) => void): Promise<T> {
   const token = await catalogueToken();
@@ -20,6 +20,11 @@ export async function catalogueRequest<T = ReviewJob>(body: unknown, progress?: 
     };
     xhr.send(JSON.stringify(body));
   });
+}
+export function importShopee(text: string) {
+  if (!/https:\/\/s\.shopee\.co\.id\/[A-Za-z0-9]{6,16}/.test(text) || text.length > SHOPEE_TEXT_MAX)
+    return Promise.reject(new Error("Tempel teks dari tombol Bagikan Shopee yang berisi satu tautan s.shopee.co.id."));
+  return catalogueRequest({ action: "link", text });
 }
 export async function uploadCatalogue(file: File, progress: (percent: number) => void) {
   if (!["application/pdf", "image/jpeg", "image/png"].includes(file.type) || !file.size || file.size > LIMITS.bytes)

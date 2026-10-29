@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const raster = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
+export const raster = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/;
 export const storeIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,128}$/);
 export const reservedSlugs = [
   "admin", "api", "app", "catalog", "customers", "costs", "login", "logout",

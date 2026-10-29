@@ -45,8 +45,15 @@ export function layoutText(tsv: string) {
     }
     return out.map(r => {
       r.words.sort((a, b) => a.l - b.l);
-      return { cy: r.cy, text: r.words.map((w, k) => (k ? (w.l - r.words[k - 1].r > unit * 2 ? " | " : " ") : "") + w.text).join("") };
-    });
+      const cells: string[][] = [];
+      r.words.forEach((w, k) => (k && w.l - r.words[k - 1].r <= unit * 2 ? cells[cells.length - 1].push(w.text) : cells.push([w.text])));
+      let parts = cells.map(c => c.join(" "));
+      // Lone characters beside a label ("a | PRIVATE | 2") are card-border/icon fragments. Price rows and
+      // rows of short options ("S | M | L") are kept.
+      if (!parts.some(x => pricedLine.test(x)) && (parts.length === 1 || parts.some(x => /\p{L}{3}/u.test(x))))
+        parts = parts.filter(x => x.length > 1);
+      return { cy: r.cy, text: parts.join(" | ") };
+    }).filter(r => r.text);
   };
   const groups = (): Group[] => {
     const map = new Map<number, number[]>();
@@ -54,7 +61,7 @@ export function layoutText(tsv: string) {
     return [...map.values()].map(ids => {
       const ws = ids.map(i => words[i]);
       return { ids, l: Math.min(...ws.map(w => w.l)), r: Math.max(...ws.map(w => w.r)), t: Math.min(...ws.map(w => w.t)), lines: rows(ws) };
-    });
+    }).filter(g => g.lines.length);
   };
   const initial = groups();
   for (const p of initial.filter(g => g.lines.every(x => priceOnly.test(x.text.replace(/\s*\|\s*/g, " "))))) {

@@ -1,5 +1,17 @@
 # AI catalogue ingestion MVP
 
+## Shopee share text (pipeline `shopee-link-v1`)
+
+For a seller who resells Shopee items to her own contacts. In the Shopee app she taps Share, then Copy, and pastes the text into "Atau tempel dari Shopee". `POST /api/ingest-catalogue` with `{action:"link",text}` (at most 1,000 characters) accepts text containing exactly one `https://s.shopee.co.id/<code>` link.
+
+- `server/catalogue-shopee.ts` reads the name and listed price from Shopee's Indonesian wording, `Cek <name> dengan harga Rp<price>[ - Rp<max>]. Dapatkan di Shopee`. Other wording, or a bare link, leaves name/price empty; nothing is guessed. Names over 80 characters (the product schema limit) leave the draft name empty and are shown in full for the seller to shorten.
+- The Shopee price is stored on the job as `source.listedPrice`/`listedMax` and shown as a reference with a "Pakai Rp…" button. The draft price stays empty: a reseller sets her own selling price. No AI or OCR is used.
+- `resolveShopeeLink` requests only `https://s.shopee.co.id/<validated code>` with `redirect: "manual"`, a 5-second timeout and the honest agent `LarisKu-LinkPreview/1.0 (+https://larisku.dyahrini.tech)`. It records shop/item IDs only when the first redirect is `https://shopee.co.id/opaanlp/<shopId>/<itemId>`. The Shopee product page is never requested and no user-supplied URL is fetched. Failure still creates the draft from the text.
+- With an honest agent Shopee returns no Open Graph name/photo (verified on four real links, 28 October 2026); that metadata appears only for a link-preview crawler agent, which this code deliberately does not impersonate. Photos are therefore added by the seller. Shopee listing photos belong to the original seller.
+- Each Shopee draft therefore requires the seller's own photo before confirmation. The review shows a "Foto produk" picker; the browser squares and compresses it with the Catalog editor's `catalogPhoto` (WebP data URL, at most 180,000 characters). `save` stores it as the draft's `photo` (`photoSchema`: PNG/JPEG/WebP data URL only, never a remote URL), and `confirm` rejects a Shopee job with `photo-required` while any draft has none, then writes it to the product's `image`. Catalogue-file drafts keep photo optional.
+- One job per seller and link code (SHA-256 of `shopee-link-v1` + code); pasting the same link again reopens it. Link imports have their own cap of 100 per seller per UTC day (`catalogueIngestionLocks/links_<uid>`). Review, correction and atomic confirmation are unchanged; products are created with `published:false` only after confirmation.
+- Shopee Affiliate Open API access is granted per account on request and was not available to this seller (29 October 2026), so it is not used.
+
 ## Layout-aware OCR follow-up (pipeline v2)
 
 Price-list posters place several cards side by side. Plain Tesseract text joined neighbouring cards on one line, so the model could not tell which heading, plan label and price belonged together. `server/catalogue-layout.ts` now rebuilds reading order from Tesseract TSV word boxes: touching words form a card, a price-only column joins the row-aligned labels on its left, and cards are listed per page column with `[Kolom N]` markers and ` | ` cell gaps. Only OCR words are emitted. The one rewrite is the stylised-font misread `BUIAN`/`8UIAN`, read as `BULAN`. Low-confidence short fragments from card borders/icons are dropped.

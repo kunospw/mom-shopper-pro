@@ -89,3 +89,44 @@ test("unsupported upload, slow processing, failure and safe retry", async ({ pag
   await expect(dialog.getByText(/Harga di katalog yang belum ada di draf/)).toContainText("Rp 15.000");
   expect((await db.collection(`storefronts/${seller.uid}/products`).get()).size).toBe(0);
 });
+
+test("Shopee share text → private draft → seller's own price → explicit confirmation", async ({ page }) => {
+  const seller = await signedSeller(page);
+  const products = db.collection(`storefronts/${seller.uid}/products`);
+  const ctx = { ...context, adapters: { ...context.adapters, shopee: async () => ({ shopId: "11487927", itemId: "1022856848" }) } };
+  await page.route("**/api/ingest-catalogue", async route => {
+    const request = route.request();
+    const result = await handleCatalogue(request.postDataJSON(), request.headers().authorization, ctx);
+    await route.fulfill({ status: result.status, contentType: "application/json", body: JSON.stringify(result.body) });
+  });
+  await page.goto("/catalog?new=catalogue");
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Teks bagikan Shopee").fill("tanpa tautan");
+  await dialog.getByRole("button", { name: "Buat draf dari Shopee" }).click();
+  await expect(dialog.getByRole("alert")).toContainText("s.shopee.co.id");
+  await dialog.getByLabel("Teks bagikan Shopee").fill("Cek Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s dengan harga Rp22.600. Dapatkan di Shopee sekarang! https://s.shopee.co.id/8VA3gNI6dZ");
+  await dialog.getByRole("button", { name: "Buat draf dari Shopee" }).click();
+  await expect(dialog.getByRole("heading", { name: "Periksa draf produk" })).toBeVisible();
+  await expect(dialog.getByText("Harga di Shopee:")).toContainText("Rp 22.600");
+  await expect(dialog.getByLabel("Nama produk")).toHaveValue("Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s");
+  await expect(dialog.getByRole("link", { name: "Buka di Shopee" })).toHaveAttribute("href", "https://s.shopee.co.id/8VA3gNI6dZ");
+  await expect(dialog.getByText("Harga wajib diisi")).toBeVisible();
+  await dialog.getByRole("button", { name: "Pakai Rp 22.600" }).click();
+  await expect(dialog.getByLabel("Harga Rupiah", { exact: true })).not.toHaveValue("");
+  await dialog.getByLabel("Harga Rupiah", { exact: true }).fill("27500");
+  await expect(dialog.getByText("Foto wajib diisi")).toBeVisible();
+  await expect(dialog.getByRole("checkbox")).toBeDisabled();
+  await dialog.getByLabel("Foto produk").setInputFiles(fileURLToPath(new URL("../e2e/fixtures/photo.png", import.meta.url)));
+  await expect(dialog.getByRole("img", { name: "Foto produk 1" })).toBeVisible();
+  await page.screenshot({ path: test.info().outputPath("shopee-review.png"), fullPage: true });
+  expect((await products.get()).size).toBe(0);
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Simpan 1 produk" }).click();
+  await expect(dialog.getByRole("heading", { name: "Produk berhasil disimpan" })).toBeVisible();
+  const saved = await products.get();
+  expect(saved.size).toBe(1);
+  expect(saved.docs[0].data().price).toBe(27500);
+  expect(saved.docs[0].data().image).toMatch(/^data:image\/webp;base64,/);
+  expect(saved.docs[0].data().published).toBe(false);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+});

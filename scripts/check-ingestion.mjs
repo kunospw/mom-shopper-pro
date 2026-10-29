@@ -40,7 +40,25 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
     ["Zeta",0,0,60],["14",0,40,20],["HARI",25,40,50],["1",0,80,10],["BULAN",15,80,60],
     ["RP.",300,40,30],["14.000",335,40,60],["RP.",300,80,30],["22.000",335,80,60],
   ])),"[Kolom 1]\nZeta\n14 HARI | RP. 14.000\n1 BULAN | RP. 22.000");
+  // Lone border/icon characters beside a label are dropped; price rows and short option rows stay.
+  assert.equal(layout.layoutText(tsv([
+    ["Omega",100,0,80],["a",40,40,10],["PRIVATE",100,40,100],["2",250,40,10],
+    ["1",10,80,10],["BULAN",25,80,60],["RP.",200,80,30],["25.000",235,80,60],["S",10,120,10],["M",100,120,10],["L",200,120,10],
+  ])),"[Kolom 1]\nOmega\nPRIVATE\n1 BULAN | RP. 25.000\nS | M | L");
   assert.equal(layout.layoutText("not tsv"),"");
+  const shopee = await bundle("server/catalogue-shopee.ts");
+  // Real share text supplied by the seller (Oral-B, 28 October 2026).
+  assert.deepEqual(shopee.parseShopeeShare("Cek Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s dengan harga Rp22.600. Dapatkan di Shopee sekarang! https://s.shopee.co.id/8VA3gNI6dZ"),
+    { code: "8VA3gNI6dZ", title: "Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s", listedPrice: 22600, listedMax: null });
+  assert.deepEqual(shopee.parseShopeeShare("Cek Kaos Polos dengan harga Rp10.000 - Rp15.000. Dapatkan di Shopee sekarang! https://s.shopee.co.id/AbCdEf12"),
+    { code: "AbCdEf12", title: "Kaos Polos", listedPrice: 10000, listedMax: 15000 });
+  assert.deepEqual(shopee.parseShopeeShare("https://s.shopee.co.id/1BNSxX8D88"), { code: "1BNSxX8D88", title: null, listedPrice: null, listedMax: null }, "link only: nothing guessed");
+  assert.deepEqual(shopee.parseShopeeShare("Check out Mug for Rp5.000! https://s.shopee.co.id/1BNSxX8D88").title, null, "unknown wording leaves fields empty");
+  assert.equal(shopee.parseShopeeShare("https://s.shopee.co.id/1BNSxX8D88 https://s.shopee.co.id/3qOE8VhBqf"), null, "two products in one paste");
+  assert.equal(shopee.parseShopeeShare("https://shopee.co.id/product/1/2"), null);
+  assert.equal(shopee.parseShopeeShare("https://s.shopee.co.id.evil.test/1BNSxX8D88"), null);
+  assert.deepEqual(shopee.shopeeCandidate("Mug"), { name: "Mug", sku: null, price: null, description: null, imageUrl: null }, "Shopee price is never the selling price");
+  assert.equal(shopee.shopeeCandidate("x".repeat(81)).name, null);
   assert.equal(m.finalProduct(c).price, 150000);
   assert.equal(m.finalProduct(c).published, false);
   assert.equal(m.finalProduct(c).description, "");
@@ -98,6 +116,19 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
     globalThis.fetch=async()=>{throw new DOMException("sensitive timeout detail","TimeoutError");};
     await assert.rejects(adapter.extract("text",new AbortController().signal), /provider-timeout/);
     await assert.rejects(a.externalAdapters({}).extract("text", new AbortController().signal));
+    // Only the short link's first redirect is read, with an honest agent; the Shopee page is never fetched.
+    const fetched = [];
+    const redirect = location => async (url, init) => { fetched.push([url, init.redirect, init.headers["User-Agent"]]); return new Response("ignored", { status: 301, headers: { location } }); };
+    globalThis.fetch = redirect("https://shopee.co.id/opaanlp/11487927/1022856848?utm=x");
+    assert.deepEqual(await shopee.resolveShopeeLink("8VA3gNI6dZ", new AbortController().signal), { shopId: "11487927", itemId: "1022856848" });
+    assert.deepEqual(fetched, [["https://s.shopee.co.id/8VA3gNI6dZ", "manual", "LarisKu-LinkPreview/1.0 (+https://larisku.dyahrini.tech)"]]);
+    for (const location of ["https://evil.test/opaanlp/1/2", "https://shopee.co.id/some-product-i.1.2", "http://shopee.co.id/opaanlp/1/2"]) {
+      globalThis.fetch = redirect(location);
+      assert.equal(await shopee.resolveShopeeLink("8VA3gNI6dZ", new AbortController().signal), null);
+    }
+    globalThis.fetch = async () => new Response("<html>", { status: 200 });
+    assert.equal(await shopee.resolveShopeeLink("8VA3gNI6dZ", new AbortController().signal), null);
+    assert.equal(await shopee.resolveShopeeLink("../../etc", new AbortController().signal), null);
   } finally { globalThis.fetch = original; }
-  console.log("PASS ingestion unit: schema mapping, missing values, OCR layout, name/price grounding, unmatched prices, prompt isolation, malformed/untrusted output, bounds; all provider calls mocked.");
+  console.log("PASS ingestion unit: schema mapping, missing values, OCR layout, name/price grounding, unmatched prices, Shopee share text and first-redirect IDs, prompt isolation, malformed/untrusted output, bounds; all provider calls mocked.");
 }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, History, ImagePlus, Loader2, LockKeyhole, PackageCheck, RefreshCw, UploadCloud } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronDown, ExternalLink, History, ImagePlus, Link2, Loader2, LockKeyhole, PackageCheck, RefreshCw, UploadCloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput, Section, field } from "@/components/form-parts";
-import { candidateSchema, missing, type Candidate, type Draft } from "@/lib/catalogue-ingestion";
+import { candidateSchema, LIMITS, missing, retiredPipelines, SHOPEE_TEXT_MAX, type Candidate, type Draft } from "@/lib/catalogue-ingestion";
 import type { ReviewJob } from "@/lib/catalogue-client";
 import { cn } from "@/lib/utils";
 
@@ -25,14 +25,18 @@ const messages: Record<string, string> = {
   "busy-try-later": "Masih ada katalog yang diproses. Tunggu sebentar, lalu coba lagi.",
   "daily-limit": "Batas impor hari ini sudah tercapai. Coba lagi besok.",
   "sign-in-required": "Sesi Anda berakhir. Masuk kembali untuk melanjutkan.",
+  "shopee-link-missing": "Tempel teks dari tombol Bagikan Shopee yang berisi satu tautan s.shopee.co.id.",
+  "photo-required": "Tambahkan foto produk sebelum menyimpan.",
 };
+const rp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 interface Props {
   job: ReviewJob | null; drafts: Draft[]; file: File | null; busy: boolean; progress: number;
   error: string; activity: string; slow: boolean; dirty: boolean; checked: boolean; incomplete: boolean;
   history: { id: string; status: string }[]; next: string | null;
-  onPick(file: File | null): void; onChange(id: string, field: keyof Candidate, value: string): void;
+  onPick(file: File | null): void; onChange(id: string, field: keyof Candidate, value: string): void; onPhoto(id: string, file: File): void;
   onChecked(value: boolean): void; onUpload(): void; onSaveDraft(): void; onConfirm(): void;
   onResume(id: string): void; onHistory(after?: string): void; onAnother(): void; onDone(): void;
+  shareText: string; onShareText(value: string): void; onShopee(): void;
 }
 export function CatalogueIngestionView(p: Props) {
   const input = useRef<HTMLInputElement>(null);
@@ -41,7 +45,8 @@ export function CatalogueIngestionView(p: Props) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(() => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches);
   const realPreview = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1";
-  const legacy = realPreview && !!p.job && p.job.pipeline !== "tesseract-ollama-v1";
+  const legacy = realPreview && !!p.job && retiredPipelines.includes(p.job.pipeline ?? "legacy");
+  const shopee = p.job?.source?.kind === "shopee" ? p.job.source : null;
   const sample = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_SAMPLE_IMAGE === "1";
   useEffect(() => {
     if (!p.file || !["image/jpeg", "image/png"].includes(p.file.type) || p.file.size > 2 * 1024 * 1024) { setPhoto(""); return; }
@@ -76,6 +81,11 @@ export function CatalogueIngestionView(p: Props) {
         {sample && <Button className="mt-3 w-full" variant="ghost" disabled={p.busy} onClick={async () => { const response = await fetch("/__preview/catalogue.jpg"); if (response.ok) p.onPick(new File([await response.blob()], "Contoh katalog aplikasi.jpeg", { type: "image/jpeg" })); }}><ImagePlus className="h-4 w-4" />Gunakan contoh PREMIUM APP</Button>}
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" />Draf hanya untuk Anda</span><Button disabled={p.busy || !p.file} onClick={p.onUpload}>Buat draf produk<ArrowRight className="h-4 w-4" /></Button></div>
       </Section>
+      <Section title="Atau tempel dari Shopee" hint="Satu produk">
+        <p className="mb-3 text-sm text-muted-foreground">Di aplikasi Shopee, buka produk, ketuk Bagikan lalu Salin, kemudian tempel di sini. Nama dan harga Shopee diambil dari teks itu.</p>
+        <label className="block text-sm font-medium" htmlFor="shopee-share">Teks bagikan Shopee<Textarea id="shopee-share" className="mt-1 min-h-24 rounded-[10px] bg-background" maxLength={SHOPEE_TEXT_MAX} disabled={p.busy} value={p.shareText} placeholder="Cek … dengan harga Rp…. Dapatkan di Shopee sekarang! https://s.shopee.co.id/…" onChange={e => p.onShareText(e.target.value)} /></label>
+        <div className="mt-4 flex justify-end"><Button variant="outline" disabled={p.busy || !p.shareText.trim()} onClick={p.onShopee}><Link2 className="h-4 w-4" />Buat draf dari Shopee</Button></div>
+      </Section>
       {p.job?.status === "failed" && <div className="flex gap-3 rounded-xl border bg-card p-4"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" /><div><h3 className="font-semibold">{p.job.error === "catalogue-price-limit" ? "Katalog perlu dibagi" : p.job.error?.startsWith("provider-") ? "Layanan AI belum menyelesaikan impor" : "Katalog belum dapat dibaca"}</h3>{p.job.error && messages[p.job.error] && <p className="mt-1 text-sm text-destructive">{messages[p.job.error]}</p>}<p className="mt-1 text-sm text-muted-foreground">Produk belum dibuat. Coba foto yang lebih jelas atau pecah daftar yang berisi lebih dari 15 produk. Berkas yang sama bisa dicoba sampai tiga kali.</p></div></div>}
       {p.job?.status === "processing" && <Button variant="outline" disabled={p.busy} onClick={() => p.onResume(p.job!.id)}><RefreshCw className="h-4 w-4" />Periksa hasil</Button>}
       <button type="button" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground" disabled={p.busy} aria-expanded={historyOpen} onClick={() => { setHistoryOpen(v => !v); p.onHistory(); }}><History className="h-4 w-4" />Lanjutkan draf sebelumnya<ChevronDown className={cn("h-4 w-4 transition-transform", historyOpen && "rotate-180")} /></button>
@@ -85,16 +95,29 @@ export function CatalogueIngestionView(p: Props) {
 
     {review && <>
       <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="text-lg font-semibold">Periksa draf produk</h3><p className="mt-1 text-xs text-muted-foreground">{p.drafts.length} draf · {needs ? `${needs} perlu dilengkapi` : "Nama dan harga lengkap"}</p></div><Button size="sm" variant="outline" disabled={p.busy || p.dirty} onClick={p.onAnother}><ArrowLeft className="h-4 w-4" />Ubah berkas</Button></div>
-      <div className="flex items-start gap-2.5 rounded-xl bg-primary-soft/50 p-3 text-sm text-primary-ink dark:bg-primary/10 dark:text-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>Cocokkan nama dan harga dengan katalog asli. Hasil bisa keliru.</p></div>
+      {shopee ? <div className="space-y-2 rounded-xl bg-primary-soft/50 p-3 text-sm text-primary-ink dark:bg-primary/10 dark:text-foreground">
+        <p className="font-semibold">Dari Shopee</p>
+        {shopee.title ? <p className="break-words">{shopee.title}</p> : <p>Nama tidak terbaca dari teks bagikan. Isi nama produk sendiri.</p>}
+        {shopee.title && shopee.title.length > LIMITS.nameMax && <p className="text-xs">Judul Shopee lebih dari {LIMITS.nameMax} karakter. Tulis nama yang lebih singkat.</p>}
+        <p>Harga di Shopee: <span className="font-semibold">{shopee.listedPrice ? `${rp(shopee.listedPrice)}${shopee.listedMax ? ` – ${rp(shopee.listedMax)}` : ""}` : "tidak terbaca"}</span>. Isi harga jual Anda sendiri.</p>
+        <div className="flex flex-wrap gap-2">
+          {shopee.listedPrice && !shopee.listedMax && p.drafts[0] && p.drafts[0].candidate.price !== shopee.listedPrice && <Button size="sm" variant="outline" disabled={p.busy} onClick={() => p.onChange(p.drafts[0].id, "price", String(shopee.listedPrice))}>Pakai {rp(shopee.listedPrice)}</Button>}
+          <Button size="sm" variant="ghost" asChild><a href={`https://s.shopee.co.id/${shopee.code}`} target="_blank" rel="noreferrer noopener"><ExternalLink className="h-4 w-4" />Buka di Shopee</a></Button>
+        </div>
+      </div> : <div className="flex items-start gap-2.5 rounded-xl bg-primary-soft/50 p-3 text-sm text-primary-ink dark:bg-primary/10 dark:text-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>Cocokkan nama dan harga dengan katalog asli. Hasil bisa keliru.</p></div>}
       {!!p.job?.unmatchedPrices?.length && <div role="status" className="flex items-start gap-2.5 rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-sm"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" /><p>Harga di katalog yang belum ada di draf: <span className="font-semibold">{p.job.unmatchedPrices.map(n => `Rp ${n.toLocaleString("id-ID")}`).join(", ")}</span>. Jika itu produk, tambahkan lewat Tambah produk setelah menyimpan impor ini.</p></div>}
       <div className={cn("grid items-start gap-5", source && "lg:grid-cols-[280px_minmax(0,1fr)]")}>
         {source && <details className="rounded-2xl bg-card p-4 shadow-card lg:sticky lg:top-28" open={sourceOpen} onToggle={e => setSourceOpen(e.currentTarget.open)}><summary className="cursor-pointer text-sm font-semibold">Katalog asli</summary><a href={source} target="_blank" rel="noreferrer" className="mt-3 block"><img src={source} alt="Katalog asli untuk dibandingkan" className="max-h-32 w-full rounded-lg object-contain lg:max-h-[65vh]" /></a><p className="mt-2 text-xs text-muted-foreground">Klik gambar untuk memperbesar.</p></details>}
         <div className="min-w-0 space-y-3">{p.drafts.map((draft, i) => {
           const parsed = candidateSchema.safeParse(draft.candidate);
-          const errors = [...missing(draft.candidate), ...(!parsed.success ? ["Periksa harga Rupiah bulat dan format isian produk."] : [])];
+          const errors = [...missing(draft.candidate, draft.photo, !!shopee), ...(!parsed.success ? ["Periksa harga Rupiah bulat dan format isian produk."] : [])];
           return <fieldset key={draft.id} aria-label={`Produk ${i + 1}`} disabled={p.busy} className="rounded-2xl bg-card p-4 shadow-card sm:p-5">
             <div className="mb-4 flex items-center justify-between gap-2"><span className="text-xs font-semibold text-muted-foreground">PRODUK {i + 1}</span><span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium", errors.length ? "bg-destructive/10 text-destructive" : "bg-success-soft text-success")}>{errors.length ? <AlertCircle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}{errors.length ? "Perlu dilengkapi" : "Siap diperiksa"}</span></div>
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_170px]"><label className="min-w-0 text-sm font-medium" htmlFor={`draft-${draft.id}-name`}>Nama produk<input id={`draft-${draft.id}-name`} className={cn(field, "mt-1")} maxLength={80} value={draft.candidate.name ?? ""} placeholder="Nama produk dari katalog" onChange={e => p.onChange(draft.id, "name", e.target.value)} /></label><div><label htmlFor={`draft-${draft.id}-price`} className="text-sm font-medium">Harga Rupiah</label><MoneyInput id={`draft-${draft.id}-price`} className="mt-1" value={draft.candidate.price == null ? "" : String(draft.candidate.price)} onChange={value => p.onChange(draft.id, "price", value)} placeholder="Isi harga" /></div></div>
+            {shopee && <div className="mt-3 flex items-center gap-3">
+              {draft.photo ? <img src={draft.photo} alt={`Foto produk ${i + 1}`} className="h-20 w-20 shrink-0 rounded-lg object-cover" /> : <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><ImagePlus className="h-6 w-6" /></span>}
+              <label className="min-w-0 text-sm font-medium">Foto produk<span className="block text-xs font-normal text-muted-foreground">Foto Anda sendiri, misalnya dari galeri. PNG, JPG, atau WebP.</span><input className="mt-1 block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary-soft file:px-3 file:py-1.5 file:text-primary-ink" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file = e.target.files?.[0]; e.target.value = ""; if (file) p.onPhoto(draft.id, file); }} /></label>
+            </div>}
             {errors.length > 0 && <p role="alert" className="mt-2 text-xs text-destructive">{errors.join(" ")}</p>}
             <details className="mt-4 border-t pt-3"><summary className="cursor-pointer text-sm font-medium text-muted-foreground">Deskripsi & catatan tambahan</summary><div className="mt-3 space-y-3"><label className="block text-sm" htmlFor={`draft-${draft.id}-description`}>Deskripsi<Textarea id={`draft-${draft.id}-description`} className="mt-1 min-h-20 rounded-[10px] bg-background" value={draft.candidate.description ?? ""} maxLength={1500} placeholder="Opsional" onChange={e => p.onChange(draft.id, "description", e.target.value)} /></label><div className="grid gap-3 sm:grid-cols-2">{([ ["sku", "SKU (catatan)", 80], ["imageUrl", "Tautan gambar (catatan)", 2000] ] as const).map(([name, label, max]) => <label key={name} htmlFor={`draft-${draft.id}-${name}`} className="block text-sm">{label}<input id={`draft-${draft.id}-${name}`} className={cn(field, "mt-1")} maxLength={max} value={draft.candidate[name] ?? ""} placeholder="Opsional" onChange={e => p.onChange(draft.id, name, e.target.value)} /></label>)}</div><p className="text-xs text-muted-foreground">SKU dan tautan gambar menjadi catatan draf, tidak dimasukkan ke produk.</p></div></details>
           </fieldset>;

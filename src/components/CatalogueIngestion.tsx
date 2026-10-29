@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { CatalogueIngestionView } from "./CatalogueIngestionView";
-import { catalogueRequest, uploadCatalogue, type ReviewJob } from "@/lib/catalogue-client";
-import { candidateSchema, missing, type Candidate, type Draft } from "@/lib/catalogue-ingestion";
+import { catalogPhoto } from "@/lib/catalog-image";
+import { catalogueRequest, importShopee, uploadCatalogue, type ReviewJob } from "@/lib/catalogue-client";
+import { candidateSchema, missing, retiredPipelines, type Candidate, type Draft } from "@/lib/catalogue-ingestion";
 
 export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusyChange }: {
   uid: string; onSaved(): void; onDone(): void; onDirtyChange(value: boolean): void; onBusyChange(value: boolean): void;
@@ -10,6 +11,7 @@ export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusy
   const [job, setJob] = useState<ReviewJob | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  const [shareText, setShareText] = useState("");
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState("Memuat draf…");
   const [progress, setProgress] = useState(0);
@@ -35,7 +37,7 @@ export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusy
   }
   useEffect(() => {
     const id = localStorage.getItem(key);
-    void run(async () => { const jobs = await loadHistory(); const resume = id ?? (jobs.filter(j => j.status === "review").length === 1 ? jobs.find(j => j.status === "review")?.id : null); if (resume) { const value = await catalogueRequest({ action: "status", jobId: resume }); if (import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1" && value.pipeline !== "tesseract-ollama-v1") localStorage.removeItem(key); else accept(value); } });
+    void run(async () => { const jobs = await loadHistory(); const resume = id ?? (jobs.filter(j => j.status === "review").length === 1 ? jobs.find(j => j.status === "review")?.id : null); if (resume) { const value = await catalogueRequest({ action: "status", jobId: resume }); if (import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1" && retiredPipelines.includes(value.pipeline ?? "legacy")) localStorage.removeItem(key); else accept(value); } });
     // One resume per seller; processing can also be refreshed manually.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
@@ -43,11 +45,21 @@ export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusy
     setDrafts(rows => rows.map(d => d.id === id ? { ...d, candidate: { ...d.candidate, [field]: field === "price" ? (value === "" ? null : Number(value)) : (value || null) } } : d));
     setChecked(false); setDirty(true); onDirtyChange(true);
   }
-  const incomplete = drafts.some(d => missing(d.candidate).length > 0 || !candidateSchema.safeParse(d.candidate).success);
-  function another() { setJob(null); setDrafts([]); setFile(null); setDirty(false); setChecked(false); onDirtyChange(false); localStorage.removeItem(key); }
+  function photo(id: string, value: File) {
+    void run(async () => {
+      const image = await catalogPhoto(value);
+      setDrafts(rows => rows.map(d => d.id === id ? { ...d, photo: image } : d));
+      setChecked(false); setDirty(true); onDirtyChange(true);
+    }, "Menyiapkan foto…");
+  }
+  const photoRequired = job?.source?.kind === "shopee";
+  const incomplete = drafts.some(d => missing(d.candidate, d.photo, photoRequired).length > 0 || !candidateSchema.safeParse(d.candidate).success);
+  function another() { setJob(null); setDrafts([]); setFile(null); setShareText(""); setDirty(false); setChecked(false); onDirtyChange(false); localStorage.removeItem(key); }
   return <CatalogueIngestionView job={job} drafts={drafts} file={file} busy={busy} activity={activity} progress={progress} error={error} slow={slow} dirty={dirty} checked={checked} incomplete={incomplete} history={history} next={next}
-    onPick={value => { setFile(value); setProgress(0); setError(""); }} onChange={change} onChecked={setChecked}
+    onPick={value => { setFile(value); setProgress(0); setError(""); }} onChange={change} onPhoto={photo} onChecked={setChecked}
     onUpload={() => void run(async () => { setProgress(0); accept(await uploadCatalogue(file!, setProgress)); await loadHistory(); }, "Membaca katalog…")}
+    shareText={shareText} onShareText={value => { setShareText(value); setError(""); }}
+    onShopee={() => void run(async () => { accept(await importShopee(shareText.trim())); await loadHistory(); }, "Membaca tautan Shopee…")}
     onSaveDraft={() => void run(async () => accept(await catalogueRequest({ action: "save", jobId: job!.id, drafts })), "Menyimpan draf…")}
     onConfirm={() => void run(async () => { const current = dirty ? await catalogueRequest({ action: "save", jobId: job!.id, drafts }) : job!; if (dirty) accept(current); accept(await catalogueRequest({ action: "confirm", jobId: current.id, revision: current.revision, confirmed: true })); onSaved(); }, "Menyimpan produk…")}
     onResume={id => void run(async () => accept(await catalogueRequest({ action: "status", jobId: id })))} onHistory={after => void run(() => loadHistory(after).then(() => {}))} onAnother={another} onDone={onDone} />;
