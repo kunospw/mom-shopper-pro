@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { FieldValue, type Firestore } from "firebase-admin/firestore";
-import { candidateSchema, extractionSchema, finalProduct, LIMITS, photoSchema, reviewSchema, SHOPEE_TEXT_MAX, shopeeSourceSchema, type JobView } from "../src/lib/catalogue-ingestion";
+import { candidateSchema, extractionSchema, costSchema, finalProduct, LIMITS, photoSchema, reviewSchema, SHOPEE_TEXT_MAX, shopeeSourceSchema, type JobView } from "../src/lib/catalogue-ingestion";
 import { validateUpload } from "./catalogue-adapters";
 import { explicitPricePoints, groundCandidates, unmatchedPrices } from "./catalogue-quality";
 import { parseShopeeShare, shopeeCandidate } from "./catalogue-shopee";
@@ -129,7 +129,8 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
       await ctx.db.runTransaction(async tx => {
         if ((await tx.get(ref)).exists) return; // a concurrent paste of the same link already created it
         tx.create(ref, { owner: uid, status: "review", pipeline: "shopee-link-v1", revision: 0, attempts: 1, draftIds: ["00"], source });
-        tx.create(ref.collection("drafts").doc("00"), { owner: uid, candidate: shopeeCandidate(shared.title), status: "review" });
+        // A reseller's Shopee price is her purchase cost; a range has no single cost.
+        tx.create(ref.collection("drafts").doc("00"), { owner: uid, candidate: shopeeCandidate(shared.title), cost: shared.listedMax ? null : shared.listedPrice, status: "review" });
       });
       return { status: 200, body: await view(id) };
     }
@@ -144,7 +145,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
         if (JSON.stringify([...job.draftIds].sort()) !== JSON.stringify(req.drafts.map(x => x.id).sort())) reject("draft-set-mismatch");
         const docs = await tx.getAll(...req.drafts.map(x => ref.collection("drafts").doc(x.id)));
         docs.forEach(d => { if (d.data()?.owner !== uid || d.data()?.status !== "review") reject("invalid-draft", 409); });
-        req.drafts.forEach(d => tx.update(ref.collection("drafts").doc(d.id), { candidate: candidateSchema.parse(d.candidate), photo: d.photo ?? null }));
+        req.drafts.forEach(d => tx.update(ref.collection("drafts").doc(d.id), { candidate: candidateSchema.parse(d.candidate), photo: d.photo ?? null, cost: d.cost ?? null }));
         tx.update(ref, { revision: job.revision + 1 });
       });
       return { status: 200, body: await view(req.jobId) };
@@ -165,10 +166,13 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
         if (job.source?.kind === "shopee" && !d.data()?.photo) reject("photo-required");
         try { return finalProduct(d.data()?.candidate, d.data()?.photo ?? null); } catch { return reject("missing-or-invalid-fields"); }
       });
+      const costs = docs.map(d => costSchema.parse(d.data()?.cost ?? null));
       const productIds = ids.map(id => `ingest_${req.jobId}_${id}`);
       // create() preconditions ensure existing products can NEVER be overwritten.
       products.forEach((product, i) => {
         tx.create(ctx.db.doc(`storefronts/${uid}/products/${productIds[i]}`), { ...product, updatedAt: FieldValue.serverTimestamp() });
+        // Same private record the product editor's "Modal" field writes; stock stays untracked.
+        if (costs[i] != null) tx.create(ctx.db.doc(`users/${uid}/inventory/${productIds[i]}`), { cost: costs[i], stock: null });
         tx.update(docs[i].ref, { status: "confirmed", productId: productIds[i] });
       });
       tx.update(ref, { status: "confirmed", productIds });
@@ -180,7 +184,7 @@ export async function handleCatalogue(body: unknown, authorization: string | nul
     const snapshot = await jobs.doc(id).get();
     const job = snapshot.data();
     if (!job || job.owner !== uid) return reject("not-found", 404);
-    const drafts = job.status === "review" ? (await snapshot.ref.collection("drafts").get()).docs.map(d => ({ id: d.id, candidate: candidateSchema.parse(d.data().candidate), ...(d.data().photo ? { photo: photoSchema.parse(d.data().photo) } : {}) })) : [];
+    const drafts = job.status === "review" ? (await snapshot.ref.collection("drafts").get()).docs.map(d => ({ id: d.id, candidate: candidateSchema.parse(d.data().candidate), ...(d.data().photo ? { photo: photoSchema.parse(d.data().photo) } : {}), ...(typeof d.data().cost === "number" ? { cost: costSchema.parse(d.data().cost) } : {}) })) : [];
     return { id, status: job.status === "processing" && job.expires < Date.now() ? "failed" : job.status, pipeline: typeof job.pipeline === "string" ? job.pipeline : "legacy", revision: job.revision,
       drafts, ...(job.error ? { error: job.error } : {}), ...(job.elapsedMs != null ? { elapsedMs: job.elapsedMs } : {}), ...(job.productIds ? { productIds: job.productIds } : {}),
       ...(Array.isArray(job.unmatchedPrices) ? { unmatchedPrices: z.array(z.number().int().positive()).max(LIMITS.products).parse(job.unmatchedPrices) } : {}),

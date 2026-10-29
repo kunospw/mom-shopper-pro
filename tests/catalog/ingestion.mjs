@@ -117,7 +117,7 @@ try {
   const share = { action: "link", text: "Cek Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s dengan harga Rp22.600. Dapatkan di Shopee sekarang! https://s.shopee.co.id/8VA3gNI6dZ" };
   const linked = await call(reseller, share, linkContext);
   assert.equal(linked.status, 200); assert.equal(linked.body.status, "review"); assert.equal(linked.body.pipeline, "shopee-link-v1");
-  assert.deepEqual(linked.body.drafts, [{ id: "00", candidate: { name: "Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s", sku: null, price: null, description: null, imageUrl: null } }]);
+  assert.deepEqual(linked.body.drafts, [{ id: "00", candidate: { name: "Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s", sku: null, price: null, description: null, imageUrl: null }, cost: 22600 }], "Shopee price prefills the private purchase cost, never the selling price");
   assert.deepEqual(linked.body.source, { kind: "shopee", code: "8VA3gNI6dZ", title: "Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s", listedPrice: 22600, listedMax: null, shopId: "11487927", itemId: "1022856848" });
   assert.equal((await call(reseller, share, linkContext)).body.id, linked.body.id); assert.equal(resolved, 1, "same link reuses its draft");
   assert.equal((await call(other, { action: "status", jobId: linked.body.id })).status, 404);
@@ -127,7 +127,7 @@ try {
   assert.equal(offline.body.status, "review"); assert.equal(offline.body.source.itemId, null, "resolver failure still yields a draft from the text");
   assert.equal((await db.collection(`storefronts/${reseller.uid}/products`).get()).size, 0, "no product before confirmation");
   assert.equal((await call(reseller, { action: "confirm", jobId: linked.body.id, confirmed: true, revision: 0 })).status, 400, "selling price required");
-  const priced = await call(reseller, { action: "save", jobId: linked.body.id, drafts: [{ id: "00", candidate: { ...linked.body.drafts[0].candidate, price: 27500 } }] });
+  const priced = await call(reseller, { action: "save", jobId: linked.body.id, drafts: [{ ...linked.body.drafts[0], candidate: { ...linked.body.drafts[0].candidate, price: 27500 } }] });
   assert.equal((await call(reseller, { action: "confirm", jobId: linked.body.id, confirmed: true, revision: priced.body.revision })).body.error, "photo-required", "seller's own photo required");
   assert.equal((await call(reseller, { action: "save", jobId: linked.body.id, drafts: [{ ...priced.body.drafts[0], photo: "https://cf.shopee.co.id/file/x" }] })).status, 400, "only an uploaded photo, never a remote URL");
   const photo = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
@@ -136,6 +136,8 @@ try {
   assert.equal((await call(reseller, { action: "confirm", jobId: linked.body.id, confirmed: true, revision: pictured.body.revision })).body.status, "confirmed");
   const resold = await db.collection(`storefronts/${reseller.uid}/products`).get();
   assert.equal(resold.size, 1); assert.equal(resold.docs[0].data().price, 27500); assert.equal(resold.docs[0].data().image, photo); assert.equal(resold.docs[0].data().published, false);
+  assert.equal(resold.docs[0].data().cost, undefined, "cost never on the public product");
+  assert.deepEqual((await db.doc(`users/${reseller.uid}/inventory/${resold.docs[0].id}`).get()).data(), { cost: 22600, stock: null });
   // Global slots and per-owner slots are enforced by Firestore transactions.
   await db.doc("catalogueIngestionLocks/global").set({ leases: [ { uid: "x", run: "a", expires: Date.now() + 60000 }, { uid: "y", run: "b", expires: Date.now() + 60000 } ] });
   assert.equal((await call(await account(), upload)).status, 429);

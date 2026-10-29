@@ -52,11 +52,15 @@ export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusy
       setChecked(false); setDirty(true); onDirtyChange(true);
     }, "Menyiapkan foto…");
   }
+  function cost(id: string, value: string) {
+    setDrafts(rows => rows.map(d => d.id === id ? { ...d, cost: value === "" ? null : Number(value) } : d));
+    setChecked(false); setDirty(true); onDirtyChange(true);
+  }
   const photoRequired = job?.source?.kind === "shopee";
   const incomplete = drafts.some(d => missing(d.candidate, d.photo, photoRequired).length > 0 || !candidateSchema.safeParse(d.candidate).success);
   function another() { setJob(null); setDrafts([]); setFile(null); setShareText(""); setDirty(false); setChecked(false); onDirtyChange(false); localStorage.removeItem(key); }
   return <CatalogueIngestionView job={job} drafts={drafts} file={file} busy={busy} activity={activity} progress={progress} error={error} slow={slow} dirty={dirty} checked={checked} incomplete={incomplete} history={history} next={next}
-    onPick={value => { setFile(value); setProgress(0); setError(""); }} onChange={change} onPhoto={photo} onChecked={setChecked}
+    onPick={value => { setFile(value); setProgress(0); setError(""); }} onChange={change} onCost={cost} onPhoto={photo} onChecked={setChecked}
     onUpload={() => void run(async () => { setProgress(0); accept(await uploadCatalogue(file!, setProgress)); await loadHistory(); }, "Membaca katalog…")}
     shareText={shareText} onShareText={value => { setShareText(value); setError(""); }}
     onShopee={() => void run(async () => { accept(await importShopee(shareText.trim())); await loadHistory(); }, "Membaca tautan Shopee…")}

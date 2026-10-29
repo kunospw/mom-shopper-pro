@@ -16,7 +16,9 @@ export const extractionSchema = z.object({
 }).strict();
 // The seller's own product photo, already squared and compressed in the browser (same limit as the Catalog editor).
 export const photoSchema = z.string().max(180000).regex(raster).nullable();
-export const reviewSchema = z.array(z.object({ id: z.string().regex(/^\d{2}$/), candidate: candidateSchema, photo: photoSchema.optional() }).strict())
+// Purchase cost (harga modal) kept in the owner's private inventory record, never on the public product.
+export const costSchema = z.number().int().min(0).max(1000000000).nullable();
+export const reviewSchema = z.array(z.object({ id: z.string().regex(/^\d{2}$/), candidate: candidateSchema, photo: photoSchema.optional(), cost: costSchema.optional() }).strict())
   .min(1).max(LIMITS.products).refine(v => new Set(v.map(x => x.id)).size === v.length);
 export function missing(candidate: Candidate, photo?: string | null, photoRequired = false) {
   return [!candidate.name && "Nama wajib diisi", candidate.price == null && "Harga wajib diisi", photoRequired && !photo && "Foto wajib diisi"].filter(Boolean) as string[];
@@ -28,7 +30,7 @@ export function finalProduct(value: unknown, photo: string | null = null) {
   // Absence of optional product text maps to the existing empty value at confirmation only.
   return productSchema.parse({ ...emptyProduct, name: c.name, price: c.price, description: c.description ?? "", image: photoSchema.parse(photo) ?? "", published: false });
 }
-export type Draft = { id: string; candidate: Candidate; photo?: string | null };
+export type Draft = { id: string; candidate: Candidate; photo?: string | null; cost?: number | null };
 // Text copied from Shopee's Share button: "Cek <nama> dengan harga Rp<harga>. Dapatkan di Shopee sekarang! <link>".
 export const SHOPEE_TEXT_MAX = 1000;
 export const shopeeSourceSchema = z.object({

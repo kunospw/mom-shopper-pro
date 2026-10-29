@@ -111,9 +111,9 @@ test("Shopee share text → private draft → seller's own price → explicit co
   await expect(dialog.getByLabel("Nama produk")).toHaveValue("Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s");
   await expect(dialog.getByRole("link", { name: "Buka di Shopee" })).toHaveAttribute("href", "https://s.shopee.co.id/8VA3gNI6dZ");
   await expect(dialog.getByText("Harga wajib diisi")).toBeVisible();
-  await dialog.getByRole("button", { name: "Pakai Rp 22.600" }).click();
-  await expect(dialog.getByLabel("Harga Rupiah", { exact: true })).not.toHaveValue("");
-  await dialog.getByLabel("Harga Rupiah", { exact: true }).fill("27500");
+  await expect(dialog.getByLabel("Harga modal")).not.toHaveValue("");
+  await dialog.getByLabel("Harga jual").fill("27500");
+  await expect(dialog.getByText("Untung Rp 4.900 per barang.")).toBeVisible();
   await expect(dialog.getByText("Foto wajib diisi")).toBeVisible();
   await expect(dialog.getByRole("checkbox")).toBeDisabled();
   await dialog.getByLabel("Foto produk").setInputFiles(fileURLToPath(new URL("../e2e/fixtures/photo.png", import.meta.url)));
@@ -128,5 +128,6 @@ test("Shopee share text → private draft → seller's own price → explicit co
   expect(saved.docs[0].data().price).toBe(27500);
   expect(saved.docs[0].data().image).toMatch(/^data:image\/webp;base64,/);
   expect(saved.docs[0].data().published).toBe(false);
+  expect((await db.doc(`users/${seller.uid}/inventory/${saved.docs[0].id}`).get()).data()).toEqual({ cost: 22600, stock: null });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
