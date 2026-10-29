@@ -58,7 +58,10 @@ if (process.argv[1].endsWith("check-ingestion.mjs")) {
   assert.equal(shopee.parseShopeeShare("https://shopee.co.id/product/1/2"), null);
   assert.equal(shopee.parseShopeeShare("https://s.shopee.co.id.evil.test/1BNSxX8D88"), null);
   assert.deepEqual(shopee.shopeeCandidate("Mug"), { name: "Mug", sku: null, price: null, description: null, imageUrl: null }, "Shopee price is never the selling price");
-  assert.equal(shopee.shopeeCandidate("x".repeat(81)).name, null);
+  const kebaya = "Kebaya Sabira Laksmi Kutubaru Kebaya Lamaran Modern Kebaya Wisuda Kebaya Bridesmaid Kebaya Kondangan Terbaru 2024";
+  assert.equal(shopee.shopeeCandidate(kebaya).name, "Kebaya Sabira Laksmi Kutubaru Kebaya Lamaran Modern Kebaya Wisuda Kebaya", "long title cut at a whole word");
+  assert.equal(shopee.shopeeCandidate("Kaos Polos - " + "x".repeat(70)).name, "Kaos Polos", "no trailing separator");
+  assert.equal(shopee.shopeeCandidate("x".repeat(81)).name, "x".repeat(80), "one long word is cut at the limit");
   assert.equal(m.finalProduct(c).price, 150000);
   assert.equal(m.finalProduct(c).published, false);
   assert.equal(m.finalProduct(c).description, "");

@@ -488,7 +488,7 @@ export function Catalog() {
           <SheetHeader className="sticky top-0 z-10 border-b bg-card px-5 py-4 pr-16 text-left sm:px-7">
             <SheetTitle className="text-xl">{ingestion ? (import.meta.env.VITE_CATALOGUE_FILE_IMPORT === "0" ? "Impor dari Shopee" : "Impor katalog AI") : bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
             <SheetDescription>
-              {ingestion ? "Dari daftar harga ke draf produk. Periksa sebelum disimpan." : bulk
+              {ingestion ? (import.meta.env.VITE_CATALOGUE_FILE_IMPORT === "0" ? "Dari produk Shopee ke draf produk. Periksa sebelum disimpan." : "Dari daftar harga ke draf produk. Periksa sebelum disimpan.") : bulk
                 ? "Dari foto atau dari Excel/CSV. Periksa daftarnya dulu, lalu simpan sekaligus."
                 : "Isi foto, harga, dan pilihan. Produk baru tersembunyi sampai Anda menampilkannya."}
             </SheetDescription>

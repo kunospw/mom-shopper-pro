@@ -20,8 +20,15 @@ export function parseShopeeShare(text: string) {
 }
 
 /** The draft never copies the Shopee price: a reseller sets her own selling price. */
+/** Shopee titles are often keyword lists; a long one is cut at the last whole word for the seller to check. */
+export function shortName(title: string) {
+  if (title.length <= LIMITS.nameMax) return title;
+  const cut = title.slice(0, LIMITS.nameMax + 1);
+  const end = cut.lastIndexOf(" ");
+  return (end > 0 ? cut.slice(0, end) : title.slice(0, LIMITS.nameMax)).replace(/[\s,;:|/-]+$/, "");
+}
 export function shopeeCandidate(title: string | null): Candidate {
-  return { name: title && title.length <= LIMITS.nameMax ? title : null, sku: null, price: null, description: null, imageUrl: null };
+  return { name: title ? shortName(title) : null, sku: null, price: null, description: null, imageUrl: null };
 }
 
 /**

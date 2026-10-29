@@ -29,6 +29,7 @@ const messages: Record<string, string> = {
   "photo-required": "Tambahkan foto produk sebelum menyimpan.",
 };
 const rp = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
+const howToShare = "Di Shopee, ketuk Bagikan lalu WhatsApp, kirim ke chat mana saja, lalu salin seluruh pesannya (\"Cek … dengan harga …\") dan tempel di sini.";
 interface Props {
   job: ReviewJob | null; drafts: Draft[]; file: File | null; busy: boolean; progress: number;
   error: string; activity: string; slow: boolean; dirty: boolean; checked: boolean; incomplete: boolean;
@@ -47,6 +48,7 @@ export function CatalogueIngestionView(p: Props) {
   const realPreview = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1";
   const legacy = realPreview && !!p.job && retiredPipelines.includes(p.job.pipeline ?? "legacy");
   const shopee = p.job?.source?.kind === "shopee" ? p.job.source : null;
+  const bareLink = /s\.shopee\.co\.id\//.test(p.shareText) && !/dengan harga/i.test(p.shareText);
   const sample = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_SAMPLE_IMAGE === "1";
   // Off for the Shopee-only pilot: file import needs paid OCR/AI services.
   const fileImport = import.meta.env.VITE_CATALOGUE_FILE_IMPORT !== "0";
@@ -86,6 +88,7 @@ export function CatalogueIngestionView(p: Props) {
       <Section step={fileImport ? undefined : 1} title={fileImport ? "Atau tempel dari Shopee" : "Tempel dari Shopee"} hint="Satu produk">
         <p className="mb-3 text-sm text-muted-foreground">Di aplikasi Shopee, buka produk, ketuk Bagikan lalu Salin, kemudian tempel di sini. Nama dan harga Shopee diambil dari teks itu.</p>
         <label className="block text-sm font-medium" htmlFor="shopee-share">Teks bagikan Shopee<Textarea id="shopee-share" className="mt-1 min-h-24 rounded-[10px] bg-background" maxLength={SHOPEE_TEXT_MAX} disabled={p.busy} value={p.shareText} placeholder="Cek … dengan harga Rp…. Dapatkan di Shopee sekarang! https://s.shopee.co.id/…" onChange={e => p.onShareText(e.target.value)} /></label>
+        {bareLink && <p role="status" className="mt-2 text-xs text-primary-ink dark:text-primary">{howToShare}</p>}
         <div className="mt-4 flex justify-end"><Button variant="outline" disabled={p.busy || !p.shareText.trim()} onClick={p.onShopee}><Link2 className="h-4 w-4" />Buat draf dari Shopee</Button></div>
       </Section>
       {p.job?.status === "failed" && <div className="flex gap-3 rounded-xl border bg-card p-4"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" /><div><h3 className="font-semibold">{p.job.error === "catalogue-price-limit" ? "Katalog perlu dibagi" : p.job.error?.startsWith("provider-") ? "Layanan AI belum menyelesaikan impor" : "Katalog belum dapat dibaca"}</h3>{p.job.error && messages[p.job.error] && <p className="mt-1 text-sm text-destructive">{messages[p.job.error]}</p>}<p className="mt-1 text-sm text-muted-foreground">Produk belum dibuat. Coba foto yang lebih jelas atau pecah daftar yang berisi lebih dari 15 produk. Berkas yang sama bisa dicoba sampai tiga kali.</p></div></div>}
@@ -99,8 +102,8 @@ export function CatalogueIngestionView(p: Props) {
       <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="text-lg font-semibold">Periksa draf produk</h3><p className="mt-1 text-xs text-muted-foreground">{p.drafts.length} draf · {needs ? `${needs} perlu dilengkapi` : "Nama dan harga lengkap"}</p></div><Button size="sm" variant="outline" disabled={p.busy || p.dirty} onClick={p.onAnother}><ArrowLeft className="h-4 w-4" />{shopee ? "Tempel link lain" : "Ubah berkas"}</Button></div>
       {shopee ? <div className="space-y-2 rounded-xl bg-primary-soft/50 p-3 text-sm text-primary-ink dark:bg-primary/10 dark:text-foreground">
         <p className="font-semibold">Dari Shopee</p>
-        {shopee.title ? <p className="break-words">{shopee.title}</p> : <p>Nama tidak terbaca dari teks bagikan. Isi nama produk sendiri.</p>}
-        {shopee.title && shopee.title.length > LIMITS.nameMax && <p className="text-xs">Judul Shopee lebih dari {LIMITS.nameMax} karakter. Tulis nama yang lebih singkat.</p>}
+        {shopee.title ? <p className="break-words">{shopee.title}</p> : <p>{shopee.listedPrice ? "Nama tidak terbaca dari teks bagikan. Isi nama produk sendiri." : `Yang ditempel hanya link, jadi nama dan harga belum ada. ${howToShare}`}</p>}
+        {shopee.title && shopee.title.length > LIMITS.nameMax && <p className="text-xs">Judul Shopee lebih dari {LIMITS.nameMax} karakter, jadi nama produk dipotong. Periksa atau tulis ulang.</p>}
         <p>Harga di Shopee: <span className="font-semibold">{shopee.listedPrice ? `${rp(shopee.listedPrice)}${shopee.listedMax ? ` – ${rp(shopee.listedMax)}` : ""}` : "tidak terbaca"}</span>. Isi harga jual Anda sendiri.</p>
         <div className="flex flex-wrap gap-2">
           {shopee.listedPrice && !shopee.listedMax && p.drafts[0] && p.drafts[0].candidate.price !== shopee.listedPrice && <Button size="sm" variant="outline" disabled={p.busy} onClick={() => p.onChange(p.drafts[0].id, "price", String(shopee.listedPrice))}>Pakai {rp(shopee.listedPrice)}</Button>}
