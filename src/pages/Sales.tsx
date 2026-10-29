@@ -330,7 +330,7 @@ export default function Sales() {
                     ? {
                         channel: "catalog",
                         orderRequestId: confirming.id,
-                        customer: { name: confirming.buyerName, whatsapp: "", address: "" },
+                        customer: { name: confirming.buyerName, whatsapp: confirming.buyerPhone ?? "", address: "" },
                         notes: confirming.note,
                         items: confirming.items.map((item) => ({
                           productId: item.productId,

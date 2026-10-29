@@ -1,6 +1,7 @@
 import {
   collection,
   doc,
+  getDocFromServer,
   getDocsFromServer,
   onSnapshot,
   query,
@@ -9,7 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { readOrder, storeIdSchema, type Order } from "./catalog";
+import { buyerPhoneSchema, readOrder, storeIdSchema, type Order } from "./catalog";
 
 function ownerId() {
   const id = auth.currentUser?.uid;
@@ -29,6 +30,16 @@ export async function getOwnerOrders(): Promise<Order[]> {
       /* Skip a malformed request rather than hiding every other order. */
     }
   }
+  // WhatsApp numbers are needed to confirm, so only pending requests load them (one read each).
+  await Promise.all(
+    orders
+      .filter((o) => o.status === "pending")
+      .map(async (o) => {
+        const contact = await getDocFromServer(doc(db, "storefronts", ownerId(), "orders", o.id, "contact", "buyer")).catch(() => null);
+        const phone = buyerPhoneSchema.safeParse(contact?.data()?.phone);
+        if (phone.success) o.buyerPhone = phone.data;
+      }),
+  );
   return orders.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 

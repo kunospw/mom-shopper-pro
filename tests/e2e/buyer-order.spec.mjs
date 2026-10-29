@@ -19,6 +19,7 @@ async function run(browser, viewport, tag) {
     await page.getByRole("button", { name: /^Tambah · / }).click();
     await page.getByRole("button", { name: /Lihat pesanan/ }).click();
     await page.getByLabel("Nama Anda").fill(name);
+    await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   };
   // B6: saved first, then the buyer opens WhatsApp from the confirmation screen.
   const sendAndOpenWhatsApp = async () => {
@@ -49,6 +50,7 @@ async function run(browser, viewport, tag) {
   await page.getByRole("button", { name: "Kirim pesanan via WhatsApp" }).click();
   await page.getByRole("alert").filter({ hasText: "Isi nama Anda" }).waitFor();
   await page.getByLabel("Nama Anda").fill("Siti");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   await page.getByLabel(/Catatan untuk penjual/).fill("Kirim sore ya");
   const wa = await sendAndOpenWhatsApp();
   assert(/Pesanan #[A-Z0-9]{6}/.test(wa) && wa.includes("Siti") && wa.includes("/order/"), wa);

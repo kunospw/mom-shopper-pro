@@ -172,10 +172,10 @@ function OrderDetail({
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-semibold">{order.buyerName}</h2>
-            <p className="text-[13px] text-muted-foreground">Nama dari formulir pembeli · nomor WhatsApp ada di chat</p>
+            <p className="text-[13px] text-muted-foreground">{order.buyerPhone ? `WhatsApp +${order.buyerPhone}` : "Nama dari formulir pembeli · nomor WhatsApp ada di chat"}</p>
           </div>
           <a
-            href="https://wa.me/"
+            href={order.buyerPhone ? `https://wa.me/${order.buyerPhone}?text=${encodeURIComponent(`Halo ${order.buyerName}, terima kasih sudah memesan (Pesanan #${code}).`)}` : "https://wa.me/"}
             target="_blank"
             rel="noopener noreferrer"
             className="flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-success/35 px-3 text-[13px] font-semibold text-success hover:bg-success-soft"

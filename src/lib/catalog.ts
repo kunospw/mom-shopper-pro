@@ -278,6 +278,15 @@ export const orderItemSchema = z
     leadTime: z.string().max(100),
   })
   .strict();
+/** Buyer's WhatsApp number in international form (62…), so the seller can confirm the order. */
+export const buyerPhoneSchema = z.string().regex(/^62[1-9][0-9]{7,12}$/, "Isi nomor WhatsApp yang valid, contoh 081234567890.");
+/** Accepts 0812…, 812…, +62 812-… or 62812… and returns 62812…; other input is returned as digits only. */
+export function normalizePhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("0")) return "62" + digits.slice(1);
+  if (digits.startsWith("8")) return "62" + digits;
+  return digits;
+}
 export const orderRequestSchema = z
   .object({
     buyerName: z.string().trim().min(1, "Isi nama Anda.").max(60),
@@ -295,6 +304,8 @@ export interface OrderShop {
 }
 export interface Order extends z.infer<typeof orderRequestSchema> {
   id: string;
+  /** Seller-only contact record (orders/{id}/contact/buyer); loaded for pending orders. */
+  buyerPhone?: string;
   status: z.infer<typeof orderStatusSchema>;
   progress: OrderProgress;
   /** Null for orders created before the snapshot existed. */

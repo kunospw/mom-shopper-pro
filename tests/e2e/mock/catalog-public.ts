@@ -13,7 +13,7 @@ export async function getPublicCatalog(id: string) {
 }
 export const newOrderId = (_store: string) => nextId("ord");
 const asOrder = (o: any) => readOrder(o.id, { ...o, createdAt: { toDate: () => new Date(o.createdAt) }, steps: Object.fromEntries(Object.entries(o.steps ?? {}).map(([k, v]) => [k, { toDate: () => new Date(v as string) }])) });
-export async function createOrderRequest(storeId: string, lines: any[], buyerName: string, note: string, seen: string, orderId: string) {
+export async function createOrderRequest(storeId: string, lines: any[], buyerName: string, buyerPhone: string, note: string, seen: string, orderId: string) {
   const existing = db.orders.find((x: any) => x.id === orderId);
   if (existing) return { id: orderId, order: asOrder(existing), existing: true as const };
   if (fault() === "before") { (globalThis as any).__fail = undefined; throw new Error("network"); }
@@ -22,7 +22,7 @@ export async function createOrderRequest(storeId: string, lines: any[], buyerNam
   const cart = reconcileCart(lines, latest.products);
   if (cart.length !== lines.length || orderSignature(latest.store, latest.products, cart) !== seen) return { changed: latest, cart };
   const request = orderRequestSchema.parse({ buyerName, note, items: orderItems(latest.products, cart) });
-  const raw = { id: orderId, status: "pending", progress: "pending", ...request, subtotal: orderSubtotal(request.items), trackingNo: "", sellerNote: "", shop: orderShopSnapshot(latest.store), steps: {}, createdAt: new Date().toISOString() };
+  const raw = { id: orderId, status: "pending", progress: "pending", ...request, buyerPhone, subtotal: orderSubtotal(request.items), trackingNo: "", sellerNote: "", shop: orderShopSnapshot(latest.store), steps: {}, createdAt: new Date().toISOString() };
   db.orders.push(raw);
   save();
   if (fault() === "after") { (globalThis as any).__fail = undefined; throw new Error("response lost"); }

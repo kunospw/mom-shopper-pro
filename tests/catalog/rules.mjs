@@ -231,6 +231,7 @@ try {
     { sellerNote: "hi" },
     { buyerName: "" },
     { buyerName: "x".repeat(61) },
+    { buyerPhone: "6281234567890" },
     { note: "x".repeat(301) },
     { subtotal: 0 },
     { items: [] },
@@ -260,6 +261,28 @@ try {
       items: Array(6).fill(item),
     }),
   );
+  // Buyer's WhatsApp number: written only with a new order, read only by the seller.
+  const withContact = (id, phone, items = [item]) => {
+    const batch = writeBatch(buyer);
+    batch.set(doc(buyer, `${orderPath}/${id}`), { ...order, items });
+    batch.set(doc(buyer, `${orderPath}/${id}/contact/buyer`), phone);
+    return batch.commit();
+  };
+  await assertSucceeds(withContact("p1", { phone: "6281234567890" }, Array(6).fill(item)));
+  await assertSucceeds(getDoc(doc(owner, `${orderPath}/p1/contact/buyer`)));
+  await assertFails(getDoc(doc(buyer, `${orderPath}/p1/contact/buyer`)));
+  await assertFails(getDoc(doc(other, `${orderPath}/p1/contact/buyer`)));
+  await assertFails(updateDoc(doc(buyer, `${orderPath}/p1/contact/buyer`), { phone: "6289999999999" }));
+  await assertFails(setDoc(doc(buyer, `${orderPath}/o1/contact/buyer`), { phone: "6281234567890" }));
+  await assertFails(setDoc(doc(buyer, `${orderPath}/none/contact/buyer`), { phone: "6281234567890" }));
+  for (const [i, bad] of [{ phone: "081234567890" }, { phone: "62123" }, { phone: 6281234567890 }, { phone: "6281234567890", name: "x" }].entries())
+    await assertFails(withContact(`bad-contact-${i}`, bad));
+  {
+    const batch = writeBatch(buyer);
+    batch.set(doc(buyer, `${orderPath}/p2`), order);
+    batch.set(doc(buyer, `${orderPath}/p2/contact/other`), { phone: "6281234567890" });
+    await assertFails(batch.commit());
+  }
   await assertFails(
     updateDoc(doc(buyer, `${orderPath}/o1`), {
       status: "confirmed",

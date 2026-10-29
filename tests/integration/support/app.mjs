@@ -85,6 +85,7 @@ export async function buyerOrders(page, slug, { buyer, items, note }) {
   }
   await page.getByRole("button", { name: /Lihat pesanan/ }).click();
   await page.getByLabel("Nama Anda").fill(buyer);
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   if (note) await page.getByLabel(/Catatan untuk penjual/).fill(note);
   await page.getByRole("button", { name: "Kirim pesanan via WhatsApp" }).click();
   await page.getByRole("heading", { name: "Pesanan tersimpan" }).waitFor();

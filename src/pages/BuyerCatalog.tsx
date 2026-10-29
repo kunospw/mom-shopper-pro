@@ -31,6 +31,8 @@ import {
   resolveStore,
 } from "@/lib/catalog-public-storage";
 import {
+  buyerPhoneSchema,
+  normalizePhone,
   cartTotal,
   optionPrice,
   orderCode,
@@ -67,6 +69,7 @@ type Review = { products: CatalogProduct[]; lines: CartLine[] };
 const slugOf = (store: Storefront) => store.slug || store.id;
 const KEYS = {
   name: "ruang-usaha:buyer-name",
+  phone: "ruang-usaha:buyer-phone",
   cart: (id: string) => `ruang-usaha:buyer-cart:${id}`,
   last: (id: string) => `ruang-usaha:buyer-last:${id}`,
   draft: (id: string) => `ruang-usaha:buyer-draft-id:${id}`,
@@ -512,6 +515,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
     }
   });
   const [buyerName, setBuyerName] = useState(() => read(localStorage, KEYS.name) || "");
+  const [buyerPhone, setBuyerPhone] = useState(() => read(localStorage, KEYS.phone) || "");
   const [note, setNote] = useState("");
   const [lastOrder] = useState<{ id: string; statusPath: string } | null>(() => {
     try {
@@ -584,6 +588,9 @@ function CatalogView({ initial }: { initial: CatalogData }) {
     if (sendingRef.current) return;
     const name = buyerName.trim();
     if (!name) return setOrderError("Isi nama Anda supaya penjual tahu siapa yang memesan.");
+    const buyerWhatsApp = normalizePhone(buyerPhone);
+    if (!buyerPhoneSchema.safeParse(buyerWhatsApp).success)
+      return setOrderError("Isi nomor WhatsApp Anda (contoh 081234567890) supaya penjual bisa mengonfirmasi pesanan.");
     sendingRef.current = true;
     setSending(true);
     setOrderError("");
@@ -594,7 +601,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
       write(sessionStorage, KEYS.draft(store.id), draftId);
     }
     try {
-      const result = await createOrderRequest(store.id, cart, name, note.trim(), signature, draftId);
+      const result = await createOrderRequest(store.id, cart, name, buyerWhatsApp, note.trim(), signature, draftId);
       if ("closed" in result) {
         setClosed(true);
         return;
@@ -606,6 +613,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
         return;
       }
       write(localStorage, KEYS.name, name);
+      write(localStorage, KEYS.phone, buyerPhone.trim());
       write(sessionStorage, KEYS.draft(store.id), null);
       const statusPath = statusPathOf(result.id);
       const message = orderMessage(result.order, `${window.location.origin}${statusPath}`);
@@ -724,6 +732,22 @@ function CatalogView({ initial }: { initial: CatalogData }) {
                     maxLength={60}
                     value={buyerName}
                     onChange={(e) => setBuyerName(e.target.value)}
+                    className="h-12 rounded-xl border border-input px-3.5 text-[15px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </label>
+                <label htmlFor="buyer-phone" className="flex flex-col gap-1.5 text-[13.5px] font-semibold">
+                  <span>
+                    Nomor WhatsApp <span className="font-normal text-muted-foreground">(untuk konfirmasi pesanan)</span>
+                  </span>
+                  <input
+                    id="buyer-phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    maxLength={20}
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(e.target.value)}
+                    placeholder="081234567890"
                     className="h-12 rounded-xl border border-input px-3.5 text-[15px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </label>

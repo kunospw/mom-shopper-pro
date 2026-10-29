@@ -155,6 +155,17 @@ service cloud.firestore {
           request.resource.data.sellerNote is string && request.resource.data.sellerNote.size() <= 300 &&
           request.resource.data.updatedAt == request.time;
         allow delete: if false;
+        // The buyer's WhatsApp number lives apart from the order, which anyone holding its link
+        // may read: only the seller reads it, and it can only be written together with a new order.
+        match /contact/{contactId} {
+          allow get, list: if owner();
+          allow create: if contactId == 'buyer' &&
+            request.resource.data.keys().hasOnly(['phone']) &&
+            request.resource.data.phone is string && request.resource.data.phone.matches('62[1-9][0-9]{7,12}') &&
+            !exists(/databases/$(database)/documents/storefronts/$(storeId)/orders/$(orderId)) &&
+            existsAfter(/databases/$(database)/documents/storefronts/$(storeId)/orders/$(orderId));
+          allow update, delete: if false;
+        }
       }
     }
 

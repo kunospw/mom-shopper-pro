@@ -42,6 +42,7 @@ async function run(browser, viewport, tag) {
   await page.getByRole("button", { name: /^Tambah · / }).click();
   await page.getByRole("button", { name: /Lihat pesanan/ }).click();
   await page.getByLabel("Nama Anda").fill("Siti");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   await page.getByRole("button", { name: "Kirim pesanan via WhatsApp" }).click();
   await page.getByRole("heading", { name: "Pesanan tersimpan" }).waitFor();
   d = await db();

@@ -5,7 +5,7 @@ import {
   where,
   getDocFromServer,
   getDocsFromServer,
-  setDoc,
+  writeBatch,
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "./firebase-app";
@@ -20,6 +20,7 @@ import {
   orderSubtotal,
   orderShopSnapshot,
   orderRequestSchema,
+  buyerPhoneSchema,
   orderSignature,
   type CartLine,
   type Order,
@@ -58,6 +59,7 @@ export async function createOrderRequest(
   storeId: string,
   lines: CartLine[],
   buyerName: string,
+  buyerPhone: string,
   note: string,
   seenSignature: string,
   orderId: string,
@@ -75,6 +77,7 @@ export async function createOrderRequest(
     orderSignature(latest.store, latest.products, cart) !== seenSignature
   )
     return { changed: latest, cart };
+  const phone = buyerPhoneSchema.parse(buyerPhone);
   const request = orderRequestSchema.parse({
     buyerName,
     note,
@@ -89,12 +92,16 @@ export async function createOrderRequest(
     sellerNote: "",
     shop: orderShopSnapshot(latest.store),
   };
-  await setDoc(reference, {
+  // One batch: the rules accept the contact only alongside its new order.
+  const batch = writeBatch(db);
+  batch.set(reference, {
     ...saved,
     steps: {},
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  batch.set(doc(reference, "contact", "buyer"), { phone });
+  await batch.commit();
   const order: Order = { id: orderId, ...saved, steps: {}, createdAt: new Date().toISOString() };
   return { id: orderId, order, latest, cart };
 }

@@ -32,6 +32,7 @@ async function run(browser, viewport, tag) {
   await page.getByRole("button", { name: /Lihat Voucher Game, 1 di pesanan/ }).waitFor();
   await page.getByRole("button", { name: /Lihat pesanan/ }).click();
   await page.getByLabel("Nama Anda").fill("Ayu");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   await mem(() => { globalThis.__fail = "after"; });
   await page.getByRole("button", { name: "Kirim pesanan via WhatsApp" }).click();
   await page.getByText("Pesanan belum terkirim.").waitFor();
@@ -52,6 +53,7 @@ async function run(browser, viewport, tag) {
   await addVoucher();
   await page.getByRole("button", { name: /Lihat pesanan/ }).click();
   await page.getByLabel("Nama Anda").fill("Budi");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   await mem(() => { globalThis.__fail = "before"; });
   await page.getByRole("button", { name: "Kirim pesanan via WhatsApp" }).click();
   await page.getByText("Pesanan belum terkirim.").waitFor();
@@ -64,6 +66,7 @@ async function run(browser, viewport, tag) {
   await addVoucher();
   await page.getByRole("button", { name: /Lihat pesanan/ }).click();
   await page.getByLabel("Nama Anda").fill("Cici");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   // two taps in the same instant, before React re-renders
   await page.evaluate(() => {
     const button = [...document.querySelectorAll("button")].find((b) => b.textContent.includes("Kirim pesanan via WhatsApp"));
@@ -80,6 +83,7 @@ async function run(browser, viewport, tag) {
   await page.getByRole("button", { name: /^Tambah · / }).click();
   await page.getByRole("button", { name: /Lihat pesanan/ }).click();
   await page.getByLabel("Nama Anda").fill("Dewi");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
   await mem(() => { const d = globalThis.__db; d.products.find((p) => p.id === "p2").price = 55000; d.products.find((p) => p.id === "p3").availability = "unavailable"; });
   await page.getByRole("button", { name: "Kirim pesanan via WhatsApp" }).click();
   await page.getByText("Ada yang berubah di katalog.").waitFor();
