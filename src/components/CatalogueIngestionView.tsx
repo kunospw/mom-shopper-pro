@@ -48,6 +48,8 @@ export function CatalogueIngestionView(p: Props) {
   const legacy = realPreview && !!p.job && retiredPipelines.includes(p.job.pipeline ?? "legacy");
   const shopee = p.job?.source?.kind === "shopee" ? p.job.source : null;
   const sample = import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_SAMPLE_IMAGE === "1";
+  // Off for the Shopee-only pilot: file import needs paid OCR/AI services.
+  const fileImport = import.meta.env.VITE_CATALOGUE_FILE_IMPORT !== "0";
   useEffect(() => {
     if (!p.file || !["image/jpeg", "image/png"].includes(p.file.type) || p.file.size > 2 * 1024 * 1024) { setPhoto(""); return; }
     const url = URL.createObjectURL(p.file); setPhoto(url);
@@ -61,7 +63,7 @@ export function CatalogueIngestionView(p: Props) {
   const friendlyError = messages[p.error] ?? (/^[a-z]+(?:-[a-z]+)+$/.test(p.error) ? "Belum berhasil. Draf tetap tersedia; silakan coba lagi." : p.error);
   return <section className="space-y-5" aria-label="Impor katalog AI">
     <ol aria-label="Langkah impor" className="flex items-center gap-2 text-xs sm:text-sm">
-      {["Unggah katalog", "Periksa produk", "Simpan"].map((label, i) => <li key={label} className={cn("flex min-w-0 flex-1 items-center gap-2", step === i + 1 ? "font-semibold" : "text-muted-foreground")}><span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", step >= i + 1 ? "bg-primary text-primary-foreground" : "bg-muted")}>{step > i + 1 ? <Check className="h-4 w-4" /> : i + 1}</span><span>{label}</span>{i < 2 && <span className="ml-auto h-px flex-1 bg-border max-sm:hidden" />}</li>)}
+      {[fileImport ? "Unggah katalog" : "Tempel dari Shopee", "Periksa produk", "Simpan"].map((label, i) => <li key={label} className={cn("flex min-w-0 flex-1 items-center gap-2", step === i + 1 ? "font-semibold" : "text-muted-foreground")}><span className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", step >= i + 1 ? "bg-primary text-primary-foreground" : "bg-muted")}>{step > i + 1 ? <Check className="h-4 w-4" /> : i + 1}</span><span>{label}</span>{i < 2 && <span className="ml-auto h-px flex-1 bg-border max-sm:hidden" />}</li>)}
     </ol>
     {realPreview && <p className="rounded-xl border bg-card p-3 text-xs text-muted-foreground">OCR lokal nyata · <a className="font-semibold text-primary underline" href="/__preview/setup-ai" target="_blank" rel="noreferrer">Hubungkan layanan AI</a>. Tidak memakai data contoh.</p>}
     {legacy && <p role="alert" className="rounded-xl border border-destructive/20 p-3 text-sm text-destructive">Ini draf uji lama, bukan hasil OCR nyata. Pilih Ubah berkas untuk membuat impor baru.</p>}
@@ -70,7 +72,7 @@ export function CatalogueIngestionView(p: Props) {
     {p.busy && <div role="status" className="rounded-xl border bg-card p-4"><div className="flex items-center gap-2 text-sm font-medium"><Loader2 className="h-4 w-4 animate-spin" />{p.activity}</div>{p.activity === "Membaca katalog…" && <progress max={100} value={p.progress} aria-label="Progres unggah" className="mt-3 h-2 w-full accent-primary" />}{p.slow && <p className="mt-2 text-sm text-muted-foreground">Masih diproses. Anda tetap bisa menunggu di sini; proses dibatasi 35 detik.</p>}</div>}
 
     {!review && !confirmed && <>
-      <Section step={1} title="Unggah katalog" hint="Foto atau PDF">
+      {fileImport && <Section step={1} title="Unggah katalog" hint="Foto atau PDF">
         <p className="mb-4 text-sm text-muted-foreground">Pilih daftar harga dari pemasok. Kami bantu menyiapkan draf; Anda memeriksa produknya sebelum disimpan.</p>
         <input ref={input} className="sr-only" tabIndex={-1} type="file" aria-label="Berkas katalog" accept="application/pdf,image/jpeg,image/png" disabled={p.busy} onChange={e => p.onPick(e.target.files?.[0] ?? null)} />
         <button type="button" disabled={p.busy} onClick={() => input.current?.click()} onDragOver={e => { e.preventDefault(); if (!p.busy) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={e => { e.preventDefault(); setDragging(false); if (!p.busy) p.onPick(e.dataTransfer.files[0] ?? null); }} className={cn("flex min-h-52 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed bg-background p-6 text-center transition-colors hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-60", dragging && "border-primary bg-primary-soft/40")}>
@@ -80,8 +82,8 @@ export function CatalogueIngestionView(p: Props) {
         <p className="mt-3 text-center text-xs text-muted-foreground">JPG, PNG, atau PDF 1 halaman · Maksimal 2 MB dan 15 penawaran/harga</p>
         {sample && <Button className="mt-3 w-full" variant="ghost" disabled={p.busy} onClick={async () => { const response = await fetch("/__preview/catalogue.jpg"); if (response.ok) p.onPick(new File([await response.blob()], "Contoh katalog aplikasi.jpeg", { type: "image/jpeg" })); }}><ImagePlus className="h-4 w-4" />Gunakan contoh PREMIUM APP</Button>}
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3"><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="h-3.5 w-3.5" />Draf hanya untuk Anda</span><Button disabled={p.busy || !p.file} onClick={p.onUpload}>Buat draf produk<ArrowRight className="h-4 w-4" /></Button></div>
-      </Section>
-      <Section title="Atau tempel dari Shopee" hint="Satu produk">
+      </Section>}
+      <Section step={fileImport ? undefined : 1} title={fileImport ? "Atau tempel dari Shopee" : "Tempel dari Shopee"} hint="Satu produk">
         <p className="mb-3 text-sm text-muted-foreground">Di aplikasi Shopee, buka produk, ketuk Bagikan lalu Salin, kemudian tempel di sini. Nama dan harga Shopee diambil dari teks itu.</p>
         <label className="block text-sm font-medium" htmlFor="shopee-share">Teks bagikan Shopee<Textarea id="shopee-share" className="mt-1 min-h-24 rounded-[10px] bg-background" maxLength={SHOPEE_TEXT_MAX} disabled={p.busy} value={p.shareText} placeholder="Cek … dengan harga Rp…. Dapatkan di Shopee sekarang! https://s.shopee.co.id/…" onChange={e => p.onShareText(e.target.value)} /></label>
         <div className="mt-4 flex justify-end"><Button variant="outline" disabled={p.busy || !p.shareText.trim()} onClick={p.onShopee}><Link2 className="h-4 w-4" />Buat draf dari Shopee</Button></div>
@@ -90,11 +92,11 @@ export function CatalogueIngestionView(p: Props) {
       {p.job?.status === "processing" && <Button variant="outline" disabled={p.busy} onClick={() => p.onResume(p.job!.id)}><RefreshCw className="h-4 w-4" />Periksa hasil</Button>}
       <button type="button" className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground" disabled={p.busy} aria-expanded={historyOpen} onClick={() => { setHistoryOpen(v => !v); p.onHistory(); }}><History className="h-4 w-4" />Lanjutkan draf sebelumnya<ChevronDown className={cn("h-4 w-4 transition-transform", historyOpen && "rotate-180")} /></button>
       {historyOpen && <div className="space-y-3 rounded-2xl border bg-card p-4">{p.history.length ? <label className="block text-sm">Lanjutkan impor sebelumnya<select className={cn(field, "mt-1")} value={p.history.some(h => h.id === p.job?.id) ? p.job?.id : ""} disabled={p.busy || p.dirty} onChange={e => { if (e.target.value) { p.onResume(e.target.value); setHistoryOpen(false); } }}><option value="">Pilih draf tersimpan</option>{p.history.map((h, i) => <option key={h.id} value={h.id}>Impor {i + 1} · {statusLabel[h.status] ?? "Tersimpan"}</option>)}</select></label> : <p className="text-sm text-muted-foreground">Belum ada impor sebelumnya.</p>}{p.next && <Button size="sm" variant="outline" disabled={p.busy} onClick={() => p.onHistory(p.next!)}>Tampilkan lagi</Button>}</div>}
-      <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Batas berkas dan privasi</summary><p className="mt-2 leading-relaxed">Gambar maksimal 16 MP; paling banyak 15 penawaran/harga per impor. Pada layanan aktif, berkas dibaca Google Vision dan teks diproses penyedia AI. Berkas asli tidak disimpan oleh aplikasi. Informasi yang tidak ditemukan tetap kosong.</p></details>
+      {fileImport && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">Batas berkas dan privasi</summary><p className="mt-2 leading-relaxed">Gambar maksimal 16 MP; paling banyak 15 penawaran/harga per impor. Pada layanan aktif, berkas dibaca Google Vision dan teks diproses penyedia AI. Berkas asli tidak disimpan oleh aplikasi. Informasi yang tidak ditemukan tetap kosong.</p></details>}
     </>}
 
     {review && <>
-      <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="text-lg font-semibold">Periksa draf produk</h3><p className="mt-1 text-xs text-muted-foreground">{p.drafts.length} draf · {needs ? `${needs} perlu dilengkapi` : "Nama dan harga lengkap"}</p></div><Button size="sm" variant="outline" disabled={p.busy || p.dirty} onClick={p.onAnother}><ArrowLeft className="h-4 w-4" />Ubah berkas</Button></div>
+      <div className="flex items-start justify-between gap-3"><div className="min-w-0 flex-1"><h3 className="text-lg font-semibold">Periksa draf produk</h3><p className="mt-1 text-xs text-muted-foreground">{p.drafts.length} draf · {needs ? `${needs} perlu dilengkapi` : "Nama dan harga lengkap"}</p></div><Button size="sm" variant="outline" disabled={p.busy || p.dirty} onClick={p.onAnother}><ArrowLeft className="h-4 w-4" />{shopee ? "Tempel link lain" : "Ubah berkas"}</Button></div>
       {shopee ? <div className="space-y-2 rounded-xl bg-primary-soft/50 p-3 text-sm text-primary-ink dark:bg-primary/10 dark:text-foreground">
         <p className="font-semibold">Dari Shopee</p>
         {shopee.title ? <p className="break-words">{shopee.title}</p> : <p>Nama tidak terbaca dari teks bagikan. Isi nama produk sendiri.</p>}

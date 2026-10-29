@@ -187,7 +187,7 @@ export function Catalog() {
           <p className="mt-1 text-sm text-muted-foreground">Produk yang dilihat pembeli di toko online. Modal dan stok hanya terlihat oleh Anda.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {import.meta.env.VITE_CATALOGUE_INGESTION === "1" && <Button variant="outline" disabled={loading || failed} onClick={() => navigateEditor("new", "catalogue")}>Impor katalog AI</Button>}
+          {import.meta.env.VITE_CATALOGUE_INGESTION === "1" && <Button variant="outline" disabled={loading || failed} onClick={() => navigateEditor("new", "catalogue")}>{import.meta.env.VITE_CATALOGUE_FILE_IMPORT === "0" ? "Impor dari Shopee" : "Impor katalog AI"}</Button>}
           <Button variant="outline" className="h-11 rounded-[10px]" disabled={loading || failed} onClick={() => navigateEditor("new", "bulk")}>
             <Layers />
             Tambah banyak
@@ -486,7 +486,7 @@ export function Catalog() {
           }}
         >
           <SheetHeader className="sticky top-0 z-10 border-b bg-card px-5 py-4 pr-16 text-left sm:px-7">
-            <SheetTitle className="text-xl">{ingestion ? "Impor katalog AI" : bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
+            <SheetTitle className="text-xl">{ingestion ? (import.meta.env.VITE_CATALOGUE_FILE_IMPORT === "0" ? "Impor dari Shopee" : "Impor katalog AI") : bulk ? "Tambah banyak produk" : edit ? "Edit produk" : "Tambah produk"}</SheetTitle>
             <SheetDescription>
               {ingestion ? "Dari daftar harga ke draf produk. Periksa sebelum disimpan." : bulk
                 ? "Dari foto atau dari Excel/CSV. Periksa daftarnya dulu, lalu simpan sekaligus."

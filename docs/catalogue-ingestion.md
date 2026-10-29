@@ -127,6 +127,10 @@ npm run test:ingestion
 
 For a manual local UI with actual emulators, use existing frontend emulator variables documented in `tests/README.md` and set the server emulator hosts to the matching ports. Keep the `demo-` guard and both hosts. External provider flags remain off; injected fake adapters are used by automated tests. Do not point an emulator run at the production project.
 
+## Shopee-only pilot
+
+`VITE_CATALOGUE_FILE_IMPORT=0` hides file upload in the client (the entry becomes "Impor dari Shopee") and `CATALOGUE_FILE_IMPORT=0` makes the API refuse `ingest` with `file-import-disabled` before any OCR/AI work, so the pilot needs no paid services (`INGESTION_ENABLE_EXTERNAL=0`). `CATALOGUE_HOST` sets the API's bind address (default `127.0.0.1`), for a proxy that runs in Docker and reaches the host through its bridge gateway. Release build and activation scripts for the VPS live outside this repository in `/home/drini/personal/larisku/deploy/`.
+
 ## Prepared deployment instructions — NOT EXECUTED
 
 The inspected VPS documentation describes static frontend hosting with no API runtime. A frontend build alone cannot serve this feature. No live API, Firebase rules, IAM, billing or production behavior has been verified or changed during this task.

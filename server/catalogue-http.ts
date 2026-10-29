@@ -23,4 +23,5 @@ const server = createServer(async (req, res) => {
 server.requestTimeout = 60000;
 server.headersTimeout = 10000;
 server.setTimeout(65000);
-server.listen(port, "127.0.0.1");
+// Loopback by default; a container-bridge address only when the proxy runs in Docker.
+server.listen(port, process.env.CATALOGUE_HOST || "127.0.0.1");
