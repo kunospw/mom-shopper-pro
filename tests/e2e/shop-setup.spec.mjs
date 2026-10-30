@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { seedSource } from "./support/seed.mjs";
 const B = "http://localhost:8099";
 const shots = process.env.E2E_SHOTS;
+async function fillProfile(dialog) {
+  await dialog.getByLabel("Apa yang Anda jual?").fill("Kebaya modern dan kebaya lamaran, bahan brokat.");
+  await dialog.getByLabel("PO, pengiriman, dan retur").fill("PO 7 hari. Tukar ukuran maksimal 3 hari.");
+  await dialog.getByLabel("Jam balas chat").fill("Setiap hari 08.00-20.00");
+}
 async function noOverflow(page, label) {
   const bad = await page.evaluate(() => {
     const d = document.querySelector('[role="dialog"]');
@@ -39,7 +44,7 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     await dialog.getByRole("button", { name: "Mulai" }).click();
 
     // step 1: name -> link suggested; taken link blocks
-    await dialog.getByText("Langkah 1 dari 5").waitFor();
+    await dialog.getByText("Langkah 1 dari 6").waitFor();
     const name = dialog.getByLabel("Nama toko");
     await name.fill("Toko Melati");
     await dialog.getByText("Tautan ini sudah dipakai. Coba nama lain.").waitFor();
@@ -55,7 +60,7 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     await dialog.getByRole("button", { name: "Lanjut" }).click();
 
     // step 2: WhatsApp required, 08 accepted
-    await dialog.getByText("Langkah 2 dari 5").waitFor();
+    await dialog.getByText("Langkah 2 dari 6").waitFor();
     assert.equal(await page.evaluate(() => document.activeElement?.textContent), "Ke mana pesanan dikirim?");
     await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByRole("alert").filter({ hasText: "Nomor belum lengkap" }).waitFor();
@@ -67,7 +72,7 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     await dialog.getByLabel("Nomor WhatsApp pesanan").press("Enter"); // Enter advances
 
     // step 3: delivery and payment; a payment method is required
-    await dialog.getByText("Langkah 3 dari 5").waitFor();
+    await dialog.getByText("Langkah 3 dari 6").waitFor();
     await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByRole("alert").filter({ hasText: "Pilih minimal satu cara pembayaran" }).waitFor();
     await dialog.getByLabel("Antar ke alamat").check();
@@ -78,28 +83,40 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     await shot("3-orders");
     await dialog.getByRole("button", { name: "Lanjut" }).click();
 
-    // step 4: look
-    await dialog.getByText("Langkah 4 dari 5").waitFor();
+    // step 4: questionnaire for the shop assistant, all required
+    await dialog.getByText("Langkah 4 dari 6").waitFor();
+    await dialog.getByRole("button", { name: "Lanjut" }).click();
+    await dialog.getByRole("alert").filter({ hasText: "Ceritakan produk yang Anda jual" }).waitFor();
+    await fillProfile(dialog);
+    await dialog.getByRole("button", { name: "Bunda" }).click();
+    await noOverflow(page, "profile");
+    await shot("4-profile");
+    await dialog.getByRole("button", { name: "Lanjut" }).click();
+
+    // step 5: look
+    await dialog.getByText("Langkah 5 dari 6").waitFor();
     await dialog.getByRole("radio", { name: /Biru/ }).click();
     assert.equal(await dialog.getByRole("radio", { name: /Biru/ }).getAttribute("aria-checked"), "true");
     await dialog.getByRole("button", { name: "Ready & PO" }).click();
     assert.match(await dialog.getByLabel(/Tentang toko/).inputValue(), /ready stock/);
     await noOverflow(page, "look");
     await page.waitForTimeout(400);
-    await shot("4-look");
+    await shot("5-look");
     await dialog.getByRole("button", { name: "Lanjut ke pratinjau" }).click();
 
-    // step 5: review; "Ubah" goes back, then open
-    await dialog.getByText("Langkah 5 dari 5").waitFor();
+    // step 6: review; "Ubah" goes back, then open
+    await dialog.getByText("Langkah 6 dari 6").waitFor();
+    await dialog.getByText("Bunda", { exact: true }).waitFor();
     await dialog.getByText("+62 812-3456-7890").waitFor();
     await dialog.getByText("Antar ke alamat, Ambil di tempat").waitFor();
     await dialog.getByText("Transfer bank, QRIS").waitFor();
     await dialog.getByText("Biru", { exact: true }).waitFor();
     await noOverflow(page, "review");
-    await shot("5-review");
+    await shot("6-review");
     await dialog.getByRole("button", { name: "Ubah WhatsApp" }).click();
-    await dialog.getByText("Langkah 2 dari 5").waitFor();
+    await dialog.getByText("Langkah 2 dari 6").waitFor();
     assert.equal(await dialog.getByLabel("Nomor WhatsApp pesanan").inputValue(), "0812 3456 7890", "kept when going back");
+    await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByRole("button", { name: "Lanjut ke pratinjau" }).click();
@@ -113,11 +130,13 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     assert.equal(db.store.whatsapp, "6281234567890");
     assert.equal(db.store.accent, "blue");
     assert.deepEqual([db.store.delivery, db.store.payments], [["deliver", "pickup"], ["transfer", "qris"]]);
+    assert.equal(db.store.profile.greeting, "Bunda");
+    assert.match(db.store.profile.products, /Kebaya/);
     assert.equal(db.store.published, true);
     assert.ok(db.entitlement?.trialStartedAt, "trial started");
     assert.match(await dialog.getByRole("textbox", { name: "Tautan toko" }).inputValue(), /\/shop\/faeza-store$/);
     await noOverflow(page, "done");
-    await shot("6-done");
+    await shot("7-done");
     await dialog.getByRole("button", { name: "Tambah produk pertama" }).click();
     await dialog.getByRole("heading", { name: "Tambah produk" }).waitFor();
     await page.keyboard.press("Escape");
@@ -129,7 +148,8 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     await dialog.getByRole("heading", { name: "Toko publik" }).waitFor();
     await page.waitForTimeout(300);
     await noOverflow(page, "editor");
-    await shot("7-editor");
+    await shot("8-editor");
+    assert.equal(await dialog.getByLabel("Jam balas chat").inputValue(), "Setiap hari 08.00-20.00", "editor shows the questionnaire");
     assert.equal(await dialog.getByLabel("QRIS").isChecked(), true, "editor shows the saved choices");
     await dialog.getByLabel("Nomor WhatsApp pesanan").fill("0857-1111-2222");
     await dialog.getByText("+62 857-1111-2222").waitFor();
@@ -155,6 +175,8 @@ for (const [w, h, tag] of [[1440, 1000, "d"], [393, 852, "m"]]) {
     await dialog.getByLabel("Nomor WhatsApp pesanan").fill("+62 811 222 333");
     await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByLabel("Bayar di tempat (COD)").check();
+    await dialog.getByRole("button", { name: "Lanjut" }).click();
+    await fillProfile(dialog);
     await dialog.getByRole("button", { name: "Lanjut" }).click();
     await dialog.getByRole("button", { name: "Lanjut ke pratinjau" }).click();
     await dialog.getByRole("button", { name: "Simpan dulu, buka nanti" }).click();

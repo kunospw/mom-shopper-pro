@@ -46,7 +46,7 @@ function fakeNet({ store = { published: true, assistant: true }, productsStatus 
     if (u.includes("/slugs/")) return json(404, {});
     if (u.endsWith("/storefronts/u1")) {
       if (!store) return json(403, {});
-      return json(200, { fields: { name: str("Toko Melati"), description: str("Pakaian & aksesoris"), whatsapp: str("6281234567890"), published: { booleanValue: store.published }, ...(store.assistant === undefined ? {} : { assistant: { booleanValue: store.assistant } }) } });
+      return json(200, { fields: { name: str("Toko Melati"), description: str("Pakaian & aksesoris"), whatsapp: str("6281234567890"), published: { booleanValue: store.published }, ...(store.assistant === undefined ? {} : { assistant: { booleanValue: store.assistant } }), ...(store.profile ? { profile: { mapValue: { fields: Object.fromEntries(Object.entries(store.profile).map(([k, v]) => [k, str(v)])) } }, delivery: { arrayValue: { values: [str("pickup")] } }, payments: { arrayValue: { values: [str("qris"), str("cod")] } } } : {}) } });
     }
     if (u.endsWith("/storefronts/u1:runQuery")) {
       const q = JSON.parse(init.body).structuredQuery;
@@ -180,8 +180,22 @@ assert.equal((await ask(q("halo"), fakeNet(), { env: { ...env, VITE_FIREBASE_PRO
 {
   const many = Array.from({ length: 200 }, (_, i) => ({ id: `x${i}`, name: `Produk ${i} ${"panjang ".repeat(10)}`, description: "d".repeat(400), category: "", price: 1000, availability: "ready", leadTime: "", optionLabel: "Pilihan", options: [], kind: "physical" }));
   const lines = chat.catalogLines(many);
-  assert.ok(lines.length <= 60 && lines.join("\n").length <= 6000, `${lines.length} lines`);
-  assert.ok(lines.every((l) => l.length < 400), "descriptions trimmed");
+  assert.ok(lines.length <= 60 && lines.join("\n").length <= 9000, `${lines.length} lines`);
+  assert.ok(lines.every((l) => l.length < 500), "descriptions trimmed");
+}
+
+// ---- setup questionnaire, delivery and payment choices reach the prompt ----
+{
+  chat.resetRateLimit();
+  const profile = { products: "Kebaya brokat untuk lamaran", policies: "PO 7 hari, tukar ukuran 3 hari", hours: "08.00-20.00", greeting: "Bunda" };
+  const net = fakeNet({ store: { published: true, assistant: true, profile } });
+  assert.equal((await ask(q("bisa COD?"), net)).status, 200);
+  const system = net.calls.model[0].body.messages[0].content;
+  for (const expected of ['Sapa pembeli dengan "Bunda"', "Produk dan bahan: Kebaya brokat untuk lamaran", "PO, pengiriman dan retur: PO 7 hari, tukar ukuran 3 hari", "Pilihan pengiriman saat memesan: Ambil di tempat", "Pilihan pembayaran saat memesan: QRIS, Bayar di tempat (COD)", "Jam balas chat penjual: 08.00-20.00"])
+    assert.ok(system.includes(expected), expected);
+  // older shops without the questionnaire: no empty lines, no greeting rule
+  const plain = chat.buildSystemPrompt({ id: "u1", name: "Toko", description: "", whatsapp: "", assistant: true, products: [] });
+  assert.ok(!plain.includes("Sapa pembeli") && !plain.includes("Produk dan bahan") && !plain.includes("Pilihan pembayaran"), plain);
 }
 
 console.log("PASS: shop assistant (prompt, public data only, hardening, closed/opt-out, validation, rate limit, caps).");

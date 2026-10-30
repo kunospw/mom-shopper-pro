@@ -24,11 +24,20 @@ test.describe("Asisten toko", () => {
 
     await page.goto("/catalog?store=edit");
     const dialog = page.getByRole("dialog");
-    await dialog.getByText("Menjawab pertanyaan pembeli dari katalog Anda.", { exact: false }).waitFor();
+    await dialog.getByText("Menjawab pertanyaan pembeli dari katalog Anda dan info toko", { exact: false }).waitFor();
     await dialog.getByRole("switch", { name: "Asisten tanya-jawab otomatis" }).click();
+    // the assistant answers from the setup questionnaire, so it must be complete first
+    await dialog.getByRole("button", { name: "Simpan toko" }).click();
+    await dialog.getByText("Lengkapi info toko supaya asisten bisa menjawab pembeli.", { exact: false }).waitFor();
+    await dialog.getByLabel("Apa yang Anda jual?").fill("Pakaian linen dan tas rajut buatan sendiri.");
+    await dialog.getByLabel("PO, pengiriman, dan retur").fill("Tas rajut PO 7 hari. Tukar ukuran 3 hari.");
+    await dialog.getByLabel("Jam balas chat").fill("Senin-Sabtu 09.00-17.00");
+    await dialog.getByRole("button", { name: "Bunda" }).click();
     await dialog.getByRole("button", { name: "Simpan toko" }).click();
     await page.getByText("Pengaturan toko disimpan").waitFor();
-    assert.equal((await readDb(page)).store.assistant, true);
+    const savedStore = (await readDb(page)).store;
+    assert.equal(savedStore.assistant, true);
+    assert.deepEqual(savedStore.profile, { products: "Pakaian linen dan tas rajut buatan sendiri.", policies: "Tas rajut PO 7 hari. Tukar ukuran 3 hari.", hours: "Senin-Sabtu 09.00-17.00", greeting: "Bunda" });
 
     await page.goto("/shop/tokomelati");
     await page.getByRole("button", { name: "Tanya toko" }).waitFor();

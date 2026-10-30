@@ -181,6 +181,20 @@ try {
   await assertFails(setDoc(doc(owner, "unrelated/data"), { value: true }));
   await assertFails(getDoc(doc(buyer, "users/seller-a/transactions/private")));
   await assertFails(getDoc(doc(other, "users/seller-a/transactions/private")));
+  // setup questionnaire: four bounded strings, public like the storefront
+  const profile = { products: "Kebaya brokat", policies: "PO 7 hari", hours: "08.00-20.00", greeting: "Kak" };
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, profile }));
+  for (const invalid of [
+    { ...profile, extra: "x" },
+    { products: "Kebaya", policies: "PO", hours: "pagi" },
+    { ...profile, products: "x".repeat(501) },
+    { ...profile, policies: 5 },
+    { ...profile, hours: "x".repeat(101) },
+    { ...profile, greeting: "x".repeat(21) },
+    "Kebaya",
+  ])
+    await assertFails(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, profile: invalid }));
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
   // accents: forest is allowed, unknown colors are not
   await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, accent: "forest" }));
   for (const accent of ["pink", "Forest", ""])

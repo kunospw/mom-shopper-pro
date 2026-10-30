@@ -53,7 +53,7 @@ service cloud.firestore {
           (value == '' || value.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$'));
       }
       function validStore(d) {
-        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','assistant','delivery','payments','updatedAt']) &&
+        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','assistant','delivery','payments','profile','updatedAt']) &&
           d.keys().hasAll(['name','description','whatsapp','accent','logo','published','slug','updatedAt']) &&
           d.slug is string && (d.slug == '' || (d.slug.matches('^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$') && !(d.slug in reserved()) &&
             getAfter(/databases/$(database)/documents/slugs/$(d.slug)).data.storeId == storeId)) &&
@@ -63,10 +63,18 @@ service cloud.firestore {
           (!('assistant' in d) || d.assistant is bool) &&
           (!('delivery' in d) || (d.delivery is list && d.delivery.size() <= 2 && d.delivery.hasOnly(['deliver','pickup']))) &&
           (!('payments' in d) || (d.payments is list && d.payments.size() <= 4 && d.payments.hasOnly(['transfer','cod','qris','ewallet']))) &&
+          (!('profile' in d) || validProfile(d.profile)) &&
           (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) &&
           // Publishing needs a running trial/plan, unless the shop was already published.
           (!d.published || (resource != null && resource.data.published == true) || activeAfter(storeId)) &&
           d.updatedAt == request.time;
+      }
+      // Setup questionnaire, public like the storefront (docs/shop-assistant.md).
+      function validProfile(p) {
+        return p is map && p.keys().hasOnly(['products','policies','hours','greeting']) &&
+          p.keys().hasAll(['products','policies','hours','greeting']) &&
+          p.products is string && p.products.size() <= 500 && p.policies is string && p.policies.size() <= 500 &&
+          p.hours is string && p.hours.size() <= 100 && p.greeting is string && p.greeting.size() <= 20;
       }
       function reserved() {
         return ['admin','api','app','catalog','customers','costs','login','logout','orders','reports','sales','settings','shop','signup','static','www'];

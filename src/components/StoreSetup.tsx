@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Copy, MessageCircle, Package, Palette, PartyPopper, Store, Truck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Copy, MessageCircle, MessagesSquare, Package, Palette, PartyPopper, Store, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { AccentPicker, LogoPicker, OrderChoicesFields, ShopHeaderPreview, SlugField, WhatsAppField } from "@/components/StoreFields";
+import { AccentPicker, LogoPicker, OrderChoicesFields, ShopHeaderPreview, ShopProfileFields, SlugField, WhatsAppField } from "@/components/StoreFields";
 import { useSlugCheck } from "@/hooks/use-slug-check";
-import { buyerPaymentLabels, deliveryLabels, storefrontSchema, type Storefront, type StorefrontFields } from "@/lib/catalog";
+import { buyerPaymentLabels, deliveryLabels, emptyProfile, profileProblem, storefrontSchema, type Storefront, type StorefrontFields } from "@/lib/catalog";
 import { accents, effectiveAccentKey } from "@/lib/branding";
 import { shopUrl } from "@/lib/shop-link";
 import { descriptionIdeas, formatWhatsApp, suggestSlug, toWhatsApp, whatsAppPattern } from "@/lib/store-setup";
@@ -18,11 +18,12 @@ const steps = [
   { id: "name", label: "Nama", title: "Beri nama toko Anda", hint: "Nama ini tampil di katalog dan di pesan WhatsApp dari pembeli." },
   { id: "whatsapp", label: "WhatsApp", title: "Ke mana pesanan dikirim?", hint: "Pembeli mengirim pesanan ke nomor WhatsApp ini, jadi pakai nomor yang aktif." },
   { id: "orders", label: "Pesanan", title: "Bagaimana pembeli menerima dan membayar?", hint: "Pilihan yang dicentang muncul saat pembeli memesan. Bisa diubah kapan saja." },
+  { id: "profile", label: "Info", title: "Ceritakan toko Anda", hint: "Asisten otomatis memakai jawaban ini untuk menjawab pembeli. Pembeli juga bisa membacanya, jadi jangan isi data pribadi." },
   { id: "look", label: "Tampilan", title: "Atur tampilan toko", hint: "Semuanya opsional dan bisa diubah kapan saja." },
   { id: "open", label: "Buka", title: "Periksa lalu buka toko", hint: "Begini toko Anda terlihat oleh pembeli." },
 ] as const;
 
-type Stage = "intro" | 0 | 1 | 2 | 3 | 4 | "done";
+type Stage = "intro" | 0 | 1 | 2 | 3 | 4 | 5 | "done";
 
 /**
  * First-time shop setup: one question per screen, a live preview, then open.
@@ -55,6 +56,7 @@ export function StoreSetup({
     ...initial,
     accent: effectiveAccentKey(initial.accent),
     slug: initial.slug || suggestSlug(initial.name),
+    profile: initial.profile ?? emptyProfile,
   }));
   const [slugTouched, setSlugTouched] = useState(false);
   const [showSlug, setShowSlug] = useState(false);
@@ -89,6 +91,7 @@ export function StoreSetup({
     }
     if (index === 1 && !whatsAppPattern.test(number)) return "Nomor belum lengkap. Contoh: 0812 3456 7890.";
     if (index === 2 && !draft.payments?.length) return "Pilih minimal satu cara pembayaran.";
+    if (index === 3) return profileProblem(draft.profile);
     return "";
   }
 
@@ -102,7 +105,7 @@ export function StoreSetup({
     }
     if (stage === 0 && slug.state === "checking") return;
     setError("");
-    if (stage < 4) setStage((stage + 1) as Stage);
+    if (stage < 5) setStage((stage + 1) as Stage);
   }
   function back() {
     setError("");
@@ -112,7 +115,7 @@ export function StoreSetup({
 
   async function save(published: boolean) {
     if (saving) return;
-    const first = [0, 1, 2].find((index) => stepError(index));
+    const first = [0, 1, 2, 3].find((index) => stepError(index));
     if (first !== undefined) {
       setStage(first as Stage);
       setError(stepError(first));
@@ -159,7 +162,7 @@ export function StoreSetup({
           </span>
           <DialogTitle className="text-2xl">Buat toko online Anda</DialogTitle>
           <DialogDescription>
-            Pembeli memilih produk dari tautan toko, lalu pesanannya masuk ke WhatsApp Anda. Siapkan dalam sekitar 2 menit.
+            Pembeli memilih produk dari tautan toko, lalu pesanannya masuk ke WhatsApp Anda. Siapkan dalam sekitar 3 menit.
           </DialogDescription>
         </div>
         <ol className="space-y-3">
@@ -167,6 +170,7 @@ export function StoreSetup({
             { Icon: Store, title: "Nama dan tautan toko", body: "Kami buatkan tautannya dari nama toko." },
             { Icon: MessageCircle, title: "Nomor WhatsApp pesanan", body: "Pesanan pembeli dikirim ke nomor ini." },
             { Icon: Truck, title: "Pengiriman dan pembayaran", body: "Pilihan yang muncul saat pembeli memesan." },
+            { Icon: MessagesSquare, title: "Info toko", body: "Produk, PO, retur, dan jam balas. Dipakai asisten untuk menjawab pembeli." },
             { Icon: Palette, title: "Warna dan logo", body: "Opsional. Bisa diubah kapan saja." },
             { Icon: Package, title: "Buka toko dan tambah produk", body: trialStarts ? "Membuka toko memulai uji coba gratis 7 hari." : "Toko bisa dibuka sekarang atau nanti." },
           ].map(({ Icon, title, body }, index) => (
@@ -244,7 +248,7 @@ export function StoreSetup({
     );
   }
 
-  const index = stage as 0 | 1 | 2 | 3 | 4;
+  const index = stage as 0 | 1 | 2 | 3 | 4 | 5;
   const step = steps[index];
   const busyCheck = index === 0 && slug.state === "checking";
   return (
@@ -253,14 +257,14 @@ export function StoreSetup({
       noValidate
       onSubmit={(event) => {
         event.preventDefault();
-        if (index < 4) next();
+        if (index < 5) next();
       }}
     >
       <div className="space-y-3">
         <p className="text-xs font-semibold text-muted-foreground">
           Langkah {index + 1} dari {steps.length}
         </p>
-        <ol className="grid grid-cols-5 gap-1.5" aria-label="Langkah">
+        <ol className="grid grid-cols-6 gap-1.5" aria-label="Langkah">
           {steps.map((item, position) => (
             <li key={item.id} aria-current={position === index ? "step" : undefined}>
               <span className={cn("block h-1.5 rounded-full", position <= index ? "bg-primary" : "bg-muted")} />
@@ -351,7 +355,9 @@ export function StoreSetup({
           </div>
         )}
 
-        {index === 3 && (
+        {index === 3 && <ShopProfileFields value={draft.profile ?? emptyProfile} onChange={(value) => change("profile", value)} />}
+
+        {index === 4 && (
           <>
             <AccentPicker value={effectiveAccentKey(draft.accent)} onChange={(value) => change("accent", value)} />
             <LogoPicker name={name} value={draft.logo} onChange={(value) => change("logo", value)} onBusyChange={onBusyChange} />
@@ -384,7 +390,7 @@ export function StoreSetup({
           </>
         )}
 
-        {index === 4 && (
+        {index === 5 && (
           <>
             <ShopHeaderPreview name={name} description={draft.description} logo={draft.logo} accent={effectiveAccentKey(draft.accent)} open={!trialLocked} />
             <dl className="divide-y rounded-xl border text-sm">
@@ -393,7 +399,8 @@ export function StoreSetup({
                 { label: "WhatsApp", value: formatWhatsApp(number), step: 1 },
                 { label: "Pengiriman", value: draft.delivery?.length ? draft.delivery.map((item) => deliveryLabels[item]).join(", ") : "Lewat chat", step: 2 },
                 { label: "Pembayaran", value: (draft.payments ?? []).map((item) => buyerPaymentLabels[item]).join(", "), step: 2 },
-                { label: "Warna", value: accents[effectiveAccentKey(draft.accent)].label, step: 3 },
+                { label: "Sapaan", value: draft.profile?.greeting ?? "", step: 3 },
+                { label: "Warna", value: accents[effectiveAccentKey(draft.accent)].label, step: 4 },
               ].map((row) => (
                   <div key={row.label} className="flex min-w-0 items-center gap-3 p-3">
                     <dt className="w-20 shrink-0 text-muted-foreground">{row.label}</dt>
@@ -429,13 +436,13 @@ export function StoreSetup({
       )}
 
       <div className="sticky -bottom-4 -mx-4 -mb-4 mt-auto flex flex-col gap-2 border-t bg-card px-4 pb-4 pt-3 sm:-bottom-6 sm:-mx-6 sm:-mb-6 sm:px-6 sm:pb-6">
-        {index < 4 ? (
+        {index < 5 ? (
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="h-12 rounded-xl" onClick={back}>
               <ArrowLeft /> <span className="max-sm:sr-only">Kembali</span>
             </Button>
             <Button type="submit" className="h-12 flex-1 rounded-xl" disabled={busyCheck}>
-              {busyCheck ? "Memeriksa tautan…" : index === 3 ? "Lanjut ke pratinjau" : "Lanjut"} {!busyCheck && <ArrowRight />}
+              {busyCheck ? "Memeriksa tautan…" : index === 4 ? "Lanjut ke pratinjau" : "Lanjut"} {!busyCheck && <ArrowRight />}
             </Button>
           </div>
         ) : (

@@ -33,6 +33,28 @@ export type Delivery = (typeof deliveryOptions)[number];
 export type BuyerPayment = (typeof paymentOptions)[number];
 const choices = <T extends readonly [string, ...string[]]>(values: T) =>
   z.array(z.enum(values)).max(values.length).refine((list) => new Set(list).size === list.length, "Pilihan tidak boleh berulang.");
+/**
+ * What the seller tells buyers and the shop assistant about the shop (asked during setup).
+ * Public like the rest of the storefront: never put private details here.
+ */
+export const shopProfileSchema = z
+  .object({
+    products: z.string().trim().max(500),
+    policies: z.string().trim().max(500),
+    hours: z.string().trim().max(100),
+    greeting: z.string().trim().max(20),
+  })
+  .strict();
+export type ShopProfile = z.infer<typeof shopProfileSchema>;
+export const emptyProfile: ShopProfile = { products: "", policies: "", hours: "", greeting: "Kak" };
+/** First missing answer of the setup questionnaire, or "" when it is complete. */
+export function profileProblem(profile: ShopProfile | undefined) {
+  if (!profile || profile.products.trim().length < 10) return "Ceritakan produk yang Anda jual, minimal 10 huruf.";
+  if (profile.policies.trim().length < 10) return "Isi info PO, pengiriman, dan retur, minimal 10 huruf.";
+  if (!profile.hours.trim()) return "Isi jam balas chat.";
+  if (!profile.greeting.trim()) return "Isi sapaan untuk pembeli.";
+  return "";
+}
 export const storefrontSchema = z
   .object({
     name: z.string().trim().max(80),
@@ -52,6 +74,7 @@ export const storefrontSchema = z
     // Asked at checkout when not empty; absent on older shops = arranged in chat.
     delivery: choices(deliveryOptions).optional(),
     payments: choices(paymentOptions).optional(),
+    profile: shopProfileSchema.optional(),
   })
   .strict()
   .refine(
@@ -129,7 +152,7 @@ export function readStorefront(
   id: string,
   value: Record<string, unknown>,
 ): Storefront {
-  const { name, description, whatsapp, accent, logo, published, slug, assistant, delivery, payments } = value;
+  const { name, description, whatsapp, accent, logo, published, slug, assistant, delivery, payments, profile } = value;
   return {
     id,
     ...storefrontSchema.parse({
@@ -143,6 +166,7 @@ export function readStorefront(
       assistant: assistant === true,
       ...(delivery !== undefined && { delivery }),
       ...(payments !== undefined && { payments }),
+      ...(profile !== undefined && { profile }),
     }),
   };
 }

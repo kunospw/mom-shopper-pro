@@ -4,9 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { AccentPicker, LogoPicker, OrderChoicesFields, ShopHeaderPreview, SlugField, WhatsAppField } from "@/components/StoreFields";
+import { AccentPicker, LogoPicker, OrderChoicesFields, ShopHeaderPreview, ShopProfileFields, SlugField, WhatsAppField } from "@/components/StoreFields";
 import { useSlugCheck } from "@/hooks/use-slug-check";
-import { storefrontSchema, type StorefrontFields } from "@/lib/catalog";
+import { emptyProfile, profileProblem, storefrontSchema, type StorefrontFields } from "@/lib/catalog";
 import { effectiveAccentKey } from "@/lib/branding";
 import { toWhatsApp, whatsAppPattern } from "@/lib/store-setup";
 import { SHOP_ASSISTANT_ENABLED } from "@/lib/plan-config";
@@ -60,6 +60,12 @@ export function StorefrontEditor({
     if (draft.published && !whatsapp) {
       setWhatsAppError("Isi nomor WhatsApp supaya pembeli bisa memesan.");
       setError("Toko yang dibuka perlu nomor WhatsApp.");
+      return;
+    }
+    // The assistant answers from the questionnaire, so it needs a complete one.
+    const missing = draft.assistant ? profileProblem(draft.profile) : "";
+    if (missing) {
+      setError(`Lengkapi info toko supaya asisten bisa menjawab pembeli. ${missing}`);
       return;
     }
     const parsed = storefrontSchema.safeParse({ ...draft, whatsapp });
@@ -138,6 +144,15 @@ export function StorefrontEditor({
             onPayments={(value) => change("payments", value)}
           />
         </div>
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <p className="text-sm font-medium">Info toko</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Dipakai asisten otomatis untuk menjawab pembeli, dan bisa dibaca pembeli. Jangan isi data pribadi.
+            </p>
+          </div>
+          <ShopProfileFields value={draft.profile ?? emptyProfile} onChange={(value) => change("profile", value)} />
+        </div>
         <AccentPicker value={effectiveAccentKey(draft.accent)} onChange={(value) => change("accent", value)} />
         <LogoPicker name={draft.name} value={draft.logo} onChange={(value) => change("logo", value)} onBusyChange={onBusyChange} />
         <ShopHeaderPreview
@@ -182,7 +197,7 @@ export function StorefrontEditor({
             <div className="min-w-0">
               <Label htmlFor="store-assistant">Asisten tanya-jawab otomatis</Label>
               <p id="store-assistant-note" className="mt-1 text-xs text-muted-foreground">
-                Menjawab pertanyaan pembeli dari katalog Anda. Stok, ongkir dan pembayaran tetap lewat WhatsApp Anda.
+                Menjawab pertanyaan pembeli dari katalog Anda dan info toko di atas. Stok dan ongkir tetap lewat WhatsApp Anda.
                 {!draft.published && " Aktif saat toko dibuka."}
               </p>
             </div>

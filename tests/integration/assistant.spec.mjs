@@ -68,6 +68,9 @@ test("shop assistant: opt-in, answers from the real catalog, stops when the tria
   assert.equal(calls[0].auth, "Bearer test-key");
   const system = calls[0].body.messages[0].content;
   assert.match(system, new RegExp(`\\[${sambal.id}\\] Sambal Roa \\| Rp 45\\.000 \\| ready`));
+  // the setup questionnaire and checkout choices, read through the public rules
+  assert.ok(system.includes("PO, pengiriman dan retur: Pesan H-1. Antar sekitar Depok. Tidak bisa retur."), system);
+  assert.ok(system.includes("Pilihan pembayaran saat memesan: Transfer bank") && system.includes('Sapa pembeli dengan "Kak"'), system);
   assert.match(system, /Kaos Polos \| Rp 80\.000 \| Ukuran: M \(Rp 80\.000\), L \(Rp 80\.000\)/);
   // cost (28.000 / 50.000) and stock (10 / 6) are private and never reach the model
   assert.equal(/28\.000|50\.000|stok \d/i.test(system), false, system);

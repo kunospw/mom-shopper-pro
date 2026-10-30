@@ -48,6 +48,10 @@ export async function openShop(page, { name, whatsapp }) {
   // One payment method and no delivery: buyers get it preselected, and the real rules check it.
   await dialog.getByLabel("Transfer bank").check();
   await dialog.getByRole("button", { name: "Lanjut" }).click();
+  await dialog.getByLabel("Apa yang Anda jual?").fill("Sambal dan lauk rumahan, dibuat setiap hari.");
+  await dialog.getByLabel("PO, pengiriman, dan retur").fill("Pesan H-1. Antar sekitar Depok. Tidak bisa retur.");
+  await dialog.getByLabel("Jam balas chat").fill("Setiap hari 08.00-20.00");
+  await dialog.getByRole("button", { name: "Lanjut" }).click();
   await dialog.getByRole("button", { name: "Lanjut ke pratinjau" }).click();
   await dialog.getByRole("button", { name: "Buka toko sekarang" }).click();
   await dialog.getByRole("heading", { name: "Toko Anda sudah buka!" }).waitFor();

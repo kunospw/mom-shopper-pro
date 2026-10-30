@@ -2,12 +2,13 @@ import { useRef, useState, type CSSProperties } from "react";
 import { Check, ImagePlus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ShopAvatar } from "@/components/shop/shop-ui";
 import type { SlugState } from "@/hooks/use-slug-check";
 import { accents, isBusinessLogo, type AccentKey } from "@/lib/branding";
-import { buyerPaymentLabels, deliveryLabels, deliveryOptions, paymentOptions, type BuyerPayment, type Delivery } from "@/lib/catalog";
+import { buyerPaymentLabels, deliveryLabels, deliveryOptions, paymentOptions, type BuyerPayment, type Delivery, type ShopProfile } from "@/lib/catalog";
 import { formatWhatsApp, toWhatsApp, whatsAppPattern } from "@/lib/store-setup";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,68 @@ export function OrderChoicesFields({
         ))}
       </fieldset>
     </>
+  );
+}
+
+const greetings = ["Kak", "Bunda", "Sis"] as const;
+
+/** The setup questionnaire: what the shop assistant (and buyers) learn about the shop. */
+export function ShopProfileFields({ value, onChange }: { value: ShopProfile; onChange: (value: ShopProfile) => void }) {
+  const set = (key: keyof ShopProfile, text: string) => onChange({ ...value, [key]: text });
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="store-profile-products">Apa yang Anda jual?</Label>
+        <p className="text-xs text-muted-foreground">Jenis produk, bahan, dan untuk acara apa.</p>
+        <Textarea
+          id="store-profile-products"
+          rows={3}
+          maxLength={500}
+          value={value.products}
+          onChange={(event) => set("products", event.target.value)}
+          placeholder="Contoh: Kebaya modern dan kebaya lamaran. Bahan brokat, tile, dan satin. Ukuran S sampai XXL."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="store-profile-policies">PO, pengiriman, dan retur</Label>
+        <p className="text-xs text-muted-foreground">Lama PO, area antar, dan aturan tukar barang.</p>
+        <Textarea
+          id="store-profile-policies"
+          rows={3}
+          maxLength={500}
+          value={value.policies}
+          onChange={(event) => set("policies", event.target.value)}
+          placeholder="Contoh: Barang ready dikirim H+1. PO 7–14 hari. Antar sekitar Depok. Tukar ukuran maksimal 3 hari setelah diterima."
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="store-profile-hours">Jam balas chat</Label>
+        <Input
+          id="store-profile-hours"
+          maxLength={100}
+          value={value.hours}
+          onChange={(event) => set("hours", event.target.value)}
+          placeholder="Contoh: Setiap hari 08.00–20.00"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="store-profile-greeting">Sapaan untuk pembeli</Label>
+        <div className="flex flex-wrap gap-1.5" aria-label="Contoh sapaan">
+          {greetings.map((greeting) => (
+            <button
+              key={greeting}
+              type="button"
+              aria-pressed={value.greeting === greeting}
+              className={cn("min-h-9 rounded-full border px-3 text-xs font-medium hover:bg-muted", value.greeting === greeting && "border-primary bg-primary-soft")}
+              onClick={() => set("greeting", greeting)}
+            >
+              {greeting}
+            </button>
+          ))}
+        </div>
+        <Input id="store-profile-greeting" maxLength={20} value={value.greeting} onChange={(event) => set("greeting", event.target.value)} />
+      </div>
+    </div>
   );
 }
 
