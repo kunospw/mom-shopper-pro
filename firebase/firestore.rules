@@ -53,7 +53,7 @@ service cloud.firestore {
           (value == '' || value.matches('^data:image/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$'));
       }
       function validStore(d) {
-        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','assistant','updatedAt']) &&
+        return d.keys().hasOnly(['name','description','whatsapp','accent','logo','published','slug','assistant','delivery','payments','updatedAt']) &&
           d.keys().hasAll(['name','description','whatsapp','accent','logo','published','slug','updatedAt']) &&
           d.slug is string && (d.slug == '' || (d.slug.matches('^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$') && !(d.slug in reserved()) &&
             getAfter(/databases/$(database)/documents/slugs/$(d.slug)).data.storeId == storeId)) &&
@@ -61,6 +61,8 @@ service cloud.firestore {
           d.whatsapp is string && (d.whatsapp == '' || d.whatsapp.matches('^[1-9][0-9]{7,14}$')) &&
           d.accent in ['forest','teal','blue','violet'] && raster(d.logo,140000) && d.published is bool &&
           (!('assistant' in d) || d.assistant is bool) &&
+          (!('delivery' in d) || (d.delivery is list && d.delivery.size() <= 2 && d.delivery.hasOnly(['deliver','pickup']))) &&
+          (!('payments' in d) || (d.payments is list && d.payments.size() <= 4 && d.payments.hasOnly(['transfer','cod','qris','ewallet']))) &&
           (!d.published || (d.name.size() > 0 && d.whatsapp.size() > 0)) &&
           // Publishing needs a running trial/plan, unless the shop was already published.
           (!d.published || (resource != null && resource.data.published == true) || activeAfter(storeId)) &&
@@ -155,13 +157,21 @@ service cloud.firestore {
           request.resource.data.sellerNote is string && request.resource.data.sellerNote.size() <= 300 &&
           request.resource.data.updatedAt == request.time;
         allow delete: if false;
-        // The buyer's WhatsApp number lives apart from the order, which anyone holding its link
+        // The buyer's WhatsApp number (and address) lives apart from the order, which anyone holding its link
         // may read: only the seller reads it, and it can only be written together with a new order.
+        // Delivery and payment must be among the choices the shop offers; an address goes only with delivery.
+        function offered(d, shop) {
+          return (!('delivery' in d) || d.delivery in shop.get('delivery', [])) &&
+            (!('payment' in d) || d.payment in shop.get('payments', [])) &&
+            (d.get('delivery', '') == 'deliver') == ('address' in d) &&
+            (!('address' in d) || (d.address is string && d.address.size() >= 10 && d.address.size() <= 300));
+        }
         match /contact/{contactId} {
           allow get, list: if owner();
           allow create: if contactId == 'buyer' &&
-            request.resource.data.keys().hasOnly(['phone']) &&
+            request.resource.data.keys().hasOnly(['phone','delivery','address','payment']) &&
             request.resource.data.phone is string && request.resource.data.phone.matches('62[1-9][0-9]{7,12}') &&
+            offered(request.resource.data, get(/databases/$(database)/documents/storefronts/$(storeId)).data) &&
             !exists(/databases/$(database)/documents/storefronts/$(storeId)/orders/$(orderId)) &&
             existsAfter(/databases/$(database)/documents/storefronts/$(storeId)/orders/$(orderId));
           allow update, delete: if false;

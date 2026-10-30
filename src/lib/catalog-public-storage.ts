@@ -20,8 +20,9 @@ import {
   orderSubtotal,
   orderShopSnapshot,
   orderRequestSchema,
-  buyerPhoneSchema,
+  buyerContactSchema,
   orderSignature,
+  type BuyerContact,
   type CartLine,
   type Order,
 } from "./catalog";
@@ -59,7 +60,7 @@ export async function createOrderRequest(
   storeId: string,
   lines: CartLine[],
   buyerName: string,
-  buyerPhone: string,
+  buyerContact: BuyerContact,
   note: string,
   seenSignature: string,
   orderId: string,
@@ -77,7 +78,10 @@ export async function createOrderRequest(
     orderSignature(latest.store, latest.products, cart) !== seenSignature
   )
     return { changed: latest, cart };
-  const phone = buyerPhoneSchema.parse(buyerPhone);
+  const contact = buyerContactSchema.parse(buyerContact);
+  const offered = (contact.delivery === undefined || !!latest.store.delivery?.includes(contact.delivery)) &&
+    (contact.payment === undefined || !!latest.store.payments?.includes(contact.payment));
+  if (!offered) return { changed: latest, cart };
   const request = orderRequestSchema.parse({
     buyerName,
     note,
@@ -100,9 +104,18 @@ export async function createOrderRequest(
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-  batch.set(doc(reference, "contact", "buyer"), { phone });
+  batch.set(doc(reference, "contact", "buyer"), Object.fromEntries(Object.entries(contact).filter(([, value]) => value !== undefined)));
   await batch.commit();
-  const order: Order = { id: orderId, ...saved, steps: {}, createdAt: new Date().toISOString() };
+  const order: Order = {
+    id: orderId,
+    ...saved,
+    buyerPhone: contact.phone,
+    buyerDelivery: contact.delivery,
+    buyerAddress: contact.address,
+    buyerPayment: contact.payment,
+    steps: {},
+    createdAt: new Date().toISOString(),
+  };
   return { id: orderId, order, latest, cart };
 }
 

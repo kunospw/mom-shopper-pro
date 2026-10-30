@@ -23,6 +23,16 @@ const image = (limit: number) =>
       (value) => value === "" || raster.test(value),
       "Gunakan foto PNG, JPG, atau WebP yang valid.",
     );
+/** How a buyer receives physical goods; the seller chooses which to offer. */
+export const deliveryOptions = ["deliver", "pickup"] as const;
+export const deliveryLabels = { deliver: "Antar ke alamat", pickup: "Ambil di tempat" } as const;
+/** How a buyer intends to pay; the seller chooses which to offer. */
+export const paymentOptions = ["transfer", "cod", "qris", "ewallet"] as const;
+export const buyerPaymentLabels = { transfer: "Transfer bank", cod: "Bayar di tempat (COD)", qris: "QRIS", ewallet: "E-wallet" } as const;
+export type Delivery = (typeof deliveryOptions)[number];
+export type BuyerPayment = (typeof paymentOptions)[number];
+const choices = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.array(z.enum(values)).max(values.length).refine((list) => new Set(list).size === list.length, "Pilihan tidak boleh berulang.");
 export const storefrontSchema = z
   .object({
     name: z.string().trim().max(80),
@@ -39,6 +49,9 @@ export const storefrontSchema = z
     slug: z.union([z.literal(""), slugSchema]),
     // Shop assistant (buyer Q&A, docs/shop-assistant.md); absent on older shops = off.
     assistant: z.boolean().optional(),
+    // Asked at checkout when not empty; absent on older shops = arranged in chat.
+    delivery: choices(deliveryOptions).optional(),
+    payments: choices(paymentOptions).optional(),
   })
   .strict()
   .refine(
@@ -116,7 +129,7 @@ export function readStorefront(
   id: string,
   value: Record<string, unknown>,
 ): Storefront {
-  const { name, description, whatsapp, accent, logo, published, slug, assistant } = value;
+  const { name, description, whatsapp, accent, logo, published, slug, assistant, delivery, payments } = value;
   return {
     id,
     ...storefrontSchema.parse({
@@ -128,6 +141,8 @@ export function readStorefront(
       published,
       slug: slug ?? "",
       assistant: assistant === true,
+      ...(delivery !== undefined && { delivery }),
+      ...(payments !== undefined && { payments }),
     }),
   };
 }
@@ -233,6 +248,8 @@ export function orderSignature(
     store.published,
     store.name,
     store.whatsapp,
+    store.delivery ?? [],
+    store.payments ?? [],
     reconcileCart(lines, products).map((line) => [
       line,
       (() => {
@@ -287,6 +304,17 @@ export function normalizePhone(value: string) {
   if (digits.startsWith("8")) return "62" + digits;
   return digits;
 }
+/** Seller-only record beside each order (orders/{id}/contact/buyer): phone plus checkout choices. */
+export const buyerContactSchema = z
+  .object({
+    phone: buyerPhoneSchema,
+    delivery: z.enum(deliveryOptions).optional(),
+    address: z.string().trim().min(10, "Isi alamat lengkap untuk pengantaran.").max(300).optional(),
+    payment: z.enum(paymentOptions).optional(),
+  })
+  .strict()
+  .refine((value) => (value.delivery === "deliver") === (value.address !== undefined), "Isi alamat lengkap untuk pengantaran.");
+export type BuyerContact = z.infer<typeof buyerContactSchema>;
 export const orderRequestSchema = z
   .object({
     buyerName: z.string().trim().min(1, "Isi nama Anda.").max(60),
@@ -306,6 +334,9 @@ export interface Order extends z.infer<typeof orderRequestSchema> {
   id: string;
   /** Seller-only contact record (orders/{id}/contact/buyer); loaded for pending orders. */
   buyerPhone?: string;
+  buyerDelivery?: Delivery;
+  buyerAddress?: string;
+  buyerPayment?: BuyerPayment;
   status: z.infer<typeof orderStatusSchema>;
   progress: OrderProgress;
   /** Null for orders created before the snapshot existed. */
@@ -427,7 +458,7 @@ export function shortRupiah(value: number) {
  * (frozen names, options and prices), so the chat always matches the record.
  */
 export function orderMessage(
-  order: Pick<Order, "id" | "buyerName" | "items" | "subtotal" | "note"> & { shop: OrderShop | null },
+  order: Pick<Order, "id" | "buyerName" | "items" | "subtotal" | "note" | "buyerDelivery" | "buyerAddress" | "buyerPayment"> & { shop: OrderShop | null },
   statusUrl: string,
 ) {
   const shop = order.shop?.name || "Kak";
@@ -440,7 +471,10 @@ export function orderMessage(
     ...lines,
     `Subtotal ${rupiah(order.subtotal)} (belum ongkir)`,
     ...(order.note ? [`Catatan: ${order.note}`] : []),
-    "Mohon konfirmasi stok, ongkir, dan cara pembayaran.",
+    ...(order.buyerDelivery ? [`Pengiriman: ${deliveryLabels[order.buyerDelivery]}`] : []),
+    ...(order.buyerAddress ? [`Alamat: ${order.buyerAddress}`] : []),
+    ...(order.buyerPayment ? [`Pembayaran: ${buyerPaymentLabels[order.buyerPayment]}`] : []),
+    order.buyerDelivery && order.buyerPayment ? "Mohon konfirmasi stok dan total akhir." : "Mohon konfirmasi stok, ongkir, dan cara pembayaran.",
     statusUrl,
   ].join("\n");
 }

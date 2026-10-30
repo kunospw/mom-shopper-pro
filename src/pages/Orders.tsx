@@ -4,7 +4,7 @@ import { ArrowLeft, Check, CircleX, Clock, Inbox, Info, MessageCircle, MessageSq
 import { useBooks } from "@/contexts/BooksContext";
 import { getOwnerCatalog } from "@/lib/catalog-owner-storage";
 import { rejectOrder } from "@/lib/orders-owner-storage";
-import { MAX_ORDER_LINES, availabilityLabels, optionPrice, orderCode, type CatalogProduct, type Order } from "@/lib/catalog";
+import { MAX_ORDER_LINES, availabilityLabels, buyerPaymentLabels, deliveryLabels, optionPrice, orderCode, type CatalogProduct, type Order } from "@/lib/catalog";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -222,6 +222,28 @@ function OrderDetail({
           </span>
           <span className="num text-lg font-bold">{formatRupiah(order.subtotal)}</span>
         </div>
+        {(order.buyerDelivery || order.buyerPayment) && (
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-xl bg-background px-4 py-3 text-sm">
+            {order.buyerDelivery && (
+              <>
+                <dt className="text-muted-foreground">Pengiriman</dt>
+                <dd className="font-semibold">{deliveryLabels[order.buyerDelivery]}</dd>
+              </>
+            )}
+            {order.buyerAddress && (
+              <>
+                <dt className="text-muted-foreground">Alamat</dt>
+                <dd className="whitespace-pre-line break-words">{order.buyerAddress}</dd>
+              </>
+            )}
+            {order.buyerPayment && (
+              <>
+                <dt className="text-muted-foreground">Pembayaran</dt>
+                <dd className="font-semibold">{buyerPaymentLabels[order.buyerPayment]}</dd>
+              </>
+            )}
+          </dl>
+        )}
         {order.note && (
           <p className="flex gap-2 rounded-xl bg-background px-4 py-3 text-sm">
             <MessageSquareQuote className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />“{order.note}”

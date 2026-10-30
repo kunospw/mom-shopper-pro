@@ -145,6 +145,38 @@ async function run(browser, viewport, tag) {
   await page.goto(`${B}/shop/doesnotexist`);
   await page.getByRole("heading", { name: "Toko ini sedang tutup" }).waitFor();
 
+  // ---------- delivery & payment choices ----------
+  await page.goto(`${B}/catalog?store=edit`);
+  await page.getByLabel("Antar ke alamat").check();
+  await page.getByLabel("Ambil di tempat").check();
+  await page.getByLabel("QRIS").check();
+  await page.getByLabel("Bayar di tempat (COD)").check();
+  await page.getByRole("button", { name: "Simpan toko" }).click();
+  await page.getByText("Pengaturan toko disimpan").first().waitFor();
+  const saved = (await db()).store;
+  assert.deepEqual([saved.delivery, saved.payments], [["deliver", "pickup"], ["cod", "qris"]]);
+  await page.goto(`${B}/shop/melati-shop`);
+  await page.getByRole("button", { name: /^Lihat Kemeja Linen/ }).click();
+  await page.getByRole("button", { name: /^Putih/ }).click();
+  await page.getByRole("button", { name: /^Tambah · / }).click();
+  await page.getByRole("button", { name: /Lihat pesanan/ }).click();
+  await page.getByLabel("Nama Anda").fill("Rina");
+  await page.getByLabel("Nomor WhatsApp").fill("081234567890");
+  const sendOrder = page.getByRole("button", { name: "Kirim pesanan via WhatsApp" });
+  await sendOrder.click();
+  await page.getByRole("alert").filter({ hasText: "Pilih cara pengiriman" }).waitFor();
+  await page.getByLabel("Antar ke alamat").check();
+  await sendOrder.click();
+  await page.getByRole("alert").filter({ hasText: "Isi alamat lengkap" }).waitFor();
+  await page.getByLabel("Alamat pengantaran").fill("Jl. Melati No. 5, RT 02/RW 03");
+  await sendOrder.click();
+  await page.getByRole("alert").filter({ hasText: "Pilih cara pembayaran" }).waitFor();
+  await page.getByLabel("QRIS").check();
+  const waChoice = await sendAndOpenWhatsApp();
+  assert(waChoice.includes("Pengiriman: Antar ke alamat") && waChoice.includes("Alamat: Jl. Melati No. 5") && waChoice.includes("Pembayaran: QRIS"), waChoice);
+  await page.goBack();
+  assert.deepEqual((await db()).orders.at(-1).contact, { phone: "6281234567890", delivery: "deliver", address: "Jl. Melati No. 5, RT 02/RW 03", payment: "qris" });
+
   // ---------- layout ----------
   await page.goto(`${B}/`);
   await page.getByRole("heading", { name: /Halo/ }).waitFor();

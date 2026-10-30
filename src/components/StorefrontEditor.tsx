@@ -4,9 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AccentPicker, LogoPicker, ShopHeaderPreview, SlugField, WhatsAppField } from "@/components/StoreFields";
 import { useSlugCheck } from "@/hooks/use-slug-check";
-import { storefrontSchema, type StorefrontFields } from "@/lib/catalog";
+import { buyerPaymentLabels, deliveryLabels, deliveryOptions, paymentOptions, storefrontSchema, type StorefrontFields } from "@/lib/catalog";
 import { effectiveAccentKey } from "@/lib/branding";
 import { toWhatsApp, whatsAppPattern } from "@/lib/store-setup";
 import { SHOP_ASSISTANT_ENABLED } from "@/lib/plan-config";
@@ -47,6 +48,10 @@ export function StorefrontEditor({
   ) {
     setDraft((previous) => ({ ...previous, [key]: value }));
     onDirtyChange(true);
+  }
+  /** Ticks one choice on or off, keeping the fixed order of `all`. */
+  function pick<T extends string>(all: readonly T[], current: T[] | undefined, value: T, on: boolean) {
+    return all.filter((item) => (item === value ? on : !!current?.includes(item)));
   }
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -123,6 +128,43 @@ export function StorefrontEditor({
             onChange={(event) => change("description", event.target.value)}
             placeholder="Ceritakan produk dan cara pemesanan Anda."
           />
+        </div>
+        <div className="space-y-3 rounded-lg border p-4">
+          <div>
+            <p className="text-sm font-medium">Pengiriman &amp; pembayaran</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Pilihan yang dicentang muncul saat pembeli memesan. Kosongkan untuk mengaturnya lewat chat.
+            </p>
+          </div>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-xs font-semibold text-muted-foreground">Pengiriman barang fisik</legend>
+            {deliveryOptions.map((option) => (
+              <div key={option} className="flex items-center gap-2">
+                <Checkbox
+                  id={`store-delivery-${option}`}
+                  checked={!!draft.delivery?.includes(option)}
+                  onCheckedChange={(on) => change("delivery", pick(deliveryOptions, draft.delivery, option, on === true))}
+                />
+                <Label htmlFor={`store-delivery-${option}`} className="font-normal">
+                  {deliveryLabels[option]}
+                  {option === "deliver" && <span className="text-muted-foreground"> · pembeli mengisi alamat</span>}
+                </Label>
+              </div>
+            ))}
+          </fieldset>
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-xs font-semibold text-muted-foreground">Pembayaran</legend>
+            {paymentOptions.map((option) => (
+              <div key={option} className="flex items-center gap-2">
+                <Checkbox
+                  id={`store-payment-${option}`}
+                  checked={!!draft.payments?.includes(option)}
+                  onCheckedChange={(on) => change("payments", pick(paymentOptions, draft.payments, option, on === true))}
+                />
+                <Label htmlFor={`store-payment-${option}`} className="font-normal">{buyerPaymentLabels[option]}</Label>
+              </div>
+            ))}
+          </fieldset>
         </div>
         <AccentPicker value={effectiveAccentKey(draft.accent)} onChange={(value) => change("accent", value)} />
         <LogoPicker name={draft.name} value={draft.logo} onChange={(value) => change("logo", value)} onBusyChange={onBusyChange} />

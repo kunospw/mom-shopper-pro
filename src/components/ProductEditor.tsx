@@ -309,7 +309,7 @@ export function ProductEditor({
                 ]}
               />
               <p className="text-xs text-muted-foreground">
-                {draft.kind === "digital" ? "Dikirim lewat WhatsApp setelah pembayaran. Tidak perlu ongkir." : "Dikirim ke alamat pembeli."}
+                {draft.kind === "digital" ? "Dikirim lewat WhatsApp setelah pembayaran. Tidak perlu ongkir." : "Diantar, diambil, atau dikirim sesuai pilihan pembeli."}
               </p>
             </div>
             <div className="space-y-1.5">

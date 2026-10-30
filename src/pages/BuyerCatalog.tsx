@@ -31,7 +31,10 @@ import {
   resolveStore,
 } from "@/lib/catalog-public-storage";
 import {
+  buyerContactSchema,
+  buyerPaymentLabels,
   buyerPhoneSchema,
+  deliveryLabels,
   normalizePhone,
   cartTotal,
   optionPrice,
@@ -42,8 +45,10 @@ import {
   shortRupiah,
   whatsAppLink,
   MAX_ORDER_LINES,
+  type BuyerPayment,
   type CartLine,
   type CatalogProduct,
+  type Delivery,
   type Storefront,
 } from "@/lib/catalog";
 import { formatRupiah } from "@/lib/currency";
@@ -67,9 +72,40 @@ type Placed = { id: string; waUrl: string; message: string; statusPath: string }
 type Review = { products: CatalogProduct[]; lines: CartLine[] };
 
 const slugOf = (store: Storefront) => store.slug || store.id;
+
+/** One required choice among the options the shop offers (delivery or payment). */
+function ChoiceGroup<T extends string>({ legend, name, options, labels, value, onChange }: {
+  legend: string;
+  name: string;
+  options: readonly T[];
+  labels: Record<T, string>;
+  value: T | "";
+  onChange: (value: T) => void;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-1.5">
+      <legend className="mb-1.5 text-[13.5px] font-semibold">{legend}</legend>
+      <div className="grid grid-cols-2 gap-2">
+        {options.map((option) => (
+          <label
+            key={option}
+            className={cn(
+              "flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+              value === option ? "border-shop font-semibold text-shop-ink" : "border-input",
+            )}
+          >
+            <input type="radio" name={name} value={option} checked={value === option} onChange={() => onChange(option)} />
+            {labels[option]}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 const KEYS = {
   name: "ruang-usaha:buyer-name",
   phone: "ruang-usaha:buyer-phone",
+  address: "ruang-usaha:buyer-address",
   cart: (id: string) => `ruang-usaha:buyer-cart:${id}`,
   last: (id: string) => `ruang-usaha:buyer-last:${id}`,
   draft: (id: string) => `ruang-usaha:buyer-draft-id:${id}`,
@@ -230,7 +266,7 @@ function ProductPage({
           ) : (
             <span className="inline-flex items-center gap-1.5 rounded-md border border-[#DFE4DC] px-2 py-[3px] text-[11.5px] font-semibold">
               <Package className="h-[11px] w-[11px]" aria-hidden="true" />
-              Barang fisik · dikirim kurir
+              Barang fisik
             </span>
           )}
         </div>
@@ -517,6 +553,9 @@ function CatalogView({ initial }: { initial: CatalogData }) {
   const [buyerName, setBuyerName] = useState(() => read(localStorage, KEYS.name) || "");
   const [buyerPhone, setBuyerPhone] = useState(() => read(localStorage, KEYS.phone) || "");
   const [note, setNote] = useState("");
+  const [delivery, setDelivery] = useState<Delivery | "">("");
+  const [address, setAddress] = useState(() => read(localStorage, KEYS.address) || "");
+  const [payment, setPayment] = useState<BuyerPayment | "">("");
   const [lastOrder] = useState<{ id: string; statusPath: string } | null>(() => {
     try {
       const saved = JSON.parse(read(sessionStorage, KEYS.last(store.id)) || "null");
@@ -553,6 +592,12 @@ function CatalogView({ initial }: { initial: CatalogData }) {
   const count = cart.reduce((sum, line) => sum + line.quantity, 0);
   const total = cartTotal(cart, products);
   const signature = orderSignature(store, products, cart);
+  // Delivery is asked only for physical goods; a single offered choice is picked for the buyer.
+  const physical = cart.some((line) => products.find((p) => p.id === line.productId)?.kind === "physical");
+  const deliveryChoices = physical ? store.delivery ?? [] : [];
+  const paymentChoices = store.payments ?? [];
+  const chosenDelivery = deliveryChoices.length === 1 ? deliveryChoices[0] : deliveryChoices.includes(delivery as Delivery) ? delivery : "";
+  const chosenPayment = paymentChoices.length === 1 ? paymentChoices[0] : paymentChoices.includes(payment as BuyerPayment) ? payment : "";
   const statusPathOf = (id: string) => `/shop/${encodeURIComponent(slugOf(store))}/order/${id}`;
 
   function go(next: { product?: string; view?: string }, replace = false) {
@@ -591,6 +636,16 @@ function CatalogView({ initial }: { initial: CatalogData }) {
     const buyerWhatsApp = normalizePhone(buyerPhone);
     if (!buyerPhoneSchema.safeParse(buyerWhatsApp).success)
       return setOrderError("Isi nomor WhatsApp Anda (contoh 081234567890) supaya penjual bisa mengonfirmasi pesanan.");
+    if (deliveryChoices.length && !chosenDelivery) return setOrderError("Pilih cara pengiriman.");
+    if (chosenDelivery === "deliver" && address.trim().length < 10)
+      return setOrderError("Isi alamat lengkap supaya pesanan bisa diantar.");
+    if (paymentChoices.length && !chosenPayment) return setOrderError("Pilih cara pembayaran.");
+    const contact = buyerContactSchema.parse({
+      phone: buyerWhatsApp,
+      ...(chosenDelivery ? { delivery: chosenDelivery } : {}),
+      ...(chosenDelivery === "deliver" ? { address: address.trim() } : {}),
+      ...(chosenPayment ? { payment: chosenPayment } : {}),
+    });
     sendingRef.current = true;
     setSending(true);
     setOrderError("");
@@ -601,7 +656,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
       write(sessionStorage, KEYS.draft(store.id), draftId);
     }
     try {
-      const result = await createOrderRequest(store.id, cart, name, buyerWhatsApp, note.trim(), signature, draftId);
+      const result = await createOrderRequest(store.id, cart, name, contact, note.trim(), signature, draftId);
       if ("closed" in result) {
         setClosed(true);
         return;
@@ -614,6 +669,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
       }
       write(localStorage, KEYS.name, name);
       write(localStorage, KEYS.phone, buyerPhone.trim());
+      if (contact.address) write(localStorage, KEYS.address, contact.address);
       write(sessionStorage, KEYS.draft(store.id), null);
       const statusPath = statusPathOf(result.id);
       const message = orderMessage(result.order, `${window.location.origin}${statusPath}`);
@@ -751,6 +807,27 @@ function CatalogView({ initial }: { initial: CatalogData }) {
                     className="h-12 rounded-xl border border-input px-3.5 text-[15px] font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </label>
+                {deliveryChoices.length > 0 && (
+                  <ChoiceGroup<Delivery> legend="Pengiriman" name="buyer-delivery" options={deliveryChoices} labels={deliveryLabels} value={chosenDelivery} onChange={setDelivery} />
+                )}
+                {chosenDelivery === "deliver" && (
+                  <label htmlFor="buyer-address" className="flex flex-col gap-1.5 text-[13.5px] font-semibold">
+                    Alamat pengantaran
+                    <textarea
+                      id="buyer-address"
+                      rows={3}
+                      maxLength={300}
+                      autoComplete="street-address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="Nama jalan, nomor rumah, RT/RW, patokan"
+                      className="resize-none rounded-xl border border-input px-3.5 py-2.5 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    />
+                  </label>
+                )}
+                {paymentChoices.length > 0 && (
+                  <ChoiceGroup<BuyerPayment> legend="Pembayaran" name="buyer-payment" options={paymentChoices} labels={buyerPaymentLabels} value={chosenPayment} onChange={setPayment} />
+                )}
                 <label htmlFor="buyer-note" className="flex flex-col gap-1.5 text-[13.5px] font-semibold">
                   <span>
                     Catatan untuk penjual <span className="font-normal text-muted-foreground">(opsional)</span>
@@ -761,7 +838,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
                     maxLength={300}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
-                    placeholder="Alamat, warna, atau permintaan lain"
+                    placeholder={deliveryChoices.length ? "Warna, ukuran, atau permintaan lain" : "Alamat, warna, atau permintaan lain"}
                     className="resize-none rounded-xl border border-input px-3.5 py-2.5 text-sm font-normal outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
                 </label>

@@ -10,7 +10,7 @@ import { toInput } from "@/lib/books";
 import { cn } from "@/lib/utils";
 import type { CatalogProduct } from "@/lib/catalog";
 import type { Sale, SaleInput } from "@/types/books";
-import { orderCode } from "@/lib/catalog";
+import { buyerPaymentLabels, deliveryLabels, orderCode } from "@/lib/catalog";
 import { formatRupiah } from "@/lib/currency";
 import { SaleForm } from "@/components/SaleForm";
 import { SaleDetail } from "@/components/SaleDetail";
@@ -330,8 +330,12 @@ export default function Sales() {
                     ? {
                         channel: "catalog",
                         orderRequestId: confirming.id,
-                        customer: { name: confirming.buyerName, whatsapp: confirming.buyerPhone ?? "", address: "" },
-                        notes: confirming.note,
+                        customer: { name: confirming.buyerName, whatsapp: confirming.buyerPhone ?? "", address: confirming.buyerAddress ?? "" },
+                        notes: [
+                          confirming.buyerDelivery && `Pengiriman: ${deliveryLabels[confirming.buyerDelivery]}`,
+                          confirming.buyerPayment && `Pembayaran: ${buyerPaymentLabels[confirming.buyerPayment]}`,
+                          confirming.note,
+                        ].filter(Boolean).join("\n"),
                         items: confirming.items.map((item) => ({
                           productId: item.productId,
                           name: item.name,

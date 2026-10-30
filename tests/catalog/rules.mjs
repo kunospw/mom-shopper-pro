@@ -283,6 +283,29 @@ try {
     batch.set(doc(buyer, `${orderPath}/p2/contact/other`), { phone: "6281234567890" });
     await assertFails(batch.commit());
   }
+  // Checkout choices: only what the shop offers; an address only (and always) with delivery.
+  const phone = "6281234567890";
+  const address = "Jl. Melati No. 5, RT 02/RW 03";
+  await assertFails(withContact("c-none", { phone, delivery: "pickup" }));
+  await assertFails(withContact("c-none-pay", { phone, payment: "qris" }));
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, delivery: ["deliver", "pickup"], payments: ["transfer", "cod", "qris"] }));
+  await assertSucceeds(withContact("c1", { phone, delivery: "deliver", address, payment: "qris" }, Array(6).fill(item)));
+  await assertSucceeds(withContact("c2", { phone, delivery: "pickup", payment: "cod" }));
+  await assertSucceeds(withContact("c3", { phone }));
+  for (const [i, bad] of [
+    { phone, delivery: "deliver", payment: "qris" },
+    { phone, delivery: "deliver", address: "Jl. A", payment: "qris" },
+    { phone, delivery: "deliver", address: "x".repeat(301) },
+    { phone, delivery: "pickup", address },
+    { phone, address },
+    { phone, delivery: "courier" },
+    { phone, payment: "ewallet" },
+    { phone, delivery: "deliver", address: 12345678901 },
+  ].entries())
+    await assertFails(withContact(`c-bad-${i}`, bad));
+  for (const invalid of [{ delivery: ["courier"] }, { delivery: "deliver" }, { payments: ["cash"] }, { payments: ["transfer", "cod", "qris", "ewallet", "cod"] }])
+    await assertFails(setDoc(doc(owner, "storefronts/seller-a"), { ...shop, ...invalid }));
+  await assertSucceeds(setDoc(doc(owner, "storefronts/seller-a"), shop));
   await assertFails(
     updateDoc(doc(buyer, `${orderPath}/o1`), {
       status: "confirmed",
