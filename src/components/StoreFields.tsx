@@ -3,11 +3,65 @@ import { Check, ImagePlus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ShopAvatar } from "@/components/shop/shop-ui";
 import type { SlugState } from "@/hooks/use-slug-check";
 import { accents, isBusinessLogo, type AccentKey } from "@/lib/branding";
+import { buyerPaymentLabels, deliveryLabels, deliveryOptions, paymentOptions, type BuyerPayment, type Delivery } from "@/lib/catalog";
 import { formatWhatsApp, toWhatsApp, whatsAppPattern } from "@/lib/store-setup";
 import { cn } from "@/lib/utils";
+
+/** Ticks one choice on or off, keeping the fixed order of `all`. */
+function pick<T extends string>(all: readonly T[], current: readonly T[] | undefined, value: T, on: boolean) {
+  return all.filter((item) => (item === value ? on : !!current?.includes(item)));
+}
+
+/** Which delivery and payment choices buyers pick from at checkout. */
+export function OrderChoicesFields({
+  delivery,
+  payments,
+  onDelivery,
+  onPayments,
+}: {
+  delivery: readonly Delivery[] | undefined;
+  payments: readonly BuyerPayment[] | undefined;
+  onDelivery: (value: Delivery[]) => void;
+  onPayments: (value: BuyerPayment[]) => void;
+}) {
+  return (
+    <>
+      <fieldset className="space-y-2">
+        <legend className="mb-1 text-xs font-semibold text-muted-foreground">Pengiriman barang fisik</legend>
+        {deliveryOptions.map((option) => (
+          <div key={option} className="flex items-center gap-2">
+            <Checkbox
+              id={`store-delivery-${option}`}
+              checked={!!delivery?.includes(option)}
+              onCheckedChange={(on) => onDelivery(pick(deliveryOptions, delivery, option, on === true))}
+            />
+            <Label htmlFor={`store-delivery-${option}`} className="font-normal">
+              {deliveryLabels[option]}
+              {option === "deliver" && <span className="text-muted-foreground"> · pembeli mengisi alamat</span>}
+            </Label>
+          </div>
+        ))}
+      </fieldset>
+      <fieldset className="space-y-2">
+        <legend className="mb-1 text-xs font-semibold text-muted-foreground">Pembayaran</legend>
+        {paymentOptions.map((option) => (
+          <div key={option} className="flex items-center gap-2">
+            <Checkbox
+              id={`store-payment-${option}`}
+              checked={!!payments?.includes(option)}
+              onCheckedChange={(on) => onPayments(pick(paymentOptions, payments, option, on === true))}
+            />
+            <Label htmlFor={`store-payment-${option}`} className="font-normal">{buyerPaymentLabels[option]}</Label>
+          </div>
+        ))}
+      </fieldset>
+    </>
+  );
+}
 
 /** Shop link input. The full link is shown on its own line so long hosts never push the form wider than the screen. */
 export function SlugField({

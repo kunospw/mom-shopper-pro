@@ -45,6 +45,9 @@ export async function openShop(page, { name, whatsapp }) {
   await dialog.getByRole("button", { name: "Lanjut" }).click();
   await dialog.getByLabel("Nomor WhatsApp pesanan").fill(whatsapp);
   await dialog.getByRole("button", { name: "Lanjut" }).click();
+  // One payment method and no delivery: buyers get it preselected, and the real rules check it.
+  await dialog.getByLabel("Transfer bank").check();
+  await dialog.getByRole("button", { name: "Lanjut" }).click();
   await dialog.getByRole("button", { name: "Lanjut ke pratinjau" }).click();
   await dialog.getByRole("button", { name: "Buka toko sekarang" }).click();
   await dialog.getByRole("heading", { name: "Toko Anda sudah buka!" }).waitFor();
