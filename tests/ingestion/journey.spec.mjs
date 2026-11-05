@@ -131,3 +131,27 @@ test("Shopee share text → private draft → seller's own price → explicit co
   expect((await db.doc(`users/${seller.uid}/inventory/${saved.docs[0].id}`).get()).data()).toEqual({ cost: 22600, stock: null });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
 });
+
+test("Shopee share sheet → LarisKu opens the import with the shared text", async ({ page }) => {
+  const seller = await signedSeller(page);
+  const ctx = { ...context, adapters: { ...context.adapters, shopee: async () => ({ shopId: "11487927", itemId: "1022856848" }) } };
+  await page.route("**/api/ingest-catalogue", async route => {
+    const request = route.request();
+    const result = await handleCatalogue(request.postDataJSON(), request.headers().authorization, ctx);
+    await route.fulfill({ status: result.status, contentType: "application/json", body: JSON.stringify(result.body) });
+  });
+  // Android sends the share text and, from some apps, the link separately.
+  const text = "Cek Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s dengan harga Rp22.600. Dapatkan di Shopee sekarang!";
+  await page.goto(`/catalog?share_title=Shopee&share_text=${encodeURIComponent(text)}&share_url=${encodeURIComponent("https://s.shopee.co.id/8VA3gNI6dZ")}`);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("heading", { name: "Periksa draf produk" })).toBeVisible();
+  await expect(dialog.getByLabel("Nama produk")).toHaveValue("Oral-B Sikat Gigi All Rounder 123 Clean Soft 3s");
+  await expect(dialog.getByRole("link", { name: "Buka di Shopee" })).toHaveAttribute("href", "https://s.shopee.co.id/8VA3gNI6dZ");
+  expect(new URL(page.url()).search).toBe("?new=catalogue");
+  expect((await db.collection(`storefronts/${seller.uid}/products`).get()).size).toBe(0);
+
+  // A bare link only fills the box and shows how to get the full text; nothing is created.
+  await page.goto(`/catalog?share_url=${encodeURIComponent("https://s.shopee.co.id/8VA3gNI6dZ")}`);
+  await expect(dialog.getByLabel("Teks bagikan Shopee")).toHaveValue("https://s.shopee.co.id/8VA3gNI6dZ");
+  await expect(dialog.getByText("dengan harga", { exact: false }).first()).toBeVisible();
+});

@@ -16,6 +16,12 @@
     { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
     { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
+  "share_target": {
+    "action": "/catalog",
+    "method": "GET",
+    "enctype": "application/x-www-form-urlencoded",
+    "params": { "title": "share_title", "text": "share_text", "url": "share_url" }
+  },
   "shortcuts": [
     { "name": "Catat penjualan", "url": "/sales?new=1", "icons": [{ "src": "/shortcut-96.png", "sizes": "96x96" }] },
     { "name": "Pesanan masuk", "url": "/orders", "icons": [{ "src": "/shortcut-96.png", "sizes": "96x96" }] },

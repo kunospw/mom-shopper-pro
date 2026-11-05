@@ -4,14 +4,14 @@ import { catalogPhoto } from "@/lib/catalog-image";
 import { catalogueRequest, importShopee, uploadCatalogue, type ReviewJob } from "@/lib/catalogue-client";
 import { candidateSchema, missing, retiredPipelines, type Candidate, type Draft } from "@/lib/catalogue-ingestion";
 
-export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusyChange }: {
-  uid: string; onSaved(): void; onDone(): void; onDirtyChange(value: boolean): void; onBusyChange(value: boolean): void;
+export function CatalogueIngestion({ uid, shared = "", onSaved, onDone, onDirtyChange, onBusyChange }: {
+  uid: string; shared?: string; onSaved(): void; onDone(): void; onDirtyChange(value: boolean): void; onBusyChange(value: boolean): void;
 }) {
   const key = `larisku-catalogue-job:${uid}`;
   const [job, setJob] = useState<ReviewJob | null>(null);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [shareText, setShareText] = useState("");
+  const [shareText, setShareText] = useState(shared);
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState("Memuat draf…");
   const [progress, setProgress] = useState(0);
@@ -37,6 +37,12 @@ export function CatalogueIngestion({ uid, onSaved, onDone, onDirtyChange, onBusy
   }
   useEffect(() => {
     const id = localStorage.getItem(key);
+    // Shared from Shopee: make the draft right away when the full share text arrived; a bare link
+    // stays in the box with the how-to hint. Older drafts stay in the history list.
+    if (shared) {
+      void run(async () => { if (/dengan harga/i.test(shared)) accept(await importShopee(shared)); await loadHistory(); }, "Membaca tautan Shopee…");
+      return;
+    }
     void run(async () => { const jobs = await loadHistory(); const resume = id ?? (jobs.filter(j => j.status === "review").length === 1 ? jobs.find(j => j.status === "review")?.id : null); if (resume) { const value = await catalogueRequest({ action: "status", jobId: resume }); if (import.meta.env.VITE_FIREBASE_EMULATOR === "1" && import.meta.env.VITE_CATALOGUE_PREVIEW_REAL === "1" && retiredPipelines.includes(value.pipeline ?? "legacy")) localStorage.removeItem(key); else accept(value); } });
     // One resume per seller; processing can also be refreshed manually.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -28,6 +28,9 @@ assert.ok(sizes.has("192x192") && sizes.has("512x512"), "192 and 512 icons");
 assert.ok(manifest.icons.some((i) => i.purpose === "maskable"), "maskable icon");
 assert.deepEqual(pngSize(read("public/apple-touch-icon.png")), [180, 180]);
 for (const s of manifest.shortcuts) assert.ok(s.url.startsWith("/") && s.name, "shortcut");
+// Shopee → Bagikan → LarisKu: the catalog page reads these three query parameters.
+assert.deepEqual(manifest.share_target, { action: "/catalog", method: "GET", enctype: "application/x-www-form-urlencoded", params: { title: "share_title", text: "share_text", url: "share_url" } });
+assert.ok(manifest.share_target.action.startsWith(manifest.scope), "share_target inside scope");
 
 // ---- index.html links the manifest and icons ----
 const html = read("index.html").toString();

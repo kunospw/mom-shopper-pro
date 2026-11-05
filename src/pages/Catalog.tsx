@@ -60,6 +60,14 @@ const filters = [
 ] as const;
 type FilterId = (typeof filters)[number]["id"];
 
+function sharedText(params: URLSearchParams) {
+  const text = (params.get("share_text") ?? "").trim();
+  const url = (params.get("share_url") ?? "").trim();
+  const parts = [text || (params.get("share_title") ?? "").trim()];
+  if (url && !text.includes(url)) parts.push(url);
+  return parts.filter(Boolean).join(" ");
+}
+
 export function Catalog() {
   const { user } = useAuth();
   const books = useBooks();
@@ -83,6 +91,9 @@ export function Catalog() {
   const search = params.get("q") ?? "";
   const filter = (params.get("f") ?? "all") as FilterId;
   const [setupFlow, setSetupFlow] = useState(false);
+  // Text shared from another app (Shopee → Bagikan → LarisKu) via the manifest share_target.
+  const [shared, setShared] = useState(() => sharedText(params));
+  const sharing = params.has("share_text") || params.has("share_url") || params.has("share_title");
   // A shop without a storefront gets the guided setup; it stays on it after saving to show the next step.
   const setup = storeEditor && (setupFlow || (!loading && !failed && !store));
   const selected = products.find((product) => product.id === edit);
@@ -115,6 +126,17 @@ export function Catalog() {
     if (!storeEditor) setSetupFlow(false);
     else if (!loading && !failed && !store) setSetupFlow(true);
   }, [storeEditor, loading, failed, store]);
+  useEffect(() => {
+    if (!sharing) return;
+    const next = new URLSearchParams(params);
+    for (const name of ["share_text", "share_url", "share_title", "new", "edit", "store"]) next.delete(name);
+    if (shared && import.meta.env.VITE_CATALOGUE_INGESTION === "1") next.set("new", "catalogue");
+    setParams(next, { replace: true });
+  }, [params, setParams, shared, sharing]);
+  useEffect(() => {
+    // Used once: reopening the import later starts empty.
+    if (!open && !sharing) setShared("");
+  }, [open, sharing]);
   function navigateEditor(key?: string, value?: string) {
     const next = new URLSearchParams(params);
     for (const name of ["new", "edit", "store"]) next.delete(name);
@@ -494,7 +516,7 @@ export function Catalog() {
             </SheetDescription>
           </SheetHeader>
           <div className="p-4 sm:p-7">
-            {ingestion ? <CatalogueIngestion key={user.uid} uid={user.uid} onDone={done} onDirtyChange={setDirty} onBusyChange={setBusy} onSaved={() => setRetry(value => value + 1)} /> : bulk ? (
+            {ingestion ? <CatalogueIngestion key={user.uid} uid={user.uid} shared={shared} onDone={done} onDirtyChange={setDirty} onBusyChange={setBusy} onSaved={() => setRetry(value => value + 1)} /> : bulk ? (
               <BulkAddProducts
                 categories={categories}
                 onDirtyChange={setDirty}
