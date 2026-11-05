@@ -232,7 +232,7 @@ export function ShopAssistant({
               </button>
             </form>
             <p className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span>Untuk stok, ongkir &amp; pembayaran, chat penjual.</span>
+              <span>Untuk stok &amp; ongkir, chat penjual.</span>
               {chat && (
                 <a
                   href={chat}
