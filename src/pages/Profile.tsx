@@ -46,6 +46,8 @@ import {
 import { cn } from "@/lib/utils";
 import { field } from "@/components/form-parts";
 import { toast } from "sonner";
+/** The word an owner types to confirm deleting the account. */
+const DELETE_WORD = "HAPUS";
 const sectionIcons = {
   appearance: Monitor,
   business: Building,
@@ -81,6 +83,10 @@ export const Profile = () => {
   const [qrisDirty, setQrisDirty] = useState(false);
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteWord, setDeleteWord] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     register,
@@ -181,6 +187,29 @@ export const Profile = () => {
       await signOut();
     } catch {
       setSigningOut(false);
+    }
+  }
+  async function handleDeleteAccount() {
+    if (deleteWord.trim().toUpperCase() !== DELETE_WORD || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      // Loaded on demand: only this action needs it.
+      const { deleteAccount } = await import("@/lib/account-delete");
+      await deleteAccount();
+      toast.success("Akun dan data Anda sudah dihapus");
+    } catch (error: unknown) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+      setDeleteError(
+        code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request"
+          ? "Konfirmasi Google dibatalkan. Tidak ada yang dihapus."
+          : code === "auth/popup-blocked"
+            ? "Jendela Google diblokir browser. Izinkan pop-up, lalu coba lagi."
+            : code === "auth/user-mismatch"
+              ? "Pilih akun Google yang sama dengan akun ini."
+              : "Penghapusan belum selesai. Periksa koneksi Anda, lalu ulangi sampai selesai.",
+      );
+      setDeleting(false);
     }
   }
   if (!section) return <Navigate to="/settings/appearance" replace />;
@@ -382,11 +411,74 @@ export const Profile = () => {
                   </Button>
                 </Panel>
               )}
+              {section.id === "account" && (
+                <Panel title="Hapus akun" description="Menghapus akun beserta seluruh catatan usaha, toko, produk, dan pesanan. Tidak bisa dibatalkan.">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-destructive/40 text-destructive hover:bg-destructive-soft hover:text-destructive"
+                    disabled={signingOut || saving}
+                    onClick={() => {
+                      setDeleteWord("");
+                      setDeleteError("");
+                      setDeleteOpen(true);
+                    }}
+                  >
+                    <Trash2 />
+                    Hapus akun dan data
+                  </Button>
+                </Panel>
+              )}
             </form>
           )}
         </section>
       </div>
       <UnsavedChangesDialog blocker={blocker} />
+      <AlertDialog
+        open={deleteOpen}
+        onOpenChange={(open) => {
+          if (!deleting) setDeleteOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus akun dan semua data?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>Yang dihapus permanen: profil, catatan penjualan dan biaya, pelanggan, stok, toko online, produk, dan pesanan.</p>
+                <p>Link toko berhenti berfungsi dan pembeli tidak bisa lagi melacak pesanannya. Sisa masa paket tidak dikembalikan.</p>
+                <p>Google akan meminta Anda memilih akun sekali lagi sebagai konfirmasi.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="deleteWord">Ketik {DELETE_WORD} untuk melanjutkan</Label>
+            <input
+              id="deleteWord"
+              className={field}
+              autoComplete="off"
+              autoCapitalize="characters"
+              value={deleteWord}
+              disabled={deleting}
+              onChange={(event) => setDeleteWord(event.target.value)}
+            />
+            {deleteError && <p role="alert" className="text-sm font-medium text-destructive">{deleteError}</p>}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleting || deleteWord.trim().toUpperCase() !== DELETE_WORD}
+              onClick={(event) => {
+                event.preventDefault();
+                void handleDeleteAccount();
+              }}
+            >
+              {deleting ? "Menghapus…" : "Hapus permanen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog
         open={signOutOpen}
         onOpenChange={(open) => {

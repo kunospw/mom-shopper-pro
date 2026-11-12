@@ -27,10 +27,13 @@ service cloud.firestore {
     // Ownership and all writes are validated in the authenticated backend.
     match /catalogueIngestions/{ownerId}/jobs/{jobId} {
       allow read: if request.auth != null && request.auth.uid == ownerId;
-      allow write: if false;
+      allow create, update: if false;
+      // The owner may only remove their own import history (account deletion).
+      allow delete: if request.auth != null && request.auth.uid == ownerId;
       match /drafts/{draftId} {
         allow read: if request.auth != null && request.auth.uid == ownerId;
-        allow write: if false;
+        allow create, update: if false;
+        allow delete: if request.auth != null && request.auth.uid == ownerId;
       }
     }
     match /catalogueIngestionLocks/{lockId} {
@@ -164,7 +167,9 @@ service cloud.firestore {
           request.resource.data.trackingNo is string && request.resource.data.trackingNo.size() <= 60 &&
           request.resource.data.sellerNote is string && request.resource.data.sellerNote.size() <= 300 &&
           request.resource.data.updatedAt == request.time;
-        allow delete: if false;
+        // Orders outlive a closed shop so buyers can keep tracking them. They are
+        // removed only with the whole account: the storefront has to be gone first.
+        allow delete: if owner() && !exists(/databases/$(database)/documents/storefronts/$(storeId));
         // The buyer's WhatsApp number (and address) lives apart from the order, which anyone holding its link
         // may read: only the seller reads it, and it can only be written together with a new order.
         // Delivery and payment must be among the choices the shop offers; an address goes only with delivery.
@@ -182,7 +187,8 @@ service cloud.firestore {
             offered(request.resource.data, get(/databases/$(database)/documents/storefronts/$(storeId)).data) &&
             !exists(/databases/$(database)/documents/storefronts/$(storeId)/orders/$(orderId)) &&
             existsAfter(/databases/$(database)/documents/storefronts/$(storeId)/orders/$(orderId));
-          allow update, delete: if false;
+          allow update: if false;
+          allow delete: if owner() && !exists(/databases/$(database)/documents/storefronts/$(storeId));
         }
       }
     }

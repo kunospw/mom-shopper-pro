@@ -56,6 +56,7 @@ import { cn } from "@/lib/utils";
 import { AvailabilityBadge, ShopProductCard } from "@/components/ShopProductCard";
 import {
   BuyerPage,
+  PoweredBy,
   BuyerTopBar,
   Callout,
   ShopAvatar,
@@ -990,6 +991,7 @@ function CatalogView({ initial }: { initial: CatalogData }) {
         <p className="mt-8 text-center text-xs text-muted-foreground">
           Harga akhir, stok, ongkir, dan pembayaran dikonfirmasi langsung oleh penjual.
         </p>
+        <PoweredBy className="mt-3" />
       </main>
 
       {SHOP_ASSISTANT_ENABLED && store.assistant && (

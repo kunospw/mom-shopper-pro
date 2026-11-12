@@ -412,8 +412,38 @@ try {
   await assertSucceeds(
     deleteDoc(doc(owner, "storefronts/seller-a/products/draft")),
   );
+  // ---- account deletion: orders and buyer contacts go only once the storefront is gone ----
+  await assertFails(deleteDoc(doc(owner, `${orderPath}/p1/contact/buyer`)));
+  await assertFails(deleteDoc(doc(owner, `${orderPath}/p1`)));
+  await assertSucceeds(deleteDoc(doc(owner, "storefronts/seller-a")));
+  for (const stranger of [other, buyer]) {
+    await assertFails(deleteDoc(doc(stranger, `${orderPath}/p1/contact/buyer`)));
+    await assertFails(deleteDoc(doc(stranger, `${orderPath}/p1`)));
+  }
+  // until the owner removes it, the buyer's tracking link keeps working
+  await assertSucceeds(getDoc(doc(buyer, `${orderPath}/p1`)));
+  await assertSucceeds(deleteDoc(doc(owner, `${orderPath}/p1/contact/buyer`)));
+  await assertSucceeds(deleteDoc(doc(owner, `${orderPath}/p1`)));
+  // the trial record is never the client's to remove
+  await assertFails(deleteDoc(doc(owner, "entitlements/seller-a")));
+  // import history is written by the server; its owner may only delete it
+  const jobPath = "catalogueIngestions/seller-a/jobs/j1";
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), jobPath), { state: "review" });
+    await setDoc(doc(ctx.firestore(), `${jobPath}/drafts/d1`), { name: "Kemeja" });
+  });
+  await assertSucceeds(getDoc(doc(owner, jobPath)));
+  await assertFails(setDoc(doc(owner, "catalogueIngestions/seller-a/jobs/j2"), { state: "review" }));
+  await assertFails(updateDoc(doc(owner, jobPath), { state: "done" }));
+  await assertFails(updateDoc(doc(owner, `${jobPath}/drafts/d1`), { name: "Lain" }));
+  for (const stranger of [other, buyer]) {
+    await assertFails(deleteDoc(doc(stranger, `${jobPath}/drafts/d1`)));
+    await assertFails(deleteDoc(doc(stranger, jobPath)));
+  }
+  await assertSucceeds(deleteDoc(doc(owner, `${jobPath}/drafts/d1`)));
+  await assertSucceeds(deleteDoc(doc(owner, jobPath)));
   console.log(
-    "PASS: owner isolation, anonymous publishing boundary, field validation, closed stores, and private profile/transaction isolation in proposed deployment rules.",
+    "PASS: owner isolation, account deletion, anonymous publishing boundary, field validation, closed stores, and private profile/transaction isolation in proposed deployment rules.",
   );
 } finally {
   await env.cleanup();

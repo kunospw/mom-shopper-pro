@@ -23,7 +23,7 @@ import { orderCode, type Order, type OrderProgress } from "@/lib/catalog";
 import { formatRupiah } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { NEW_ACCOUNT_ACCENT } from "@/lib/branding";
-import { BuyerPage, ShopAvatar, ShopUnavailable, focusRing, useShopTheme } from "@/components/shop/shop-ui";
+import { BuyerPage, PoweredBy, ShopAvatar, ShopUnavailable, focusRing, useShopTheme } from "@/components/shop/shop-ui";
 
 type Loaded = { order: Order; shopName: string; whatsapp: string; slug: string; storeId: string; accent?: string };
 
@@ -364,6 +364,7 @@ export function OrderStatus() {
           )
         )}
         <p className="text-center text-xs text-muted-foreground">Halaman ini diperbarui otomatis.</p>
+        <PoweredBy />
       </main>
     </BuyerPage>
   );

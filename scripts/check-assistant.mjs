@@ -176,6 +176,32 @@ assert.equal((await ask(q("halo"), fakeNet(), { env: { ...env, VITE_FIREBASE_PRO
   assert.equal((await ask(q("halo"), net, { ip: "9.9.9.9" })).status, 429);
 }
 
+// ---- daily cap per shop: the model is not called past it, buyers get the WhatsApp fallback ----
+{
+  chat.resetRateLimit();
+  const day = Date.UTC(2026, 10, 12, 10);
+  for (let i = 0; i < 3; i++) assert.equal(chat.allowShop("s1", 3, day + i), true);
+  assert.equal(chat.allowShop("s1", 3, day + 4), false);
+  assert.equal(chat.allowShop("s2", 3, day + 4), true, "per shop");
+  assert.equal(chat.allowShop("s1", 3, day + 86_400_000), true, "resets the next day");
+  assert.equal(chat.allowShop("s3", 0, day), false, "0 switches the model off");
+  assert.equal(chat.dailyMax(undefined), chat.DEFAULT_DAILY_MAX);
+  assert.equal(chat.dailyMax(""), chat.DEFAULT_DAILY_MAX);
+  assert.equal(chat.dailyMax("abc"), chat.DEFAULT_DAILY_MAX);
+  assert.equal(chat.dailyMax("-5"), chat.DEFAULT_DAILY_MAX);
+  assert.equal(chat.dailyMax("50"), 50);
+  chat.resetRateLimit();
+  const net = fakeNet();
+  const capped = { ...env, SHOP_CHAT_DAILY_MAX: "2" };
+  for (let i = 0; i < 2; i++) assert.equal((await ask(q("halo"), net, { env: capped })).body.fallback, undefined);
+  const over = await ask(q("halo"), net, { env: capped });
+  assert.equal(over.status, 200);
+  assert.equal(over.body.fallback, true);
+  assert.equal(over.body.reply, chat.fallbackReply);
+  assert.equal(net.calls.model.length, 2, "model not called past the cap");
+  chat.resetRateLimit();
+}
+
 // ---- catalog cap ----
 {
   const many = Array.from({ length: 200 }, (_, i) => ({ id: `x${i}`, name: `Produk ${i} ${"panjang ".repeat(10)}`, description: "d".repeat(400), category: "", price: 1000, availability: "ready", leadTime: "", optionLabel: "Pilihan", options: [], kind: "physical" }));
@@ -198,4 +224,4 @@ assert.equal((await ask(q("halo"), fakeNet(), { env: { ...env, VITE_FIREBASE_PRO
   assert.ok(!plain.includes("Sapa pembeli") && !plain.includes("Produk dan bahan") && !plain.includes("Pilihan pembayaran"), plain);
 }
 
-console.log("PASS: shop assistant (prompt, public data only, hardening, closed/opt-out, validation, rate limit, caps).");
+console.log("PASS: shop assistant (prompt, public data only, hardening, closed/opt-out, validation, rate limit, daily cap, caps).");

@@ -5,7 +5,7 @@ Four layers, all local. None of them deploys anything or talks to a real Firebas
 | Command | What it runs | Needs | Time |
 | --- | --- | --- | --- |
 | `npm run typecheck` | TypeScript (app + node configs) | – | ~20 s |
-| `npm run test:unit` | `scripts/check-*.mjs`: money, periods and reports (3 time zones), entitlement, catalog, plan/promo, shop setup, status chips, import, PWA, design tokens, contrast | – | ~30 s |
+| `npm run test:unit` | `scripts/check-*.mjs`: money, periods and reports (3 time zones), entitlement, catalog, plan/promo, shop setup, status chips, import, PWA, design tokens, contrast, launch surface | – | ~30 s |
 | `npm run test:e2e` | Playwright on a **mocked** app (`tests/e2e`), desktop 1440×1000 and phone 390×844 | Chromium (`npx playwright install chromium` if missing) | ~4 min |
 | `npm run test:integration` | Playwright on the **real** app against the Firebase **Auth + Firestore emulators** with the real `firebase/firestore.rules` (`tests/integration`) | Java 21+ | ~1.5 min |
 | `npm run test:rules` | Firestore security rules suites (`tests/catalog`) on the emulator | Java 21+ | ~1 min |
@@ -49,6 +49,8 @@ Useful options:
 | Shop assistant (buyer Q&A, owner opt-in) | `shop-assistant` | `assistant` (real handler + rules, fake Ollama) | `check-assistant`, `rules` |
 | Pengaturan and invoice PDF | `settings-invoice` | persistence: `books-plan` | – |
 | Owner isolation, anonymous access | – | `books-plan` | `rules` |
+| Landing page, privacy policy and terms, login from an in-app browser, platform credit on shop pages | `landing` | – | `check-launch` |
+| Account deletion | confirmation dialog: `landing` | `account-delete` (real rules, real data) | `rules` |
 | Installable app, offline shell, update, order notifications | `pwa`, `order-alerts` | – | `check-pwa` |
 | Dark mode on every page | `workspace`, `reports`, `settings-invoice` | – | `check-contrast` |
 | Accessibility (axe, WCAG 2.1 AA: no serious/critical) on every workspace page, dialogs, buyer pages, login, 404 | `accessibility` | – | `check-contrast` |

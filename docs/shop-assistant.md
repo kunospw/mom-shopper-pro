@@ -26,7 +26,7 @@ It does **not**:
 2. It sends a short system prompt (shop info, delivery and payment choices) plus a compact catalog to **Ollama Cloud** (`/api/chat`), asking for JSON `{reply, productIds}`. The catalog holds up to 60 products and about 9,000 characters, newest first; each description is cut at 300 characters.
 3. It cleans the answer before returning it: links are removed, only real product ids are kept, and the reply is capped at 1,200 characters. If the model fails or times out (20 s), the buyer gets a polite message pointing to WhatsApp.
 
-Limits: 12 messages of up to 500 characters per request, and 20 questions per 10 minutes per IP. The per-IP limit is best effort and per server instance. Your Ollama Cloud plan's own usage limits are the hard ceiling.
+Limits: 12 messages of up to 500 characters per request, 20 questions per 10 minutes per IP, and 300 model calls per shop per day (UTC). Set `SHOP_CHAT_DAILY_MAX` on the server to change the daily number; `0` stops model calls. Past the daily number, buyers get the same polite message pointing to WhatsApp and the model is not called. Both limits are best effort and per server instance: they live in memory, so a restart resets them. Your Ollama Cloud plan's own usage limits are the hard ceiling.
 
 ## Turning it on
 
@@ -67,7 +67,7 @@ Then close the shop (or let the trial end) and confirm the assistant says the sh
 
 ## Tests
 
-- `scripts/check-assistant.mjs`: prompt contents (public fields only), output cleaning, closed/opt-out, validation, rate limit, caps.
+- `scripts/check-assistant.mjs`: prompt contents (public fields only), output cleaning, closed/opt-out, validation, rate limit, daily cap per shop, caps.
 - `tests/e2e/shop-assistant.spec.mjs`: buyer UI on desktop and phone, with the API stubbed.
 - `tests/integration/assistant.spec.mjs`: the real handler and real rules on the emulators, with a fake Ollama server.
 

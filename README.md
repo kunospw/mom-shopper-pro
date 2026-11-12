@@ -19,6 +19,7 @@ A WhatsApp-first shop and bookkeeping app for small resellers, built with React,
 - **Installable app (PWA)**: add to the home screen (Android, iPhone, desktop), opens offline to the last screen, home-screen shortcuts, update notice on new versions.
 - **New-order alerts**: sound, pop-up and a system notification when a buyer sends an order, while the app is open or in the background (works on Firebase's free plan; alerts while the app is fully closed would need a push server).
 - Light and dark mode, larger text option, phone and desktop layouts.
+- **Front door**: signed-out visitors at `/` see an introduction with the price; `/privasi` and `/ketentuan` hold the privacy policy and terms. Owners can delete their account and all its data in Pengaturan → Akun. See [public pages and account deletion](docs/public-pages.md).
 
 ## Setup Instructions
 
@@ -59,6 +60,7 @@ npm install
    VITE_PLAN_PRICE_IDR=49000            # plan price on the upgrade screen
    VITE_UPGRADE_WHATSAPP=6281298590798  # WhatsApp for upgrades
    VITE_GRACE_END=                      # same date as graceEnd() in firestore.rules
+   VITE_DEMO_SHOP=                      # optional shop slug for "Lihat contoh toko" on the landing page
    ```
 
 ### 4. Firebase Security Rules

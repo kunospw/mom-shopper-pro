@@ -1,4 +1,5 @@
 import { useLayoutEffect, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { ArrowLeft, Store } from "lucide-react";
 import { PLATFORM_NAME, getAccent, isBusinessLogo } from "@/lib/branding";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,18 @@ export function Callout({
   );
 }
 
+/** Platform credit on buyer pages; the link is how new sellers find the platform. */
+export function PoweredBy({ className }: { className?: string }) {
+  return (
+    <p className={cn("text-center text-xs text-muted-foreground", className)}>
+      Ditenagai {PLATFORM_NAME} ·{" "}
+      <Link to="/?ref=toko" className={cn("rounded font-semibold underline underline-offset-2", focusRing)}>
+        Buat toko seperti ini
+      </Link>
+    </p>
+  );
+}
+
 /** C5: the shop is closed or the link does not exist. */
 export function ShopUnavailable({ title, body }: { title: string; body: string }) {
   return (
@@ -118,7 +131,7 @@ export function ShopUnavailable({ title, body }: { title: string; body: string }
         </span>
         <h1 className="text-[21px] font-bold">{title}</h1>
         <p className="max-w-sm text-sm leading-relaxed text-[#3D4A42]">{body}</p>
-        <p className="mt-3 text-xs text-muted-foreground">Ditenagai {PLATFORM_NAME}</p>
+        <PoweredBy className="mt-3" />
       </main>
     </BuyerPage>
   );

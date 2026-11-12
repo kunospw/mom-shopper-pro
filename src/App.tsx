@@ -24,6 +24,18 @@ const router = createBrowserRouter([
     }),
   },
   {
+    path: "/privasi",
+    lazy: async () => ({
+      Component: (await import("./pages/Legal")).Privacy,
+    }),
+  },
+  {
+    path: "/ketentuan",
+    lazy: async () => ({
+      Component: (await import("./pages/Legal")).Terms,
+    }),
+  },
+  {
     lazy: async () => ({
       Component: (await import("./components/OwnerLayout")).OwnerLayout,
     }),

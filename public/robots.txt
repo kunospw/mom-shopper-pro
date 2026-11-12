@@ -1,14 +1,7 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
 Allow: /
+# Order status links are private to the buyer who holds them.
+Disallow: /shop/*/order/
+Disallow: /api/
+
+Sitemap: https://larisku.dyahrini.tech/sitemap.xml

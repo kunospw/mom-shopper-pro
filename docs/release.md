@@ -62,6 +62,10 @@ On a phone and a desktop, with a test account:
 - [ ] Record a purchase linked to a tracked product (stock goes up) and an expense; Laporan's breakdown adds up.
 - [ ] Invoice downloads as PDF; Promosi copies a broadcast and downloads a story image.
 - [ ] Upgrade dialog opens and the WhatsApp link carries the account code.
+- [ ] Private window: `/` shows the introduction; "Mulai gratis" opens sign-in; `/privasi` and `/ketentuan` open.
+- [ ] Paste the site link into a WhatsApp chat: the preview shows the LarisKu picture.
+- [ ] Open the login link from Instagram or TikTok: the notice names the app and offers a way to a real browser.
+- [ ] With a throwaway account that has a shop and one order: Pengaturan → Akun → Hapus akun dan data. The shop link closes and signing in again starts empty. This needs the rules from this release (see [public pages](public-pages.md)).
 - [ ] Android Chrome: "Pasang aplikasi" installs it; the icon, name and shortcuts look right; it opens full screen.
 - [ ] iPhone Safari: Bagikan → Tambahkan ke Layar Utama; then Pengaturan → Tampilan → turn on notifications (iOS 16.4+).
 - [ ] With the app open on Beranda, send an order from another device: sound, pop-up and notification arrive; "Lihat" opens that order.

@@ -67,6 +67,8 @@ export type ChatEnv = {
   OLLAMA_API_KEY?: string;
   OLLAMA_MODEL?: string;
   OLLAMA_HOST?: string;
+  /** Model calls one shop may use per day (default 300); protects the Ollama bill. */
+  SHOP_CHAT_DAILY_MAX?: string;
   VITE_FIREBASE_PROJECT_ID?: string;
   VITE_FIREBASE_API_KEY?: string;
   FIRESTORE_EMULATOR_HOST?: string;
@@ -262,7 +264,28 @@ export function allow(ip: string, now = Date.now()) {
   if (hits.size > 5000) hits.delete(hits.keys().next().value as string);
   return true;
 }
-export const resetRateLimit = () => hits.clear();
+export const resetRateLimit = () => {
+  hits.clear();
+  shopDays.clear();
+};
+
+// --- Daily cap per shop (best effort, per server instance; a restart resets it) ---
+export const DEFAULT_DAILY_MAX = 300;
+const shopDays = new Map<string, { day: string; count: number }>();
+export function dailyMax(value: string | undefined) {
+  const n = Number(value);
+  return value !== undefined && value.trim() !== "" && Number.isInteger(n) && n >= 0 ? n : DEFAULT_DAILY_MAX;
+}
+/** Counts one model call for the shop; false once today's allowance (UTC day) is used up. */
+export function allowShop(shopId: string, max: number, now = Date.now()) {
+  const day = new Date(now).toISOString().slice(0, 10);
+  const entry = shopDays.get(shopId);
+  const count = entry && entry.day === day ? entry.count : 0;
+  if (count >= max) return false;
+  shopDays.set(shopId, { day, count: count + 1 });
+  if (shopDays.size > 5000) shopDays.delete(shopDays.keys().next().value as string);
+  return true;
+}
 
 // --- Model call -----------------------------------------------------------------
 async function askModel(shop: PublicShop, req: ChatRequest, env: ChatEnv, fetchImpl: Fetch) {
@@ -314,6 +337,9 @@ export async function handleShopChat(body: unknown, ctx: { ip: string; env: Chat
   }
   if (!shop) return { status: 200, body: { reply: closedReply, productIds: [], closed: true } };
   if (!shop.assistant) return { status: 404, body: { error: "assistant-off" } };
+  // Over today's allowance: the buyer is sent to WhatsApp, the model is not called.
+  if (!allowShop(shop.id, dailyMax(ctx.env.SHOP_CHAT_DAILY_MAX)))
+    return { status: 200, body: { reply: fallbackReply, productIds: [], fallback: true } };
   const answer = await askModel(shop, parsed.data, ctx.env, fetchImpl);
   if (!answer) return { status: 200, body: { reply: fallbackReply, productIds: [], fallback: true } };
   return { status: 200, body: answer };

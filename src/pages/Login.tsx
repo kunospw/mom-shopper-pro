@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BarChart3,
   CircleAlert,
   Copy,
+  ExternalLink,
   FileText,
   Inbox,
   Info,
@@ -20,6 +21,7 @@ import {
 import { PLATFORM_NAME, PLATFORM_TAGLINE, accents } from "@/lib/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { chromeIntent, inAppBrowser } from "@/lib/in-app-browser";
 
 type State = "idle" | "loading" | "failed" | "blocked";
 
@@ -234,6 +236,9 @@ export const Login = () => {
     );
 
   const busy = state === "loading";
+  // Google sign-in does not work inside chat and social apps' built-in browsers.
+  const embeddedIn = inAppBrowser(navigator.userAgent);
+  const openInChrome = embeddedIn ? chromeIntent(window.location.href, navigator.userAgent) : null;
   const panel = (mobile: boolean) => (
     <div className={cn("flex flex-col", mobile ? "gap-4" : "w-full max-w-[400px] gap-7")}>
       {!mobile && (
@@ -259,6 +264,23 @@ export const Login = () => {
           <span><strong>Jendela Google diblokir browser.</strong> Izinkan pop-up untuk situs ini, atau buka di Chrome/Safari jika Anda membuka dari WhatsApp.</span>
         </div>
       )}
+      {embeddedIn && state !== "blocked" && (
+        <div role="status" className="flex gap-2.5 rounded-xl bg-warning-soft p-3.5 text-[13.5px] leading-normal text-warning">
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            <strong>Anda membuka dari {embeddedIn}.</strong> Masuk dengan Google sering gagal di sini. Buka halaman ini di Chrome atau Safari{openInChrome ? "." : ": ketuk menu ⋯ lalu pilih “Buka di browser”, atau salin alamatnya."}
+          </span>
+        </div>
+      )}
+      {openInChrome && (
+        <a
+          href={openInChrome}
+          className="flex h-12 items-center justify-center gap-2 rounded-[14px] border border-input bg-white text-[15px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          Buka di Chrome
+        </a>
+      )}
       <button
         type="button"
         onClick={() => void signIn()}
@@ -279,7 +301,7 @@ export const Login = () => {
           <span>Pilih akun di jendela Google yang terbuka. Jangan tutup halaman ini.</span>
         </div>
       )}
-      {state === "blocked" && (
+      {(state === "blocked" || embeddedIn) && (
         <button
           type="button"
           onClick={() => void copyAddress()}
@@ -302,6 +324,11 @@ export const Login = () => {
           <p className="flex gap-2.5"><Lock className="mt-px h-4 w-4 shrink-0 text-primary" aria-hidden="true" />Catatan usaha hanya bisa dilihat oleh akun Anda. Pembeli hanya melihat katalog yang Anda buka.</p>
         </div>
       )}
+      <p className={cn("text-[12.5px] leading-normal text-muted-foreground", !mobile && "text-center")}>
+        Dengan masuk, Anda menyetujui{" "}
+        <Link to="/ketentuan" className="font-semibold underline underline-offset-2">Syarat &amp; ketentuan</Link> dan{" "}
+        <Link to="/privasi" className="font-semibold underline underline-offset-2">Kebijakan privasi</Link>.
+      </p>
     </div>
   );
 

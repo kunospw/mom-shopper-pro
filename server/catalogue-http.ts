@@ -37,7 +37,7 @@ async function shopChat(req: IncomingMessage, res: ServerResponse) {
   const ip = String(req.headers["x-forwarded-for"] ?? "").split(",")[0].trim() || "unknown";
   const env = process.env;
   const result = await handleShopChat(body, { ip, env: {
-    OLLAMA_API_KEY: env.OLLAMA_API_KEY, OLLAMA_MODEL: env.OLLAMA_MODEL, OLLAMA_HOST: env.OLLAMA_HOST,
+    OLLAMA_API_KEY: env.OLLAMA_API_KEY, OLLAMA_MODEL: env.OLLAMA_MODEL, OLLAMA_HOST: env.OLLAMA_HOST, SHOP_CHAT_DAILY_MAX: env.SHOP_CHAT_DAILY_MAX,
     VITE_FIREBASE_PROJECT_ID: env.CATALOGUE_FIREBASE_PROJECT_ID, VITE_FIREBASE_API_KEY: env.SHOP_CHAT_FIREBASE_API_KEY,
     FIRESTORE_EMULATOR_HOST: env.FIRESTORE_EMULATOR_HOST,
   } });
